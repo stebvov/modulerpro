@@ -2139,12 +2139,179 @@ function Procurement({procH,materials,projects}){
   </div>;
 }
 
+// ─── PROJECT CHECKLIST ────────────────────────────────────────────────────────
+function ProjectChecklist({project,operations,checklistH,user}){
+  const {data:allChecks,create:createCheck,update:updateCheck,remove:removeCheck}=checklistH;
+  const checks=allChecks.filter(c=>c.project_id===project.id).sort((a,b)=>a.sort_order-b.sort_order);
+  const [generating,setGenerating]=useState(false);
+  const [expandPhase,setExpandPhase]=useState(null);
+  const [addNote,setAddNote]=useState(null);
+  const [noteText,setNoteText]=useState("");
+
+  const phases=[...new Set(checks.map(c=>c.phase))];
+  const totalDone=checks.filter(c=>c.done).length;
+  const totalCrit=checks.filter(c=>c.is_critical&&!c.done).length;
+  const pct=checks.length>0?Math.round(totalDone/checks.length*100):0;
+
+  // Генеруємо чеклист з operations
+  async function generate(){
+    setGenerating(true);
+    // Видаляємо старий якщо є
+    for(const c of checks) await removeCheck(c.id);
+
+    // Додаємо стандартні операції
+    const items=[
+      // Підготовка
+      {phase:"0. Підготовка",name:"Перевірити фундамент / основу",sort:1,is_critical:true},
+      {phase:"0. Підготовка",name:"Обробити деревину вогнезахистом",sort:2,is_critical:true},
+      {phase:"0. Підготовка",name:"Перевірити комплектність матеріалів",sort:3,is_critical:false},
+
+      // З operations
+      ...operations.sort((a,b)=>a.sort_order-b.sort_order).map((op,i)=>({
+        phase:op.phase,
+        name:op.name,
+        sort:op.sort_order||i+10,
+        is_critical:op.note?.includes("‼️")||op.note?.includes("КРИТИЧНО")||false,
+      })),
+
+      // Критичні точки контролю
+      {phase:"⚠️ Контроль якості",name:"Паробар'єр — всі стики бутилкаучуковим скотчем",sort:90,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"Паробар'єр — обходи комунікацій герметизовані",sort:91,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"Мембрана зовні — стики армованим скотчем",sort:92,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"Вентзазори не перекриті (зовні 30мм, всередині 40мм)",sort:93,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"ПВХ покрівля — мембрана припаяна по периметру",sort:94,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"Уклон покрівлі мінімум 2см/м",sort:95,is_critical:true},
+      {phase:"⚠️ Контроль якості",name:"Всі електролінії в гофрорукаві",sort:96,is_critical:true},
+
+      // Здача
+      {phase:"🏁 Здача",name:"Прибирання об'єкту",sort:100,is_critical:false},
+      {phase:"🏁 Здача",name:"Фото-фіксація всіх вузлів",sort:101,is_critical:false},
+      {phase:"🏁 Здача",name:"Перевірка електрики (прозвонка)",sort:102,is_critical:true},
+      {phase:"🏁 Здача",name:"Перевірка водопроводу (тиск)",sort:103,is_critical:true},
+      {phase:"🏁 Здача",name:"Підписання акту здачі",sort:104,is_critical:false},
+    ];
+
+    for(const item of items){
+      await createCheck({...item,project_id:project.id,done:false});
+    }
+    setGenerating(false);
+  }
+
+  const phaseStats=(ph)=>{
+    const phChecks=checks.filter(c=>c.phase===ph);
+    const done=phChecks.filter(c=>c.done).length;
+    const crit=phChecks.filter(c=>c.is_critical&&!c.done).length;
+    return {total:phChecks.length,done,crit};
+  };
+
+  if(checks.length===0) return <div>
+    <div style={{textAlign:"center",padding:30}}>
+      <div style={{fontSize:40,marginBottom:12}}>📋</div>
+      <div style={{fontWeight:700,fontSize:15,color:"#1e293b",marginBottom:8}}>Чеклист не створено</div>
+      <div style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>Система згенерує чеклист по всіх фазах будівництва з урахуванням критичних точок контролю</div>
+      <Btn onClick={generate} color="#6366f1" full disabled={generating}>
+        {generating?"⟳ Генерую...":"📋 Створити чеклист проєкту"}
+      </Btn>
+    </div>
+  </div>;
+
+  return <div>
+    {/* Прогрес */}
+    <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div>
+          <div style={{fontSize:11,color:"#475569",marginBottom:2}}>ПРОГРЕС БУДІВНИЦТВА</div>
+          <div style={{fontSize:24,fontWeight:900,color:pct===100?"#22c55e":"#fff"}}>{pct}%</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:12,color:"#94a3b8"}}>{totalDone}/{checks.length} виконано</div>
+          {totalCrit>0&&<div style={{fontSize:11,color:"#ef4444",marginTop:4}}>🔴 {totalCrit} критичних не виконано</div>}
+          {totalCrit===0&&totalDone>0&&<div style={{fontSize:11,color:"#10b981",marginTop:4}}>✅ Всі критичні виконані</div>}
+        </div>
+      </div>
+      <div style={{background:"#ffffff20",borderRadius:99,height:10}}>
+        <div style={{width:pct+"%",height:"100%",background:pct===100?"#22c55e":"#3b82f6",borderRadius:99,transition:"width .3s"}}/>
+      </div>
+    </Card>
+
+    {totalCrit>0&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#dc2626"}}>
+      🔴 Увага! {totalCrit} критичних пунктів не виконано — перевірте перед закриттям конструкції!
+    </div>}
+
+    {/* По фазах */}
+    {phases.map(ph=>{
+      const phChecks=checks.filter(c=>c.phase===ph);
+      const {total,done,crit}=phaseStats(ph);
+      const isOpen=expandPhase===ph;
+      const phPct=total>0?Math.round(done/total*100):0;
+
+      return <div key={ph} style={{marginBottom:8}}>
+        <button onClick={()=>setExpandPhase(isOpen?null:ph)}
+          style={{width:"100%",background:"#fff",border:"none",borderRadius:12,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px #00000010",borderLeft:`3px solid ${phPct===100?"#10b981":crit>0?"#ef4444":"#3b82f6"}`}}>
+          <div style={{textAlign:"left",flex:1}}>
+            <div style={{fontWeight:700,fontSize:13}}>{ph}</div>
+            <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{done}/{total} · {phPct}%{crit>0?` · 🔴 ${crit} критичних`:""}</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:40,height:40,borderRadius:"50%",background:`conic-gradient(${phPct===100?"#10b981":"#3b82f6"} ${phPct*3.6}deg,#f1f5f9 0deg)`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:phPct===100?"#10b981":"#3b82f6"}}>{phPct}%</div>
+            </div>
+            <span style={{fontSize:12,color:"#94a3b8"}}>{isOpen?"▲":"▼"}</span>
+          </div>
+        </button>
+
+        {isOpen&&<div style={{background:"#f8fafc",borderRadius:"0 0 12px 12px",padding:"8px"}}>
+          {phChecks.map(item=><div key={item.id} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:6,borderLeft:`3px solid ${item.done?"#10b981":item.is_critical?"#ef4444":"#e2e8f0"}`}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <button onClick={async()=>{
+                await updateCheck(item.id,{
+                  done:!item.done,
+                  done_at:!item.done?new Date().toISOString():null,
+                  done_by:!item.done?(user?.name||"Бригада"):null,
+                });
+              }} style={{width:24,height:24,borderRadius:7,border:`2px solid ${item.done?"#10b981":item.is_critical?"#ef4444":"#e2e8f0"}`,background:item.done?"#10b981":"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,marginTop:1}}>
+                {item.done?"✓":""}
+              </button>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:item.is_critical?700:500,color:item.done?"#94a3b8":"#1e293b",textDecoration:item.done?"line-through":"none"}}>
+                  {item.is_critical&&!item.done&&<span style={{color:"#ef4444"}}>🔴 </span>}
+                  {item.name}
+                </div>
+                {item.done&&item.done_by&&<div style={{fontSize:10,color:"#10b981",marginTop:2}}>✅ {item.done_by} · {item.done_at?new Date(item.done_at).toLocaleDateString("uk-UA"):""}</div>}
+                {item.note&&<div style={{fontSize:11,color:"#64748b",marginTop:3,background:"#f8fafc",borderRadius:6,padding:"2px 6px"}}>{item.note}</div>}
+
+                {addNote===item.id?<div style={{marginTop:6}}>
+                  <div style={{display:"flex",gap:6}}>
+                    <Input value={noteText} onChange={setNoteText} placeholder="Нотатка..." style={{flex:1,fontSize:11}}/>
+                    <Btn small onClick={async()=>{await updateCheck(item.id,{note:noteText});setAddNote(null);setNoteText("");}}>→</Btn>
+                    <Btn small outline color="#94a3b8" onClick={()=>setAddNote(null)}>✕</Btn>
+                  </div>
+                </div>:<button onClick={()=>{setAddNote(item.id);setNoteText(item.note||"");}}
+                  style={{marginTop:4,background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:10}}>
+                  + нотатка
+                </button>}
+              </div>
+            </div>
+          </div>)}
+        </div>}
+      </div>;
+    })}
+
+    <div style={{marginTop:10,display:"flex",gap:8}}>
+      <Btn onClick={generate} outline color="#6366f1" full small disabled={generating}>
+        🔄 Перегенерувати
+      </Btn>
+    </div>
+  </div>;
+}
+
 // ─── PROJECT LOG (comments + tasks) ──────────────────────────────────────────
-function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,projectsH}){
+function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,projectsH,operationsH,checklistH}){
   const {data:allComments,create:createComment}=commentsH;
   const {data:allTasks,create:createTask,update:updateTask,remove:removeTask}=tasksH;
   const bom=(bomH?.data||[]).filter(b=>b.model===project.bom_model||b.model==="3x6");
   const materials=materialsH?.data||[];
+  const operations=operationsH?.data||[];
   const [tab,setTab]=useState("log");
   const [msg,setMsg]=useState("");
   const [msgType,setMsgType]=useState("comment");
@@ -2163,11 +2330,12 @@ function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,project
 
   return <div>
     <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-      {[["log",`💬 Лог`],["tasks",`✅ (${openTasks})`],["spec","📋 Специф."]].map(([id,lbl])=>(
+      {[["log",`💬 Лог`],["tasks",`✅ (${openTasks})`],["spec","📋 Специф."],["check","☑️ Чеклист"]].map(([id,lbl])=>(
         <button key={id} onClick={()=>setTab(id)} style={{flexShrink:0,padding:"7px 10px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:11,background:tab===id?"#1e293b":"#e2e8f0",color:tab===id?"#fff":"#64748b"}}>{lbl}</button>
       ))}
     </div>
 
+    {tab==="check"&&<ProjectChecklist project={project} operations={operations} checklistH={checklistH} user={user}/>}
     {/* ── СПЕЦИФІКАЦІЯ ── */}
     {tab==="spec"&&<ProjectSpec project={project} bom={bom} materials={materials} procH={procH} projectsH={projectsH}/>}
 
@@ -2260,7 +2428,7 @@ function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,project
 }
 
 // ─── PROJECTS ─────────────────────────────────────────────────────────────────
-function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,materialsH,procH}){
+function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,materialsH,procH,operationsH,checklistH}){
   const {data:projects,loading,saving,create,update,remove}=hook;
   const {data:allComments}=commentsH;
   const {data:allTasks}=tasksH;
@@ -2487,7 +2655,7 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
 
     {/* Log modal */}
     {logProject&&<Modal title={logProject.name} onClose={()=>setLogProject(null)}>
-      <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user} bomH={bomH} materialsH={materialsH} procH={procH} projectsH={hook}/>
+      <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user} bomH={bomH} materialsH={materialsH} procH={procH} projectsH={hook} operationsH={operationsH} checklistH={checklistH}/>
     </Modal>}
   </div>;
 }
@@ -3572,6 +3740,7 @@ export default function App(){
   const membersH   =useTable("project_members");
   const statsH     =useTable("monthly_stats","order=month.asc");
   const contactsH  =useTable("crm_contacts","order=created_at.desc");
+  const checklistH =useTable("project_checklist","order=sort_order.asc");
   const commentsH  =useTable("project_comments","order=created_at.desc");
   const tasksH     =useTable("project_tasks","order=created_at.asc");
 
@@ -3660,7 +3829,7 @@ export default function App(){
       {module==="products"    && <Products    productsH={productsH} onNav={nav}/>}
       {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
       {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data}/>}
-      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH}/>}
+      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH}/>}
       {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH}}/>}
       {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
       {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
