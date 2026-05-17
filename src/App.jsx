@@ -2139,6 +2139,174 @@ function Procurement({procH,materials,projects}){
   </div>;
 }
 
+// ─── PROJECT DOCUMENTS ────────────────────────────────────────────────────────
+const DOC_TYPES={
+  contract: {l:"📄 Договір",     c:"#6366f1"},
+  kp:       {l:"💰 КП",          c:"#10b981"},
+  schema:   {l:"📐 Схема/КД",    c:"#3b82f6"},
+  photo:    {l:"📷 Фото",        c:"#f59e0b"},
+  act:      {l:"✅ Акт",         c:"#22c55e"},
+  invoice:  {l:"🧾 Рахунок",     c:"#8b5cf6"},
+  other:    {l:"📎 Інше",        c:"#94a3b8"},
+};
+
+function ProjectDocuments({project,docsH,user}){
+  const {data:allDocs,create:addDoc,remove:removeDoc}=docsH;
+  const docs=allDocs.filter(d=>d.project_id===project.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const [uploading,setUploading]=useState(false);
+  const [uploadProgress,setUploadProgress]=useState(0);
+  const [filter,setFilter]=useState("all");
+  const [linkModal,setLinkModal]=useState(false);
+  const [linkForm,setLinkForm]=useState({name:"",type:"other",url:"",note:""});
+
+  const filteredDocs=filter==="all"?docs:docs.filter(d=>d.type===filter);
+
+  // Завантаження файлу в Supabase Storage
+  async function uploadFile(file){
+    if(!file)return;
+    setUploading(true);
+    setUploadProgress(0);
+
+    try{
+      const ext=file.name.split(".").pop();
+      const path=`${project.id}/${Date.now()}.${ext}`;
+      const url=`${SUPABASE_URL}/storage/v1/object/project-files/${path}`;
+
+      const resp=await fetch(url,{
+        method:"POST",
+        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":file.type,"x-upsert":"true"},
+        body:file,
+      });
+
+      if(!resp.ok)throw new Error("Upload failed");
+
+      const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/project-files/${path}`;
+
+      // Визначаємо тип файлу
+      let type="other";
+      const name=file.name.toLowerCase();
+      if(name.includes("договір")||name.includes("contract"))type="contract";
+      else if(name.includes("кп")||name.includes("пропозиц"))type="kp";
+      else if(name.includes("схем")||name.includes("план")||name.includes("кд"))type="schema";
+      else if(name.includes("фото")||name.includes("photo")||name.match(/\.(jpg|jpeg|png|webp)$/))type="photo";
+      else if(name.includes("акт")||name.includes("act"))type="act";
+      else if(name.includes("рахун")||name.includes("invoice"))type="invoice";
+
+      await addDoc({
+        project_id:project.id,
+        name:file.name,
+        type,
+        url:publicUrl,
+        size_kb:Math.round(file.size/1024),
+        uploaded_by:user?.name||"Менеджер",
+      });
+
+    }catch(e){
+      alert("Помилка завантаження: "+e.message);
+    }finally{
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  }
+
+  const isImage=(url)=>url&&/\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+
+  return <div>
+    {/* Завантаження */}
+    <Card style={{borderLeft:"3px solid #3b82f6",marginBottom:14}}>
+      <div style={{fontWeight:700,fontSize:12,marginBottom:8}}>📤 Додати файл</div>
+
+      {/* Drag & Drop зона */}
+      <div
+        style={{border:"2px dashed #e2e8f0",borderRadius:12,padding:"20px",textAlign:"center",marginBottom:8,cursor:"pointer",background:uploading?"#f0f9ff":"#f8fafc"}}
+        onClick={()=>document.getElementById("file-upload-"+project.id).click()}
+        onDragOver={e=>{e.preventDefault();e.currentTarget.style.borderColor="#3b82f6";}}
+        onDragLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";}}
+        onDrop={e=>{e.preventDefault();e.currentTarget.style.borderColor="#e2e8f0";const f=e.dataTransfer.files[0];if(f)uploadFile(f);}}>
+        <input id={"file-upload-"+project.id} type="file"
+          accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+          style={{display:"none"}}
+          onChange={e=>e.target.files[0]&&uploadFile(e.target.files[0])}/>
+        {uploading?<>
+          <div style={{fontSize:20,marginBottom:8}}>⟳</div>
+          <div style={{fontSize:12,color:"#3b82f6"}}>Завантаження...</div>
+        </>:<>
+          <div style={{fontSize:28,marginBottom:6}}>📎</div>
+          <div style={{fontSize:12,color:"#64748b"}}>Натисніть або перетягніть файл</div>
+          <div style={{fontSize:10,color:"#94a3b8",marginTop:4}}>PDF, Word, JPG, PNG (до 50МБ)</div>
+        </>}
+      </div>
+
+      {/* Або додати посилання */}
+      <button onClick={()=>setLinkModal(true)}
+        style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#64748b"}}>
+        🔗 Додати посилання (Google Drive, Dropbox...)
+      </button>
+    </Card>
+
+    {/* Фільтр */}
+    {docs.length>0&&<div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:12,paddingBottom:4}}>
+      <button onClick={()=>setFilter("all")} style={{flexShrink:0,fontSize:10,padding:"3px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter==="all"?"#1e293b":"#e2e8f0",color:filter==="all"?"#fff":"#475569"}}>
+        Всі ({docs.length})
+      </button>
+      {Object.entries(DOC_TYPES).filter(([k])=>docs.some(d=>d.type===k)).map(([k,v])=>(
+        <button key={k} onClick={()=>setFilter(k)} style={{flexShrink:0,fontSize:10,padding:"3px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter===k?v.c:"#e2e8f0",color:filter===k?"#fff":"#475569"}}>{v.l}</button>
+      ))}
+    </div>}
+
+    {/* Список документів */}
+    {filteredDocs.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20,fontSize:13}}>
+      {docs.length===0?"Документів ще немає":"Немає документів цього типу"}
+    </div>}
+
+    {filteredDocs.map(doc=>{
+      const t=DOC_TYPES[doc.type]||DOC_TYPES.other;
+      return <Card key={doc.id} style={{margin:"0 0 8px",padding:"10px 12px",borderLeft:`3px solid ${t.c}`}}>
+        {/* Превью фото */}
+        {isImage(doc.url)&&<div style={{marginBottom:8,borderRadius:8,overflow:"hidden",maxHeight:160}}>
+          <img src={doc.url} alt={doc.name} style={{width:"100%",objectFit:"cover",maxHeight:160}} loading="lazy"/>
+        </div>}
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <Badge color={t.c}>{t.l}</Badge>
+              {doc.size_kb>0&&<span style={{fontSize:9,color:"#94a3b8"}}>{doc.size_kb}КБ</span>}
+            </div>
+            <div style={{fontSize:12,fontWeight:600,color:"#1e293b",marginBottom:2,wordBreak:"break-all"}}>{doc.name}</div>
+            <div style={{fontSize:10,color:"#94a3b8"}}>👔 {doc.uploaded_by} · {fmtDate(doc.created_at)}</div>
+            {doc.note&&<div style={{fontSize:11,color:"#64748b",marginTop:2}}>{doc.note}</div>}
+          </div>
+          <div style={{display:"flex",gap:5,marginLeft:8,flexShrink:0}}>
+            {doc.url&&<a href={doc.url} target="_blank" rel="noopener noreferrer"
+              style={{background:"#f0f9ff",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>
+              ↗ Відкрити
+            </a>}
+            <button onClick={()=>confirm("Видалити документ?")&&removeDoc(doc.id)}
+              style={{background:"#fef2f2",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗑</button>
+          </div>
+        </div>
+      </Card>;
+    })}
+
+    {/* Modal для посилання */}
+    {linkModal&&<Modal title="Додати посилання" onClose={()=>setLinkModal(false)}>
+      <Lbl>Назва файлу</Lbl><Input value={linkForm.name} onChange={v=>setLinkForm(p=>({...p,name:v}))} placeholder="Договір підряду.pdf"/>
+      <Lbl>Тип</Lbl><Sel value={linkForm.type} onChange={v=>setLinkForm(p=>({...p,type:v}))} options={Object.entries(DOC_TYPES).map(([v,d])=>({v,l:d.l}))}/>
+      <Lbl>Посилання</Lbl><Input value={linkForm.url} onChange={v=>setLinkForm(p=>({...p,url:v}))} placeholder="https://drive.google.com/..."/>
+      <Lbl>Нотатка</Lbl><Input value={linkForm.note} onChange={v=>setLinkForm(p=>({...p,note:v}))} placeholder="Опис..."/>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setLinkModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{
+          if(!linkForm.name||!linkForm.url)return;
+          await addDoc({project_id:project.id,...linkForm,size_kb:0,uploaded_by:user?.name||"Менеджер"});
+          setLinkModal(false);setLinkForm({name:"",type:"other",url:"",note:""});
+        }} color="#3b82f6" style={{flex:2}}>💾 Зберегти</Btn>
+      </div>
+    </Modal>}
+  </div>;
+}
+
 // ─── PROJECT CHECKLIST ────────────────────────────────────────────────────────
 function ProjectChecklist({project,operations,checklistH,user}){
   const {data:allChecks,create:createCheck,update:updateCheck,remove:removeCheck}=checklistH;
@@ -2306,7 +2474,7 @@ function ProjectChecklist({project,operations,checklistH,user}){
 }
 
 // ─── PROJECT LOG (comments + tasks) ──────────────────────────────────────────
-function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,projectsH,operationsH,checklistH}){
+function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,projectsH,operationsH,checklistH,docsH}){
   const {data:allComments,create:createComment}=commentsH;
   const {data:allTasks,create:createTask,update:updateTask,remove:removeTask}=tasksH;
   const bom=(bomH?.data||[]).filter(b=>b.model===project.bom_model||b.model==="3x6");
@@ -2330,11 +2498,12 @@ function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,project
 
   return <div>
     <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-      {[["log",`💬 Лог`],["tasks",`✅ (${openTasks})`],["spec","📋 Специф."],["check","☑️ Чеклист"]].map(([id,lbl])=>(
+      {[["log",`💬 Лог`],["tasks",`✅ (${openTasks})`],["spec","📋 Специф."],["check","☑️ Чеклист"],["docs","📁 Файли"]].map(([id,lbl])=>(
         <button key={id} onClick={()=>setTab(id)} style={{flexShrink:0,padding:"7px 10px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:11,background:tab===id?"#1e293b":"#e2e8f0",color:tab===id?"#fff":"#64748b"}}>{lbl}</button>
       ))}
     </div>
 
+    {tab==="docs"&&<ProjectDocuments project={project} docsH={docsH} user={user}/>}
     {tab==="check"&&<ProjectChecklist project={project} operations={operations} checklistH={checklistH} user={user}/>}
     {/* ── СПЕЦИФІКАЦІЯ ── */}
     {tab==="spec"&&<ProjectSpec project={project} bom={bom} materials={materials} procH={procH} projectsH={projectsH}/>}
@@ -2428,7 +2597,7 @@ function ProjectLog({project,commentsH,tasksH,user,bomH,materialsH,procH,project
 }
 
 // ─── PROJECTS ─────────────────────────────────────────────────────────────────
-function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,materialsH,procH,operationsH,checklistH}){
+function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,materialsH,procH,operationsH,checklistH,docsH}){
   const {data:projects,loading,saving,create,update,remove}=hook;
   const {data:allComments}=commentsH;
   const {data:allTasks}=tasksH;
@@ -2655,7 +2824,7 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
 
     {/* Log modal */}
     {logProject&&<Modal title={logProject.name} onClose={()=>setLogProject(null)}>
-      <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user} bomH={bomH} materialsH={materialsH} procH={procH} projectsH={hook} operationsH={operationsH} checklistH={checklistH}/>
+      <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user} bomH={bomH} materialsH={materialsH} procH={procH} projectsH={hook} operationsH={operationsH} checklistH={checklistH} docsH={docsH}/>
     </Modal>}
   </div>;
 }
@@ -3741,6 +3910,7 @@ export default function App(){
   const statsH     =useTable("monthly_stats","order=month.asc");
   const contactsH  =useTable("crm_contacts","order=created_at.desc");
   const checklistH =useTable("project_checklist","order=sort_order.asc");
+  const docsH      =useTable("project_documents","order=created_at.desc");
   const commentsH  =useTable("project_comments","order=created_at.desc");
   const tasksH     =useTable("project_tasks","order=created_at.asc");
 
@@ -3829,7 +3999,7 @@ export default function App(){
       {module==="products"    && <Products    productsH={productsH} onNav={nav}/>}
       {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
       {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data}/>}
-      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH}/>}
+      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH}/>}
       {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH}}/>}
       {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
       {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
