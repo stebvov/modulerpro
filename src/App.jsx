@@ -678,7 +678,195 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
 
   const [searchOpen,setSearchOpen]=useState(false);
   const [quickComment,setQuickComment]=useState({});
+  const [commentSaved,setCommentSaved]=useState({});
   const [expanded,setExpanded]=useState(null);
+  const [selectedProject,setSelectedProject]=useState(null); // для детального перегляду
+
+  const STAGE_HINTS={
+    lead:"Нова заявка — клієнт зацікавлений, переговори",
+    design:"Проєктування — КД, специфікація, погодження",
+    purchase:"Закупівля — замовлення матеріалів",
+    production:"Виробництво — виготовлення каркасу",
+    installation:"Монтаж — встановлення на об'єкті",
+    delivery:"Здача — фінальна перевірка, акт",
+    paid:"Оплачено — проєкт завершено ✅",
+  };
+
+  const near=[...projects].filter(p=>p.stage!=="paid"&&p.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline)).slice(0,5);
+
+  const kpis=[
+    {l:"Активних проєктів", v:projects.filter(p=>p.stage!=="paid").length, c:"#3b82f6", i:"🏗️", nav:"projects"},
+    {l:`Маржа (${mPct}%)`,  v:"₴"+fmt(margin), c:mPct>=25?"#10b981":mPct>=15?"#f59e0b":"#ef4444", i:"📈", nav:"analytics"},
+    {l:"Праця (1 будинок)", v:"₴"+fmt(laborCost), c:"#06b6d4", i:"👷", nav:"costing"},
+    {l:"Закупити позицій",  v:pendingProc, c:pendingProc>0?"#f59e0b":"#10b981", i:"📦", nav:"procurement"},
+    {l:"Відкриті задачі",   v:openTasks, c:critTasks>0?"#ef4444":openTasks>0?"#f59e0b":"#10b981", i:"✅", nav:"projects"},
+    {l:"Аванси в касі",     v:"₴"+fmt(tAdv), c:"#8b5cf6", i:"💳", nav:"analytics"},
+  ];
+
+  // Детальний вигляд одного проєкту
+  if(selectedProject){
+    const p=projects.find(x=>x.id===selectedProject);
+    if(!p) return null;
+    const s=STAGES.find(x=>x.id===p.stage)||STAGES[0];
+    const pTasks=(tasks||[]).filter(t=>t.project_id===p.id);
+    const pComments=(commentsH?.data||[]).filter(c=>c.project_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    return <div>
+      <button onClick={()=>setSelectedProject(null)} style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>← Назад до дашборду</button>
+      <Card style={{borderLeft:`3px solid ${s.color}`}}>
+        <div style={{fontWeight:800,fontSize:16,marginBottom:4}}>{p.name}</div>
+        <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>👤 {p.client}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          <Badge color={s.color}>{s.emoji} {s.label}</Badge>
+          <DL date={p.deadline}/>
+          <Badge color={+p.sale_price-+p.spent>=0?"#10b981":"#ef4444"}>Маржа {+p.sale_price>0?Math.round((+p.sale_price-+p.spent)/+p.sale_price*100):0}%</Badge>
+        </div>
+        <div style={{fontSize:11,color:"#64748b",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginBottom:10}}>
+          💡 {STAGE_HINTS[p.stage]||""}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
+          <span style={{color:"#94a3b8"}}>Прогрес</span>
+          <span style={{fontWeight:700,color:s.color}}>{p.progress}%</span>
+        </div>
+        <PBar value={p.progress} color={s.color}/>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+          <input type="range" min="0" max="100" value={p.progress}
+            onChange={e=>projectsH.update(p.id,{progress:+e.target.value})}
+            style={{flex:1,accentColor:s.color}}/>
+          <input type="number" min="0" max="100" value={p.progress}
+            onChange={e=>projectsH.update(p.id,{progress:Math.min(100,Math.max(0,+e.target.value))})}
+            style={{width:52,padding:"4px 6px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:12,textAlign:"center"}}/>
+          <span style={{fontSize:11,color:"#94a3b8"}}>%</span>
+        </div>
+      </Card>
+
+      {/* Зміна етапу з підказками */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:12,marginBottom:10}}>Змінити етап</div>
+        {STAGES.map(st=><button key={st.id} onClick={()=>projectsH.update(p.id,{stage:st.id})}
+          style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"8px 10px",marginBottom:5,border:`2px solid ${p.stage===st.id?st.color:"#e2e8f0"}`,borderRadius:10,background:p.stage===st.id?st.color+"15":"#fff",cursor:"pointer",textAlign:"left"}}>
+          <span style={{fontSize:16}}>{st.emoji}</span>
+          <div>
+            <div style={{fontSize:12,fontWeight:p.stage===st.id?700:500,color:p.stage===st.id?st.color:"#1e293b"}}>{st.label}</div>
+            <div style={{fontSize:10,color:"#94a3b8"}}>{STAGE_HINTS[st.id]}</div>
+          </div>
+          {p.stage===st.id&&<span style={{marginLeft:"auto",color:st.color,fontSize:14}}>✓</span>}
+        </button>)}
+      </Card>
+
+      {/* Задачі */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:12,marginBottom:10}}>
+          ✅ Задачі ({pTasks.filter(t=>!t.done).length} відкритих)
+        </div>
+        {pTasks.map(t=><div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #f9fafb",opacity:t.done?0.6:1}}>
+          <button onClick={()=>tasksH.update(t.id,{done:!t.done,done_at:!t.done?new Date().toISOString():null})}
+            style={{width:22,height:22,borderRadius:6,border:`2px solid ${t.done?"#10b981":"#e2e8f0"}`,background:t.done?"#10b981":"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12}}>
+            {t.done?"✓":""}
+          </button>
+          <span style={{fontSize:12,flex:1,textDecoration:t.done?"line-through":"none",color:t.done?"#94a3b8":"#1e293b"}}>{t.text}</span>
+          {t.done&&<span style={{fontSize:10,color:"#94a3b8"}}>↩ скасувати</span>}
+        </div>)}
+        {pTasks.length===0&&<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:8}}>Задач немає</div>}
+      </Card>
+
+      {/* Коментар */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:12,marginBottom:8}}>💬 Додати коментар</div>
+        <div style={{display:"flex",gap:6}}>
+          <Input value={quickComment[p.id]||""} onChange={v=>setQuickComment(prev=>({...prev,[p.id]:v}))}
+            placeholder="Оновлення, проблема, нотатка..." style={{flex:1,fontSize:12}}/>
+          <Btn small onClick={async()=>{
+            const text=quickComment[p.id]?.trim();
+            if(!text)return;
+            await commentsH.create({project_id:p.id,author:user?.name||"Менеджер",text,type:"update"});
+            setQuickComment(prev=>({...prev,[p.id]:""}));
+            setCommentSaved(prev=>({...prev,[p.id]:true}));
+            setTimeout(()=>setCommentSaved(prev=>({...prev,[p.id]:false})),2000);
+          }}>→</Btn>
+        </div>
+        {commentSaved[p.id]&&<div style={{fontSize:11,color:"#10b981",marginTop:6}}>✅ Коментар збережено в логу проєкту</div>}
+
+        {pComments.length>0&&<>
+          <div style={{fontSize:10,color:"#94a3b8",margin:"10px 0 6px",fontWeight:600}}>ОСТАННІ КОМЕНТАРІ</div>
+          {pComments.slice(0,3).map(c=><div key={c.id} style={{padding:"6px 0",borderBottom:"1px solid #f9fafb"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+              <span style={{fontSize:11,fontWeight:600}}>{c.author}</span>
+              <span style={{fontSize:10,color:"#94a3b8"}}>{fmtDate(c.created_at)}</span>
+            </div>
+            <div style={{fontSize:12,color:"#475569"}}>{c.text}</div>
+          </div>)}
+        </>}
+      </Card>
+    </div>;
+  }
+
+  return <div>
+    {/* Пошуковий рядок */}
+    <div style={{marginBottom:12}}>
+      {searchOpen
+        ?<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",boxShadow:"0 4px 20px #00000015"}}>
+          <GlobalSearch projects={projects} clients={clients||[]} materials={materials||[]} knowledge={knowledge||[]} tasks={tasks||[]} onNav={onNav} onClose={()=>setSearchOpen(false)}/>
+          <button onClick={()=>setSearchOpen(false)} style={{width:"100%",background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:12,marginTop:8}}>Закрити</button>
+        </div>
+        :<button onClick={()=>setSearchOpen(true)} style={{width:"100%",padding:"10px 14px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"#fff",cursor:"pointer",textAlign:"left",fontSize:13,color:"#94a3b8",display:"flex",alignItems:"center",gap:8}}>
+          <span>🔍</span><span>Пошук по системі...</span>
+        </button>}
+    </div>
+
+    {overdue.length>0&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
+      🚨 {overdue.length} прострочено! <span onClick={()=>onNav("projects")} style={{textDecoration:"underline",cursor:"pointer"}}>Переглянути →</span>
+    </div>}
+
+    {/* KPI картки — клікабельні */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+      {kpis.map((k,i)=><Card key={i} style={{margin:0,padding:"12px 14px",cursor:"pointer",borderBottom:`3px solid ${k.c}`}} onClick={()=>onNav(k.nav)}>
+        <div style={{fontSize:20,marginBottom:4}}>{k.i}</div>
+        <div style={{fontSize:15,fontWeight:800,color:k.c}}>{k.v}</div>
+        <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{k.l}</div>
+        <div style={{fontSize:9,color:k.c,marginTop:2,fontWeight:600}}>→ перейти</div>
+      </Card>)}
+    </div>
+
+    {/* Фінансовий прогноз — клікабельний */}
+    <div onClick={()=>onNav("analytics")} style={{cursor:"pointer"}}>
+      <FinancialForecast projects={projects}/>
+    </div>
+
+    {/* Активні проєкти */}
+    <div style={{fontWeight:700,fontSize:11,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>АКТИВНІ ПРОЄКТИ</div>
+    {near.map(p=>{
+      const s=STAGES.find(x=>x.id===p.stage)||STAGES[0];
+      const m=+p.sale_price- +p.spent;
+      const mPct_=+p.sale_price>0?Math.round(m/+p.sale_price*100):0;
+      const pTasks=(tasks||[]).filter(t=>t.project_id===p.id&&!t.done);
+      return <Card key={p.id} style={{margin:"0 0 8px",cursor:"pointer"}} onClick={()=>setSelectedProject(p.id)}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
+            <div style={{fontSize:11,color:"#64748b"}}>👤 {p.client}</div>
+          </div>
+          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0,marginLeft:8}}>
+            <Badge color={s.color}>{s.emoji} {s.label}</Badge>
+            <span style={{fontSize:11,color:"#3b82f6"}}>→</span>
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <DL date={p.deadline}/>
+            <Badge color={mPct_>=25?"#10b981":mPct_>=15?"#f59e0b":"#ef4444"}>Маржа {mPct_}%</Badge>
+            {pTasks.length>0&&<Badge color="#f59e0b">✅ {pTasks.length}</Badge>}
+          </div>
+          <span style={{fontSize:11,fontWeight:700,color:s.color}}>{p.progress}%</span>
+        </div>
+        <PBar value={p.progress} color={s.color}/>
+        {p.issues&&<div style={{fontSize:10,color:"#b45309",background:"#fef3c7",borderRadius:6,padding:"3px 8px",marginTop:6}}>⚠️ {p.issues}</div>}
+      </Card>;
+    })}
+    {projects.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20,fontSize:13}}>
+      Немає проєктів. <span onClick={()=>onNav("projects")} style={{color:"#3b82f6",cursor:"pointer"}}>Додати →</span>
+    </div>}
+  </div>;
+}
 
   const kpis=[
     {l:"Активних проєктів", v:projects.filter(p=>p.stage!=="paid").length, c:"#3b82f6", i:"🏗️", nav:"projects"},
