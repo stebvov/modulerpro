@@ -1082,141 +1082,6 @@ function Products({productsH,onNav}){
     </Modal>}
   </div>;
 }
-  const {data:products,loading,saving,create,update,remove}=productsH;
-  const [modal,setModal]=useState(null);
-  const [view,setView]=useState(null);
-  const [form,setForm]=useState(null);
-
-  const STATUS={
-    active: {l:"✅ Актуальний", c:"#10b981"},
-    draft:  {l:"📝 Чернетка",   c:"#6366f1"},
-    archive:{l:"📦 Архів",      c:"#94a3b8"},
-  };
-
-  const empty={
-    name:"",description:"",model:"3x6",status:"draft",
-    sale_price:0,cost_price:0,margin_pct:30,
-    notes:"",version:"1.0",valid_date:today(),
-  };
-
-  if(loading) return <Spin/>;
-
-  return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div style={{fontSize:12,color:"#64748b"}}>{products.filter(p=>p.status==="active").length} актуальних · {products.length} всього</div>
-      <Btn onClick={()=>{setForm({...empty});setModal("add");}} small>+ Новий продукт</Btn>
-    </div>
-
-    {/* Filter tabs */}
-    <div style={{display:"flex",gap:6,marginBottom:14}}>
-      {Object.entries(STATUS).map(([k,v])=>{
-        const cnt=products.filter(p=>p.status===k).length;
-        if(!cnt&&k!=="active") return null;
-        return <div key={k} style={{flex:1,background:v.c+"15",borderRadius:10,padding:"6px 8px",textAlign:"center",border:`1px solid ${v.c}30`}}>
-          <div style={{fontSize:13,fontWeight:800,color:v.c}}>{cnt}</div>
-          <div style={{fontSize:9,color:v.c}}>{v.l}</div>
-        </div>;
-      })}
-    </div>
-
-    {products.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:40,fontSize:13}}>
-      Каталог порожній.<br/>Створіть перший продукт або збережіть з Калькуляції.
-      <div style={{marginTop:12}}><Btn onClick={()=>onNav("costing")} outline color="#3b82f6" small>⚡ Перейти в Калькуляцію</Btn></div>
-    </div>}
-
-    {products.map(p=>{
-      const s=STATUS[p.status]||STATUS.draft;
-      const margin_=+p.sale_price>0?Math.round((+p.sale_price- +p.cost_price)/+p.sale_price*100):0;
-      return <Card key={p.id} style={{borderLeft:`3px solid ${s.c}`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:800,fontSize:14,color:"#1e293b"}}>{p.name}</div>
-            <div style={{fontSize:11,color:"#64748b",marginTop:2}}>v{p.version} · {fmtDate(p.valid_date)}</div>
-          </div>
-          <div style={{display:"flex",gap:5,marginLeft:8}}>
-            <button onClick={()=>setView(p)} style={{background:"#f0f9ff",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>👁</button>
-            <button onClick={()=>{setForm({...p});setModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>✏️</button>
-            <button onClick={()=>{
-              if(confirm("Копіювати продукт?"))
-                create({...p,id:undefined,name:p.name+" (копія)",status:"draft",version:"1.0",created_at:undefined});
-            }} style={{background:"#f0fdf4",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>⎘</button>
-            <button onClick={()=>confirm("Видалити?")&&remove(p.id)} style={{background:"#fef2f2",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>🗑</button>
-          </div>
-        </div>
-
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          <Badge color={s.c}>{s.l}</Badge>
-          <Badge color="#6366f1">📐 {p.model}</Badge>
-          <Badge color={margin_>=25?"#10b981":margin_>=15?"#f59e0b":"#ef4444"}>Маржа {margin_}%</Badge>
-        </div>
-
-        {p.description&&<div style={{fontSize:12,color:"#64748b",marginBottom:8}}>{p.description}</div>}
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          {[
-            {l:"Ціна продажу", v:"₴"+fmt(+p.sale_price), c:"#10b981"},
-            {l:"Собівартість",  v:"₴"+fmt(+p.cost_price),  c:"#e11d48"},
-          ].map((x,i)=><div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"6px 10px"}}>
-            <div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div>
-            <div style={{fontSize:14,fontWeight:800,color:x.c}}>{x.v}</div>
-          </div>)}
-        </div>
-
-        {/* Status quick change */}
-        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-          {Object.entries(STATUS).map(([k,v])=><button key={k} onClick={()=>update(p.id,{status:k})}
-            style={{fontSize:9,padding:"3px 8px",borderRadius:99,border:"none",cursor:"pointer",fontWeight:p.status===k?700:400,background:p.status===k?v.c:"#f1f5f9",color:p.status===k?"#fff":"#64748b"}}>
-            {v.l}
-          </button>)}
-        </div>
-      </Card>;
-    })}
-
-    {/* View modal */}
-    {view&&<Modal title={view.name} onClose={()=>setView(null)}>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-        <Badge color={STATUS[view.status]?.c||"#94a3b8"}>{STATUS[view.status]?.l}</Badge>
-        <Badge color="#6366f1">📐 {view.model}</Badge>
-        <Badge color="#94a3b8">v{view.version}</Badge>
-        <Badge color="#94a3b8">📅 {fmtDate(view.valid_date)}</Badge>
-      </div>
-      {view.description&&<div style={{fontSize:13,color:"#475569",marginBottom:14,lineHeight:1.6}}>{view.description}</div>}
-      <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff"}}>
-        {[
-          {l:"Ціна продажу",   v:"₴"+fmt(+view.sale_price), c:"#10b981", big:true},
-          {l:"Собівартість",   v:"₴"+fmt(+view.cost_price),  c:"#f59e0b"},
-          {l:"Маржа",          v:"₴"+fmt(+view.sale_price- +view.cost_price), c:"#22c55e"},
-        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<2?"1px solid #ffffff15":"none"}}>
-          <span style={{fontSize:11,color:"#94a3b8"}}>{x.l}</span>
-          <span style={{fontSize:x.big?20:14,fontWeight:x.big?900:700,color:x.c}}>₴{fmt(x.big?+view.sale_price:x.l==="Собівартість"?+view.cost_price:+view.sale_price- +view.cost_price)}</span>
-        </div>)}
-      </Card>
-      {view.notes&&<div style={{fontSize:12,color:"#64748b",marginTop:8,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{view.notes}</div>}
-      <Btn onClick={()=>{ create({...view,id:undefined,name:view.name+" (копія)",status:"draft",version:"1.0",created_at:undefined}); setView(null); }} outline color="#6366f1" full style={{marginTop:12}}>⎘ Зробити копію</Btn>
-    </Modal>}
-
-    {/* Add/Edit modal */}
-    {modal&&form&&<Modal title={modal==="add"?"Новий продукт":"Редагувати продукт"} onClose={()=>setModal(null)}>
-      <Lbl>Назва продукту</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6 Стандарт"/>
-      <Lbl>Опис</Lbl><Input value={form.description} onChange={v=>setForm(p=>({...p,description:v}))} placeholder="Короткий опис для клієнта"/>
-      <Lbl>Модель</Lbl><Sel value={form.model} onChange={v=>setForm(p=>({...p,model:v}))} options={["3x6","4x8","6x9","3x9","4x9","6x12"].map(v=>({v,l:v}))}/>
-      <Lbl>Статус</Lbl><Sel value={form.status} onChange={v=>setForm(p=>({...p,status:v}))} options={Object.entries(STATUS).map(([k,v])=>({v:k,l:v.l}))}/>
-      <Lbl>Версія</Lbl><Input value={form.version} onChange={v=>setForm(p=>({...p,version:v}))} placeholder="1.0"/>
-      <Lbl>Актуально на дату</Lbl><Input type="date" value={form.valid_date} onChange={v=>setForm(p=>({...p,valid_date:v}))}/>
-      <Lbl>Ціна продажу (₴)</Lbl><Input type="number" value={form.sale_price} onChange={v=>setForm(p=>({...p,sale_price:+v}))} placeholder="0"/>
-      <Lbl>Собівартість (₴)</Lbl><Input type="number" value={form.cost_price} onChange={v=>setForm(p=>({...p,cost_price:+v}))} placeholder="0"/>
-      {+form.sale_price>0&&<div style={{background:"#f0fdf4",borderRadius:10,padding:"8px 12px",marginTop:8,fontSize:12,color:"#166534",fontWeight:600}}>
-        Маржа: ₴{fmt(+form.sale_price- +form.cost_price)} ({+form.sale_price>0?Math.round((+form.sale_price- +form.cost_price)/+form.sale_price*100):0}%)
-      </div>}
-      <Lbl>Нотатки / склад</Lbl>
-      <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Що входить в продукт, особливості..." style={{width:"100%",minHeight:100,padding:"9px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:12,lineHeight:1.7,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{ if(form.id)await update(form.id,form);else await create(form); setModal(null); }} style={{flex:2}}>💾 Зберегти</Btn>
-      </div>
-    </Modal>}
-  </div>;
-}
 
 // ─── CONFIGURATOR ─────────────────────────────────────────────────────────────
 function Configurator({sizesH,materialsH,workersH,operationsH,productsH}){
@@ -4653,13 +4518,101 @@ export default function App(){
     }
   }
 
+  // Визначаємо чи ПК (>768px)
+  const isDesktop=typeof window!=="undefined"&&window.innerWidth>768;
+
+  const content = <>
+    {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} clients={clientsH.data} materials={materialsH.data} knowledge={knowledgeH.data} onNav={nav}/>}
+    {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH}/>}
+    {module==="products"    && <Products    productsH={productsH} onNav={nav}/>}
+    {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
+    {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data} bomH={bomH}/>}
+    {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>}
+    {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH,bomData:bomH.data,materialsData:materialsH.data,sizesData:sizesH.data}}/>}
+    {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
+    {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
+    {module==="suppliers"   && <Suppliers   suppliersH={suppliersH} pricesH={pricesH} materials={materialsH.data}/>}
+    {module==="bom"         && <BOMModule   materialsH={materialsH} bomH={bomH} workersH={workersH} operationsH={operationsH}/>}
+    {module==="team"        && <Team        hook={teamH} projects={projectsH.data}/>}
+    {module==="knowledge"   && <Knowledge   hook={knowledgeH} user={user}/>}
+    {module==="settings"    && <Settings    user={user} onLogout={()=>setUser(null)} projects={projectsH.data} clients={clientsH.data} materials={materialsH.data} bom={bomH.data} workers={workersH.data} operations={operationsH.data} overhead={overheadH.data} stats={statsH.data}/>}
+  </>;
+
+  // ── DESKTOP LAYOUT ──
+  if(isDesktop) return <div style={{minHeight:"100vh",background:"#f0f4f8",fontFamily:"'Helvetica Neue',system-ui,sans-serif",display:"flex",flexDirection:"column"}}>
+
+    {dbError&&<div style={{background:"#ef4444",color:"#fff",padding:"6px 16px",fontSize:11,textAlign:"center"}}>
+      ⚠️ Помилка БД: {dbError.slice(0,80)}
+    </div>}
+
+    {/* TOP HEADER */}
+    <div style={{background:"#0f172a",padding:"10px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
+      <div style={{display:"flex",alignItems:"center",gap:16}}>
+        <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>🏗️ МОДУЛЕР ПРО</div>
+        <div style={{fontSize:11,color:"#475569"}}>{role.emoji} {user.name}</div>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        {overdue>0&&<div style={{background:"#ef444420",color:"#ef4444",borderRadius:99,padding:"4px 10px",fontSize:11,fontWeight:700}}>⏰ {overdue} прострочено</div>}
+        <NotificationCenter notifsH={notifsH} onNav={nav}/>
+        <div style={{background:"#1e293b",borderRadius:99,padding:"4px 10px",fontSize:11,color:anySaving?"#f59e0b":"#22c55e"}}>
+          {anySaving?"⟳ Sync":"☁️ Live"}
+        </div>
+        <button onClick={()=>setUser(null)} style={{background:"#1e293b",border:"none",borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:11,color:"#94a3b8"}}>Вийти</button>
+      </div>
+    </div>
+
+    <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+      {/* SIDEBAR */}
+      <div style={{width:220,background:"#1e293b",minHeight:"calc(100vh - 44px)",position:"sticky",top:44,overflowY:"auto",flexShrink:0}}>
+        <div style={{padding:"16px 12px"}}>
+          {visible.map(m=><button key={m.id} onClick={()=>nav(m.id)}
+            style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 12px",marginBottom:2,border:"none",borderRadius:10,cursor:"pointer",background:active.id===m.id?"#3b82f6":"transparent",textAlign:"left"}}>
+            <span style={{fontSize:17}}>{m.icon}</span>
+            <span style={{fontSize:13,fontWeight:active.id===m.id?700:400,color:active.id===m.id?"#fff":"#94a3b8"}}>{m.label}</span>
+            {active.id===m.id&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
+          </button>)}
+        </div>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div style={{flex:1,overflowY:"auto",padding:"24px 32px",maxWidth:900}}>
+        <div style={{fontWeight:800,fontSize:22,color:"#1e293b",marginBottom:20}}>{active.icon} {active.label}</div>
+        {content}
+      </div>
+
+      {/* RIGHT PANEL — статистика */}
+      <div style={{width:260,background:"#fff",borderLeft:"1px solid #e2e8f0",padding:"20px 16px",overflowY:"auto",flexShrink:0}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:12}}>ШВИДКА СТАТИСТИКА</div>
+        {[
+          {l:"Активних проєктів", v:projectsH.data.filter(p=>p.stage!=="paid").length, c:"#3b82f6"},
+          {l:"Виручка загальна",  v:"₴"+fmt(projectsH.data.reduce((s,p)=>s+ +p.sale_price,0)), c:"#10b981"},
+          {l:"Відкритих задач",   v:tasksH.data.filter(t=>!t.done).length, c:"#f59e0b"},
+          {l:"Клієнтів в CRM",    v:clientsH.data.length, c:"#6366f1"},
+          {l:"Матеріалів в базі", v:materialsH.data.length, c:"#06b6d4"},
+        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
+          <span style={{fontSize:11,color:"#64748b"}}>{x.l}</span>
+          <span style={{fontSize:14,fontWeight:700,color:x.c}}>{x.v}</span>
+        </div>)}
+
+        <div style={{marginTop:20,fontSize:11,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:12}}>ШВИДКИЙ ПЕРЕХІД</div>
+        {visible.filter(m=>["dashboard","projects","crm","analytics","finance"].includes(m.id)).map(m=>(
+          <button key={m.id} onClick={()=>nav(m.id)}
+            style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"7px 10px",marginBottom:4,border:"none",borderRadius:8,cursor:"pointer",background:active.id===m.id?"#eff6ff":"#f8fafc",textAlign:"left"}}>
+            <span>{m.icon}</span>
+            <span style={{fontSize:12,color:active.id===m.id?"#3b82f6":"#475569",fontWeight:active.id===m.id?600:400}}>{m.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>;
+
+  // ── MOBILE LAYOUT ──
   return <div style={{minHeight:"100vh",background:"#f0f4f8",fontFamily:"'Helvetica Neue',system-ui,sans-serif",maxWidth:480,margin:"0 auto"}}>
 
     {dbError&&<div style={{position:"fixed",top:0,left:0,right:0,background:"#ef4444",color:"#fff",padding:"8px 16px",fontSize:11,zIndex:9999,textAlign:"center"}}>
       ⚠️ Помилка БД: {dbError.slice(0,80)}
     </div>}
 
-    {/* HEADER — тільки назва і статус, без меню */}
     <div style={{background:"#0f172a",padding:"14px 16px 12px",position:"sticky",top:0,zIndex:100}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
@@ -4670,14 +4623,13 @@ export default function App(){
           {overdue>0&&<div style={{background:"#ef444420",color:"#ef4444",borderRadius:99,padding:"3px 8px",fontSize:10,fontWeight:700}}>⏰{overdue}</div>}
           <NotificationCenter notifsH={notifsH} onNav={nav}/>
           <div style={{background:"#1e293b",borderRadius:99,padding:"3px 8px",fontSize:10,color:anySaving?"#f59e0b":"#22c55e"}}>
-            {anySaving?"⟳":"☁️"} {anySaving?"Sync":"Live"}
+            {anySaving?"⟳":"☁️"}
           </div>
-          <button onClick={()=>setModule(module==="more"?"dashboard":"more")} style={{background:"#1e293b",border:"none",borderRadius:99,padding:"3px 10px",fontSize:10,color:"#94a3b8",cursor:"pointer"}}>≡ Ще</button>
+          <button onClick={()=>setModule(module==="more"?"dashboard":"more")} style={{background:"#1e293b",border:"none",borderRadius:99,padding:"3px 10px",fontSize:10,color:"#94a3b8",cursor:"pointer"}}>≡</button>
         </div>
       </div>
     </div>
 
-    {/* MORE MENU */}
     {module==="more"&&<div style={{background:"#1e293b",padding:"8px 16px 16px"}}>
       <div style={{fontSize:10,color:"#64748b",letterSpacing:"0.08em",marginBottom:10,marginTop:4}}>УСІ МОДУЛІ</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
@@ -4688,26 +4640,11 @@ export default function App(){
       </div>
     </div>}
 
-    {/* CONTENT */}
     <div style={{padding:"16px 14px 100px"}}>
       {module!=="more"&&<div style={{fontWeight:800,fontSize:17,color:"#1e293b",marginBottom:14}}>{active.icon} {active.label}</div>}
-      {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} clients={clientsH.data} materials={materialsH.data} knowledge={knowledgeH.data} onNav={nav}/>}
-      {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH}/>}
-      {module==="products"    && <Products    productsH={productsH} onNav={nav}/>}
-      {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
-      {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data} bomH={bomH}/>}
-      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>}
-      {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH,bomData:bomH.data,materialsData:materialsH.data,sizesData:sizesH.data}}/>}
-      {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
-      {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
-      {module==="suppliers"   && <Suppliers   suppliersH={suppliersH} pricesH={pricesH} materials={materialsH.data}/>}
-      {module==="bom"         && <BOMModule   materialsH={materialsH} bomH={bomH} workersH={workersH} operationsH={operationsH}/>}
-      {module==="team"        && <Team        hook={teamH} projects={projectsH.data}/>}
-      {module==="knowledge"   && <Knowledge   hook={knowledgeH} user={user}/>}
-      {module==="settings"    && <Settings    user={user} onLogout={()=>setUser(null)} projects={projectsH.data} clients={clientsH.data} materials={materialsH.data} bom={bomH.data} workers={workersH.data} operations={operationsH.data} overhead={overheadH.data} stats={statsH.data}/>}
+      {content}
     </div>
 
-    {/* BOTTOM NAV — 6 основних модулів */}
     <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"#0f172a",borderTop:"1px solid #1e293b",display:"flex"}}>
       {bottomModules.map(m=><button key={m.id} onClick={()=>setModule(m.id)} style={{flex:1,padding:"9px 2px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
         <span style={{fontSize:15,color:active.id===m.id?"#60a5fa":"#94a3b8"}}>{m.icon}</span>
