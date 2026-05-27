@@ -30,10 +30,6 @@ function useTable(table, query="") {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const ROLES = {
-  owner:   {label:"Власник",  color:"#f59e0b",emoji:"👑", access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
-  manager: {label:"Менеджер", color:"#6366f1",emoji:"👔", access:["dashboard","configurator","products","projects","crm","costing","analytics","finance","suppliers","knowledge"]},
-  brigade: {label:"Бригада",  color:"#10b981",emoji:"👷", access:["projects","knowledge"]},
-};
 const USERS=[
   {id:"u1",name:"Власник",  role:"owner",  pin:"1111"},
   {id:"u2",name:"Менеджер", role:"manager",pin:"2222"},
@@ -1580,86 +1576,7 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
   </div>;
 }
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        <Btn onClick={()=>setSaveModal(true)} color="#10b981" full>💾 Зберегти як продукт</Btn>
-        <Btn onClick={()=>{
-          const w=window.open("","_blank");
-          w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — МОДУЛЕР ПРО</title><style>body{font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body>
-          <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1>
-          <p style="color:#64748b;font-size:13px">${new Date().toLocaleDateString("uk-UA")} · Дерев'яний каркас · ${qty} од.</p>
-          <table><tr><th>Стаття</th><th>Сума (₴)</th></tr>
-          <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matOpt*qty)}</td></tr>
-          <tr><td>Оплата праці (${totalHours} год)</td><td>₴${fmt(laborCost*qty)}</td></tr>
-          <tr><td>Накладні (6%)</td><td>₴${fmt(overhead*qty)}</td></tr>
-          <tr><td><strong>Собівартість</strong></td><td><strong>₴${fmt(cost*qty)}</strong></td></tr>
-          <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table>
-          <h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:30px">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</p>
-          </body></html>`);
-          w.document.close();w.print();
-        }} color="#6366f1" full>📄 КП для клієнта (PDF)</Btn>
-      </div>
-    </>}
 
-    {tab==="phases"&&<>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:12,color:"#64748b"}}>Праця: <strong style={{color:"#06b6d4"}}>₴{fmt(laborCost)}</strong> · {totalHours}год</div>
-        <Btn onClick={()=>{setOpForm({phase:"",name:"",worker_id:workers[0]?.id||"",hours:0,qty:1,unit:"компл",note:"",sort_order:99});setOpModal("add");}} small color="#06b6d4">+ Операція</Btn>
-      </div>
-      {phases.map(ph=>{
-        const ops=operations.filter(o=>o.phase===ph).sort((a,b)=>a.sort_order-b.sort_order);
-        const phCost=ops.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
-        const phHours=ops.reduce((s,o)=>s+o.hours*o.qty,0);
-        const isOpen=expandPhase===ph;
-        return <div key={ph} style={{marginBottom:8}}>
-          <button onClick={()=>setExpandPhase(isOpen?null:ph)} style={{width:"100%",background:"#fff",border:"none",borderRadius:12,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px #00000010"}}>
-            <div style={{textAlign:"left"}}><div style={{fontWeight:700,fontSize:13}}>{ph}</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{ops.length} операцій · {phHours}год</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#06b6d4",fontSize:14}}>₴{fmt(phCost)}</div><div style={{fontSize:12,color:"#94a3b8"}}>{isOpen?"▲":"▼"}</div></div>
-          </button>
-          {isOpen&&<div style={{background:"#f8fafc",borderRadius:"0 0 12px 12px",padding:"8px 8px 4px"}}>
-            {ops.map(op=>{
-              const w=workers.find(x=>x.id===op.worker_id);
-              const opCost=w?w.rate*op.hours*op.qty:0;
-              return <div key={op.id} style={{background:"#fff",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",gap:10}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:600}}>{op.name}</div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{w?.name||"—"} · ₴{w?.rate}/год · {op.hours}год × {op.qty}</div>
-                  {op.note&&<div style={{fontSize:10,color:"#64748b",marginTop:2,fontStyle:"italic"}}>💬 {op.note}</div>}
-                </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontWeight:700,color:"#06b6d4",fontSize:12}}>₴{fmt(opCost)}</div>
-                  <div style={{display:"flex",gap:3,marginTop:4}}>
-                    <button onClick={()=>{setOpForm({...op});setOpModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✏️</button>
-                    <button onClick={()=>operationsH.remove(op.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>🗑</button>
-                  </div>
-                </div>
-              </div>;
-            })}
-          </div>}
-        </div>;
-      })}
-    </>}
-
-    {tab==="materials"&&<>
-      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>BOM шаблон 3×6 · {bom.length} позицій</div>
-      {bom.map(item=>{
-        const mat=materials.find(m=>m.id===item.material_id);
-        if(!mat)return null;
-        return <Card key={item.id} style={{padding:"8px 12px",margin:"0 0 6px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:600}}>{mat.name}</div>
-              <div style={{fontSize:10,color:"#94a3b8"}}>{item.qty} {mat.unit} · {mat.supplier}</div>
-              <div style={{fontSize:10,color:"#64748b"}}>{item.note}</div>
-            </div>
-            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-              <div style={{fontWeight:700,color:"#10b981",fontSize:12}}>₴{fmt(mat.opt_price*item.qty)}</div>
-              <div style={{fontSize:9,color:"#94a3b8"}}>роздріб ₴{fmt(mat.retail_price*item.qty)}</div>
-            </div>
-          </div>
-        </Card>;
-      })}
-    </>}
 
     {/* Save as product modal */}
     {saveModal&&<Modal title="Зберегти як продукт" onClose={()=>setSaveModal(false)}>
@@ -2219,10 +2136,6 @@ function Procurement({procH,materials,projects}){
 
 // ─── PROJECT DOCUMENTS ────────────────────────────────────────────────────────
 const DOC_TYPES={
-  contract: {l:"📄 Договір",     c:"#6366f1"},
-  kp:       {l:"💰 КП",          c:"#10b981"},
-  schema:   {l:"📐 Схема/КД",    c:"#3b82f6"},
-  photo:    {l:"📷 Фото",        c:"#f59e0b"},
   act:      {l:"✅ Акт",         c:"#22c55e"},
   invoice:  {l:"🧾 Рахунок",     c:"#8b5cf6"},
   other:    {l:"📎 Інше",        c:"#94a3b8"},
@@ -3082,10 +2995,6 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
     </Modal>}
   </div>;
 }
-  if(loading)return <Spin/>;
-  return <div>
-    <div style={{display:"flex",gap:8,marginBottom:12}}>
-      <Input value={search} onChange={setSearch} placeholder="🔍 Пошук..." style={{flex:1}}/>
       {canEdit&&<Btn onClick={()=>{setForm({...empty});setModal("add");}} small>+ Новий</Btn>}
     </div>
     <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
@@ -4029,10 +3938,6 @@ function Analytics({projects,workers,operations,materials,bom,overhead,statsH}){
 }
 
   // Офісні витрати за поточний місяць
-  const curMonth=new Date().toISOString().slice(0,7);
-  const monthOverhead=overhead.filter(o=>o.month&&o.month.startsWith(curMonth));
-  const totalOverhead=monthOverhead.reduce((s,o)=>s+ +o.amount,0);
-  const activeProjects=projects.filter(p=>p.stage!=="paid"&&p.stage!=="lead");
   const overheadPerProject=activeProjects.length>0?Math.round(totalOverhead/activeProjects.length):0;
 
   const margin=tSale-tSpent;
@@ -4390,8 +4295,6 @@ function Settings({user,onLogout}){
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App(){
-  const workersH   =useTable("workers");
-  const operationsH=useTable("operations","order=sort_order.asc");
   const materialsH =useTable("materials");
   const bomH       =useTable("bom_templates");
   const projectsH  =useTable("projects");
