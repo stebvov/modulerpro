@@ -869,14 +869,19 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
 }
 
 // ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
-function Products({productsH,onNav}){
+function Products({productsH,foldersH,onNav}){
   const {data:products,loading,saving,create,update,remove}=productsH;
+  const {data:folders=[],create:createFolder,update:updateFolder,remove:removeFolder}=foldersH||{data:[],create:async()=>{},update:async()=>{},remove:async()=>{}};
   const [modal,setModal]=useState(null);
   const [view,setView]=useState(null);
   const [form,setForm]=useState(null);
   const [compareMode,setCompareMode]=useState(false);
   const [compareA,setCompareA]=useState(null);
   const [compareB,setCompareB]=useState(null);
+  const [folderModal,setFolderModal]=useState(false);
+  const [folderForm,setFolderForm]=useState({name:"",color:"#6366f1"});
+  const [activeFolder,setActiveFolder]=useState(null); // null = всі, uuid = папка
+  const [movingProduct,setMovingProduct]=useState(null);
 
   const STATUS={
     active: {l:"✅ Актуальний", c:"#10b981"},
@@ -884,11 +889,32 @@ function Products({productsH,onNav}){
     archive:{l:"📦 Архів",      c:"#94a3b8"},
   };
 
-  const empty={
-    name:"",description:"",model:"3x6",status:"draft",
-    sale_price:0,cost_price:0,margin_pct:30,
-    notes:"",version:"1.0",valid_date:today(),
-  };
+  const empty={name:"",description:"",model:"3x6",status:"draft",sale_price:0,cost_price:0,margin_pct:30,notes:"",version:"1.0",valid_date:today(),sort_order:0,folder_id:null};
+
+  // Сортуємо продукти: по sort_order, потім по даті (нові спочатку)
+  const sorted=[...products].sort((a,b)=>{
+    if(a.sort_order!==b.sort_order) return (a.sort_order||0)-(b.sort_order||0);
+    return new Date(b.created_at)-new Date(a.created_at);
+  });
+
+  const filtered=activeFolder===null
+    ? sorted
+    : activeFolder==="no_folder"
+      ? sorted.filter(p=>!p.folder_id)
+      : sorted.filter(p=>p.folder_id===activeFolder);
+
+  async function moveUp(p){
+    const idx=sorted.findIndex(x=>x.id===p.id);
+    if(idx<=0)return;
+    const prev=sorted[idx-1];
+    await update(p.id,{sort_order:(prev.sort_order||0)-1});
+  }
+  async function moveDown(p){
+    const idx=sorted.findIndex(x=>x.id===p.id);
+    if(idx>=sorted.length-1)return;
+    const next=sorted[idx+1];
+    await update(p.id,{sort_order:(next.sort_order||0)+1});
+  }
 
   if(loading) return <Spin/>;
 
@@ -901,134 +927,122 @@ function Products({productsH,onNav}){
     const mB=+B.sale_price>0?Math.round((+B.sale_price-+B.cost_price)/+B.sale_price*100):0;
     return <div>
       <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}}
-        style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>
-        ← Назад до каталогу
-      </button>
-      <div style={{fontWeight:700,fontSize:14,marginBottom:14,textAlign:"center"}}>⚖️ Порівняння продуктів</div>
-
-      {/* Заголовки */}
+        style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>← Назад</button>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:14,textAlign:"center"}}>⚖️ Порівняння</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
         {[A,B].map((p,i)=><Card key={i} style={{margin:0,textAlign:"center",borderTop:`3px solid ${i===0?"#3b82f6":"#10b981"}`}}>
           <div style={{fontWeight:800,fontSize:13,marginBottom:4}}>{p.name}</div>
-          <Badge color={STATUS[p.status]?.c||"#94a3b8"}>{STATUS[p.status]?.l}</Badge>
-          <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>📐 {p.model}</div>
+          <Badge color="#6366f1">📐 {p.model}</Badge>
         </Card>)}
       </div>
-
-      {/* Порівняння характеристик */}
       {[
-        {l:"💰 Ціна продажу",   vA:"₴"+fmt(+A.sale_price),   vB:"₴"+fmt(+B.sale_price),   better:+A.sale_price>+B.sale_price?"A":"B"},
-        {l:"📉 Собівартість",   vA:"₴"+fmt(+A.cost_price),   vB:"₴"+fmt(+B.cost_price),   better:+A.cost_price<+B.cost_price?"A":"B"},
-        {l:"📈 Маржа %",        vA:`${mA}%`,                  vB:`${mB}%`,                  better:mA>mB?"A":"B"},
-        {l:"💵 Маржа ₴",        vA:"₴"+fmt(+A.sale_price-+A.cost_price), vB:"₴"+fmt(+B.sale_price-+B.cost_price), better:(+A.sale_price-+A.cost_price)>(+B.sale_price-+B.cost_price)?"A":"B"},
-        {l:"📋 Версія",         vA:`v${A.version}`,           vB:`v${B.version}`,           better:null},
-        {l:"📅 Актуально до",   vA:fmtDate(A.valid_date),     vB:fmtDate(B.valid_date),     better:null},
+        {l:"💰 Ціна",       vA:"₴"+fmt(+A.sale_price),   vB:"₴"+fmt(+B.sale_price),   better:+A.sale_price>+B.sale_price?"A":"B"},
+        {l:"📉 Собівартість",vA:"₴"+fmt(+A.cost_price),  vB:"₴"+fmt(+B.cost_price),   better:+A.cost_price<+B.cost_price?"A":"B"},
+        {l:"📈 Маржа %",     vA:`${mA}%`,                 vB:`${mB}%`,                  better:mA>mB?"A":"B"},
+        {l:"💵 Маржа ₴",     vA:"₴"+fmt(+A.sale_price-+A.cost_price),vB:"₴"+fmt(+B.sale_price-+B.cost_price),better:(+A.sale_price-+A.cost_price)>(+B.sale_price-+B.cost_price)?"A":"B"},
       ].map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:4,marginBottom:6,alignItems:"center"}}>
         <div style={{background:row.better==="A"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px 10px",textAlign:"center",border:row.better==="A"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
           <div style={{fontSize:13,fontWeight:700,color:row.better==="A"?"#10b981":"#1e293b"}}>{row.vA}</div>
           {row.better==="A"&&<div style={{fontSize:9,color:"#10b981"}}>✓ краще</div>}
         </div>
-        <div style={{fontSize:10,color:"#94a3b8",textAlign:"center",padding:"0 4px"}}>{row.l}</div>
+        <div style={{fontSize:9,color:"#94a3b8",textAlign:"center",padding:"0 4px"}}>{row.l}</div>
         <div style={{background:row.better==="B"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px 10px",textAlign:"center",border:row.better==="B"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
           <div style={{fontSize:13,fontWeight:700,color:row.better==="B"?"#10b981":"#1e293b"}}>{row.vB}</div>
           {row.better==="B"&&<div style={{fontSize:9,color:"#10b981"}}>✓ краще</div>}
         </div>
       </div>)}
-
-      {/* Опис */}
-      {(A.description||B.description)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
-        {[A,B].map((p,i)=><Card key={i} style={{margin:0,borderTop:`3px solid ${i===0?"#3b82f6":"#10b981"}`}}>
-          <div style={{fontSize:10,color:"#94a3b8",marginBottom:6}}>ОПИС</div>
-          <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>{p.description||"—"}</div>
-        </Card>)}
-      </div>}
-
-      {/* Нотатки */}
-      {(A.notes||B.notes)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
-        {[A,B].map((p,i)=><Card key={i} style={{margin:0}}>
-          <div style={{fontSize:10,color:"#94a3b8",marginBottom:6}}>СКЛАД</div>
-          <div style={{fontSize:11,color:"#475569",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{p.notes||"—"}</div>
-        </Card>)}
-      </div>}
-
-      {/* Кнопки дій */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
-        {[A,B].map((p,i)=><Btn key={i} onClick={()=>setView(p)} outline color={i===0?"#3b82f6":"#10b981"} full>
-          📋 Деталі: {p.name.slice(0,15)}
-        </Btn>)}
-      </div>
     </div>;
   }
 
   return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div style={{fontSize:12,color:"#64748b"}}>{products.filter(p=>p.status==="active").length} актуальних · {products.length} всього</div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <div style={{fontSize:12,color:"#64748b"}}>{products.filter(p=>p.status==="active").length} актуальних</div>
       <div style={{display:"flex",gap:6}}>
-        {products.length>=2&&<Btn onClick={()=>setCompareMode(true)} small outline color="#6366f1">⚖️ Порівняти</Btn>}
-        <Btn onClick={()=>{setForm({...empty});setModal("add");}} small>+ Новий</Btn>
+        {products.length>=2&&<Btn onClick={()=>setCompareMode(true)} small outline color="#6366f1">⚖️</Btn>}
+        <Btn onClick={()=>setFolderModal(true)} small outline color="#8b5cf6">📁</Btn>
+        <Btn onClick={()=>{setForm({...empty,sort_order:products.length});setModal("add");}} small>+ Новий</Btn>
       </div>
     </div>
 
-    {/* Режим вибору для порівняння */}
+    {/* Папки */}
+    {folders.length>0&&<div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:10,paddingBottom:4}}>
+      <button onClick={()=>setActiveFolder(null)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===null?"#1e293b":"#e2e8f0",color:activeFolder===null?"#fff":"#475569"}}>
+        Всі ({products.length})
+      </button>
+      {folders.map(f=><button key={f.id} onClick={()=>setActiveFolder(f.id)}
+        style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===f.id?f.color:"#e2e8f0",color:activeFolder===f.id?"#fff":"#475569"}}>
+        📁 {f.name} ({products.filter(p=>p.folder_id===f.id).length})
+      </button>)}
+      <button onClick={()=>setActiveFolder("no_folder")} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder==="no_folder"?"#64748b":"#e2e8f0",color:activeFolder==="no_folder"?"#fff":"#475569"}}>
+        Без папки ({products.filter(p=>!p.folder_id).length})
+      </button>
+    </div>}
+
+    {/* Режим порівняння */}
     {compareMode&&(!compareA||!compareB)&&<div style={{background:"#ede9fe",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#6d28d9"}}>
-      ⚖️ Оберіть {!compareA?"перший":"другий"} продукт для порівняння ({!compareA?0:1}/2)
-      <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}}
-        style={{float:"right",background:"none",border:"none",cursor:"pointer",color:"#6d28d9",fontSize:12}}>✕ Скасувати</button>
+      ⚖️ Оберіть {!compareA?"перший":"другий"} продукт для порівняння
+      <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}} style={{float:"right",background:"none",border:"none",cursor:"pointer",color:"#6d28d9"}}>✕</button>
     </div>}
 
-    {/* Filter tabs */}
-    <div style={{display:"flex",gap:6,marginBottom:14}}>
-      {Object.entries(STATUS).map(([k,v])=>{
-        const cnt=products.filter(p=>p.status===k).length;
-        if(!cnt&&k!=="active") return null;
-        return <div key={k} style={{flex:1,background:v.c+"15",borderRadius:10,padding:"6px 8px",textAlign:"center",border:`1px solid ${v.c}30`}}>
-          <div style={{fontSize:13,fontWeight:800,color:v.c}}>{cnt}</div>
-          <div style={{fontSize:9,color:v.c}}>{v.l}</div>
-        </div>;
-      })}
-    </div>
+    {/* Переміщення в папку */}
+    {movingProduct&&folders.length>0&&<Modal title="Перемістити в папку" onClose={()=>setMovingProduct(null)}>
+      <div style={{marginBottom:8}}>
+        <button onClick={async()=>{await update(movingProduct,{folder_id:null});setMovingProduct(null);}}
+          style={{width:"100%",padding:"10px",marginBottom:6,border:"1px solid #e2e8f0",borderRadius:10,cursor:"pointer",fontSize:13,background:"#f8fafc",textAlign:"left"}}>
+          📋 Без папки
+        </button>
+        {folders.map(f=><button key={f.id} onClick={async()=>{await update(movingProduct,{folder_id:f.id});setMovingProduct(null);}}
+          style={{width:"100%",padding:"10px",marginBottom:6,border:`2px solid ${f.color}`,borderRadius:10,cursor:"pointer",fontSize:13,background:f.color+"15",textAlign:"left",color:f.color,fontWeight:600}}>
+          📁 {f.name}
+        </button>)}
+      </div>
+    </Modal>}
 
-    {products.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:40,fontSize:13}}>
-      Каталог порожній.<br/>Створіть перший продукт або збережіть з Калькуляції.
-      <div style={{marginTop:12}}><Btn onClick={()=>onNav("costing")} outline color="#3b82f6" small>⚡ Перейти в Калькуляцію</Btn></div>
+    {filtered.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:40,fontSize:13}}>
+      {products.length===0?"Каталог порожній. Збережіть з Конфігуратора.":"Немає продуктів в цій папці."}
+      {products.length===0&&<div style={{marginTop:12}}><Btn onClick={()=>onNav("configurator")} outline color="#3b82f6" small>⚡ Конфігуратор</Btn></div>}
     </div>}
 
-    {products.map(p=>{
+    {filtered.map((p,idx)=>{
       const s=STATUS[p.status]||STATUS.draft;
-      const margin_=+p.sale_price>0?Math.round((+p.sale_price- +p.cost_price)/+p.sale_price*100):0;
+      const margin_=+p.sale_price>0?Math.round((+p.sale_price-+p.cost_price)/+p.sale_price*100):0;
+      const folder=folders.find(f=>f.id===p.folder_id);
       const isSelectedA=compareA===p.id;
       const isSelectedB=compareB===p.id;
-      return <Card key={p.id} style={{borderLeft:`3px solid ${isSelectedA?"#3b82f6":isSelectedB?"#10b981":s.c}`,background:isSelectedA||isSelectedB?"#f8faff":"#fff"}}
+      return <Card key={p.id} style={{borderLeft:`3px solid ${isSelectedA?"#3b82f6":isSelectedB?"#10b981":s.c}`,background:isSelectedA||isSelectedB?"#f8faff":"#fff",margin:"0 0 8px"}}
         onClick={()=>{
           if(compareMode){
             if(!compareA&&compareB!==p.id) setCompareA(p.id);
             else if(!compareB&&compareA!==p.id) setCompareB(p.id);
           }
         }}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
           <div style={{flex:1}}>
             <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
-            <div style={{fontSize:11,color:"#64748b"}}>{p.description?.slice(0,60)}</div>
+            {folder&&<div style={{fontSize:9,color:folder.color,marginTop:1}}>📁 {folder.name}</div>}
+            <div style={{fontSize:11,color:"#64748b"}}>{p.description?.slice(0,50)}</div>
           </div>
-          <div style={{display:"flex",gap:5,alignItems:"center"}}>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
             {compareMode&&<div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isSelectedA?"#3b82f6":isSelectedB?"#10b981":"#e2e8f0"}`,background:isSelectedA?"#3b82f6":isSelectedB?"#10b981":"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12}}>
               {isSelectedA?"A":isSelectedB?"B":""}
             </div>}
             {!compareMode&&<>
-              <button onClick={e=>{e.stopPropagation();setView(p);}} style={{background:"#f0f9ff",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#3b82f6"}}>👁</button>
-              <button onClick={e=>{e.stopPropagation();setForm({...p});setModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>✏️</button>
-              <button onClick={e=>{e.stopPropagation();confirm("Видалити?")&&remove(p.id);}} style={{background:"#fef2f2",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗑</button>
+              <button onClick={e=>{e.stopPropagation();moveUp(p);}} title="Вгору" style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↑</button>
+              <button onClick={e=>{e.stopPropagation();moveDown(p);}} title="Вниз" style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↓</button>
+              {folders.length>0&&<button onClick={e=>{e.stopPropagation();setMovingProduct(p.id);}} title="В папку" style={{background:"#f5f3ff",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>📁</button>}
+              <button onClick={e=>{e.stopPropagation();setView(p);}} style={{background:"#f0f9ff",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>👁</button>
+              <button onClick={e=>{e.stopPropagation();setForm({...p});setModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>✏️</button>
+              <button onClick={e=>{e.stopPropagation();confirm("Видалити?")&&remove(p.id);}} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>🗑</button>
             </>}
           </div>
         </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
           <Badge color={s.c}>{s.l}</Badge>
           <Badge color="#6366f1">📐 {p.model}</Badge>
-          <Badge color="#94a3b8">v{p.version}</Badge>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:`Маржа`,v:`${margin_}%`,c:margin_>=25?"#10b981":margin_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
-            <div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"5px 8px",textAlign:"center"}}>
+          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:"Маржа",v:`${margin_}%`,c:margin_>=25?"#10b981":margin_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
+            <div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"4px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div>
               <div style={{fontSize:12,fontWeight:700,color:x.c}}>{x.v}</div>
             </div>
@@ -1037,54 +1051,557 @@ function Products({productsH,onNav}){
       </Card>;
     })}
 
+    {/* Папка modal */}
+    {folderModal&&<Modal title="📁 Папки продуктів" onClose={()=>setFolderModal(false)}>
+      <div style={{marginBottom:12}}>
+        {folders.map(f=><div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:14,height:14,borderRadius:"50%",background:f.color}}/>
+            <span style={{fontSize:13,fontWeight:600}}>{f.name}</span>
+            <span style={{fontSize:11,color:"#94a3b8"}}>({products.filter(p=>p.folder_id===f.id).length})</span>
+          </div>
+          <button onClick={()=>removeFolder(f.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>🗑</button>
+        </div>)}
+      </div>
+      <Lbl>Нова папка</Lbl>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <Input value={folderForm.name} onChange={v=>setFolderForm(p=>({...p,name:v}))} placeholder="Назва папки" style={{flex:1}}/>
+        <input type="color" value={folderForm.color} onChange={e=>setFolderForm(p=>({...p,color:e.target.value}))} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/>
+        <Btn onClick={async()=>{
+          if(!folderForm.name.trim())return;
+          await createFolder(folderForm);
+          setFolderForm({name:"",color:"#6366f1"});
+        }} small color="#6366f1">+</Btn>
+      </div>
+    </Modal>}
+
     {/* View modal */}
     {view&&<Modal title={view.name} onClose={()=>setView(null)}>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
         <Badge color={STATUS[view.status]?.c||"#94a3b8"}>{STATUS[view.status]?.l}</Badge>
         <Badge color="#6366f1">📐 {view.model}</Badge>
         <Badge color="#94a3b8">v{view.version}</Badge>
-        <Badge color="#94a3b8">📅 {fmtDate(view.valid_date)}</Badge>
       </div>
-      {view.description&&<div style={{fontSize:13,color:"#475569",marginBottom:14,lineHeight:1.6}}>{view.description}</div>}
+      {view.description&&<div style={{fontSize:13,color:"#475569",marginBottom:12}}>{view.description}</div>}
       <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff"}}>
-        {[
-          {l:"Ціна продажу",v:+view.sale_price,c:"#10b981",big:true},
-          {l:"Собівартість", v:+view.cost_price, c:"#f59e0b"},
-          {l:"Маржа ₴",      v:+view.sale_price-+view.cost_price, c:"#22c55e"},
-        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<2?"1px solid #ffffff15":"none"}}>
-          <span style={{fontSize:11,color:"#94a3b8"}}>{x.l}</span>
-          <span style={{fontSize:x.big?20:14,fontWeight:x.big?900:700,color:x.c}}>₴{fmt(x.v)}</span>
-        </div>)}
+        {[{l:"Ціна",v:+view.sale_price,c:"#10b981",big:true},{l:"Собівартість",v:+view.cost_price,c:"#f59e0b"},{l:"Маржа ₴",v:+view.sale_price-+view.cost_price,c:"#22c55e"}].map((x,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<2?"1px solid #ffffff15":"none"}}>
+            <span style={{fontSize:11,color:"#94a3b8"}}>{x.l}</span>
+            <span style={{fontSize:x.big?20:14,fontWeight:x.big?900:700,color:x.c}}>₴{fmt(x.v)}</span>
+          </div>
+        ))}
       </Card>
-      {view.notes&&<div style={{fontSize:12,color:"#64748b",marginTop:8,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{view.notes}</div>}
-      <Btn onClick={()=>{ create({...view,id:undefined,name:view.name+" (копія)",status:"draft",version:"1.0",created_at:undefined}); setView(null); }} outline color="#6366f1" full style={{marginTop:12}}>⎘ Зробити копію</Btn>
+      {view.notes&&<div style={{fontSize:12,color:"#64748b",marginTop:8,whiteSpace:"pre-wrap"}}>{view.notes}</div>}
+      <Btn onClick={()=>{create({...view,id:undefined,name:view.name+" (копія)",status:"draft",created_at:undefined,sort_order:0});setView(null);}} outline color="#6366f1" full style={{marginTop:12}}>⎘ Копія</Btn>
     </Modal>}
 
     {/* Add/Edit modal */}
-    {modal&&form&&<Modal title={modal==="add"?"Новий продукт":"Редагувати продукт"} onClose={()=>setModal(null)}>
-      <Lbl>Назва продукту</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6 Стандарт"/>
-      <Lbl>Опис</Lbl><Input value={form.description} onChange={v=>setForm(p=>({...p,description:v}))} placeholder="Короткий опис для клієнта"/>
+    {modal&&form&&<Modal title={modal==="add"?"Новий продукт":"Редагувати"} onClose={()=>setModal(null)}>
+      <Lbl>Назва</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6 Стандарт"/>
+      <Lbl>Опис</Lbl><Input value={form.description} onChange={v=>setForm(p=>({...p,description:v}))}/>
       <Lbl>Модель</Lbl><Sel value={form.model} onChange={v=>setForm(p=>({...p,model:v}))} options={["3x6","4x8","6x9","3x9","4x9","6x12"].map(v=>({v,l:v}))}/>
       <Lbl>Статус</Lbl><Sel value={form.status} onChange={v=>setForm(p=>({...p,status:v}))} options={Object.entries(STATUS).map(([k,v])=>({v:k,l:v.l}))}/>
-      <Lbl>Версія</Lbl><Input value={form.version} onChange={v=>setForm(p=>({...p,version:v}))} placeholder="1.0"/>
-      <Lbl>Актуально на дату</Lbl><Input type="date" value={form.valid_date} onChange={v=>setForm(p=>({...p,valid_date:v}))}/>
-      <Lbl>Ціна продажу (₴)</Lbl><Input type="number" value={form.sale_price} onChange={v=>setForm(p=>({...p,sale_price:+v}))} placeholder="0"/>
-      <Lbl>Собівартість (₴)</Lbl><Input type="number" value={form.cost_price} onChange={v=>setForm(p=>({...p,cost_price:+v}))} placeholder="0"/>
-      {+form.sale_price>0&&<div style={{background:"#f0fdf4",borderRadius:10,padding:"8px 12px",marginTop:8,fontSize:12,color:"#166534",fontWeight:600}}>
-        Маржа: ₴{fmt(+form.sale_price-+form.cost_price)} ({+form.sale_price>0?Math.round((+form.sale_price-+form.cost_price)/+form.sale_price*100):0}%)
-      </div>}
-      <Lbl>Нотатки / склад</Lbl>
-      <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Що входить в продукт, особливості..." style={{width:"100%",minHeight:100,padding:"9px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:12,lineHeight:1.7,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+      {folders.length>0&&<><Lbl>Папка</Lbl><Sel value={form.folder_id||""} onChange={v=>setForm(p=>({...p,folder_id:v||null}))} options={[{v:"",l:"— Без папки —"},...folders.map(f=>({v:f.id,l:f.name}))]}/></>}
+      <Lbl>Ціна (₴)</Lbl><Input type="number" value={form.sale_price} onChange={v=>setForm(p=>({...p,sale_price:+v}))}/>
+      <Lbl>Собівартість (₴)</Lbl><Input type="number" value={form.cost_price} onChange={v=>setForm(p=>({...p,cost_price:+v}))}/>
+      <Lbl>Нотатки</Lbl>
+      <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} style={{width:"100%",minHeight:80,padding:"8px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:12,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
       <div style={{display:"flex",gap:8,marginTop:14}}>
         <Btn onClick={()=>setModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{ if(form.id)await update(form.id,form);else await create(form); setModal(null); }} style={{flex:2}}>💾 Зберегти</Btn>
+        <Btn onClick={async()=>{if(form.id)await update(form.id,form);else await create(form);setModal(null);}} style={{flex:2}}>💾 Зберегти</Btn>
       </div>
     </Modal>}
   </div>;
 }
-
 // ─── CONFIGURATOR ─────────────────────────────────────────────────────────────
-function Configurator({sizesH,materialsH,workersH,operationsH,productsH}){
+function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,priceHistoryH}){
+  const {data:sizes,create:createSize}=sizesH;
+  const materials=materialsH.data;
+  const {data:facadeMats=[],create:createFacade,update:updateFacade}=facadeH||{data:[],create:async()=>{},update:async()=>{}};
+
+  const [cfg,setCfg]=useState({
+    sizeId:"",customW:0,customL:0,modules:1,
+    hasTerrace:false,terraceW:2.5,terraceL:6,
+    heightExt:3.0,heightInt:2.5,
+    floorThick:200,wallExtThick:150,wallIntThick:100,roofThick:200,
+    // Фасад — масив варіантів [{matId, area}]
+    facadeVariants:[{matId:"",area:0}],
+    roofType:"pvc",   // pvc, proflist, clickfalz, soft
+    facadeColor:"#6B4226",
+    kit:"turnkey",
+    hasElectric:true,hasWater:true,hasSewage:true,
+    hasHeatedFloor:false,hasKitchen:false,hasAC:false,
+    // Оплата
+    labourScheme:"fixed",labourFixed:150000,
+    labourSqmFloor:900,labourSqmWall:700,labourSqmRoof:900,
+    // Операційні витрати
+    opexPerModule:15000,
+    margin:30,
+    // Розбивка матеріалів
+    showMatBreakdown:false,
+  });
+  const set=k=>v=>setCfg(p=>({...p,[k]:v}));
+
+  const [addSizeModal,setAddSizeModal]=useState(false);
+  const [newSize,setNewSize]=useState({name:"",width:0,length:0});
+  const [saveModal,setSaveModal]=useState(false);
+  const [saveName,setSaveName]=useState("");
+  const [savedOk,setSavedOk]=useState(false);
+  const [facadeModal,setFacadeModal]=useState(false);
+  const [facadeForm,setFacadeForm]=useState({name:"",description:"",category:"facade",current_price:0,unit:"м²",color_hex:""});
+  const [editPriceId,setEditPriceId]=useState(null);
+  const [newPrice,setNewPrice]=useState("");
+  const [tab,setTab]=useState("params");
+
+  // Площі
+  const selSize=sizes.find(s=>s.id===cfg.sizeId);
+  const W=selSize?.name==="Індивідуальний"?+cfg.customW:(selSize?+selSize.width:0);
+  const L=selSize?.name==="Індивідуальний"?+cfg.customL:(selSize?+selSize.length:0);
+  const floorArea=W*L*cfg.modules;
+  const extWallArea=(2*(W+L*cfg.modules))*2.55;
+  const roofArea=W*L*cfg.modules;
+
+  const ROOF_TYPES=[
+    {v:"pvc",      l:"ПВХ мембрана",           price:350},
+    {v:"proflist", l:"Профлист",                price:220},
+    {v:"clickfalz",l:"Клікфальц",               price:480},
+    {v:"soft",     l:"М'яка покрівля (наплавл.)",price:280},
+  ];
+
+  // Детальний розклад матеріалів
+  function calcMatBreakdown(){
+    const rows=[];
+    const add=(name,qty,unit,price)=>rows.push({name,qty:Math.round(qty*10)/10,unit,price,sum:Math.round(qty*price)});
+
+    // Деревина
+    const wood_m3=floorArea*0.06;
+    add("Дошка 50×150мм (стійки)",wood_m3*0.4*1000/0.0075,"п.м.",0.12);
+    add("Дошка 50×200мм (лаги/крокви)",wood_m3*0.25*1000/0.01,"п.м.",0.15);
+    add("Дошка 50×100мм (внутр.стіни)",wood_m3*0.15*1000/0.005,"п.м.",0.055);
+    add("Дошка 20×100мм (підшивка)",wood_m3*0.1*1000/0.002,"п.м.",0.035);
+    add("Брусок 40×50мм",wood_m3*0.1*1000/0.002,"п.м.",0.028);
+    // Переводимо в реальні ціни
+    rows.forEach(r=>{if(r.price<10){r.price=r.price*15000;r.sum=Math.round(r.qty*r.price/1000);}});
+
+    // OSB
+    const osb22=Math.ceil(floorArea/3.125);
+    const osb10=Math.ceil(roofArea/3.125);
+    rows.push({name:"OSB 22мм (підлога)",qty:osb22,unit:"лист",price:850,sum:osb22*850});
+    rows.push({name:"OSB 10мм (покрівля)",qty:osb10,unit:"лист",price:520,sum:osb10*520});
+
+    // Мембрани
+    const paraRuls=Math.ceil((floorArea+extWallArea+roofArea)/75);
+    const memRuls=Math.ceil((extWallArea+roofArea*1.1)/75);
+    rows.push({name:"Паробар'єр армов. фольгов.",qty:paraRuls,unit:"рул.",price:1500,sum:paraRuls*1500});
+    rows.push({name:"Супердифузійна мембрана",qty:memRuls,unit:"рул.",price:1200,sum:memRuls*1200});
+    rows.push({name:"Скотч фольг. для паробар'єру",qty:Math.ceil(paraRuls*0.8),unit:"рул.",price:285,sum:Math.ceil(paraRuls*0.8)*285});
+    rows.push({name:"Бутилова стрічка (2-ст. скотч)",qty:Math.ceil(extWallArea/20),unit:"рул.",price:380,sum:Math.ceil(extWallArea/20)*380});
+
+    // Базальтова вата
+    const vataArea=floorArea*2+extWallArea*1.5+roofArea*2;
+    rows.push({name:"Базальтова вата 30кг/м³",qty:Math.ceil(vataArea),unit:"м²",price:250,sum:Math.ceil(vataArea)*250});
+
+    // Вогнебіозахист
+    rows.push({name:"Вогнебіозахист деревини",qty:Math.ceil(wood_m3*25),unit:"л",price:140,sum:Math.ceil(wood_m3*25)*140});
+
+    // Покрівля
+    const roofT=ROOF_TYPES.find(r=>r.v===cfg.roofType)||ROOF_TYPES[0];
+    rows.push({name:`Покрівля: ${roofT.l}`,qty:Math.round(roofArea*1.15),unit:"м²",price:roofT.price,sum:Math.round(roofArea*1.15*roofT.price)});
+    rows.push({name:"Підкладка під покрівлю",qty:Math.round(roofArea*1.1),unit:"м²",price:68,sum:Math.round(roofArea*1.1*68)});
+    rows.push({name:"Розхідники покрівлі (шайби,планки)",qty:1,unit:"компл.",price:3500,sum:3500});
+
+    // Сітка від гризунів
+    rows.push({name:"Сітка метал. від гризунів 6×6мм",qty:Math.round(floorArea*1.1),unit:"м²",price:75,sum:Math.round(floorArea*1.1*75)});
+
+    // Фасад
+    cfg.facadeVariants.forEach((fv,i)=>{
+      const mat=facadeMats.find(m=>m.id===fv.matId);
+      if(mat&&+fv.area>0){
+        rows.push({name:`Фасад ${i+1}: ${mat.name}`,qty:Math.round(+fv.area*1.15),unit:"м²",price:+mat.current_price,sum:Math.round(+fv.area*1.15*+mat.current_price)});
+      }
+    });
+    if(cfg.facadeVariants.every(fv=>!fv.matId)){
+      rows.push({name:"Фасад (планкен, орієнтовно)",qty:Math.round(extWallArea*1.15),unit:"м²",price:550,sum:Math.round(extWallArea*1.15*550)});
+    }
+
+    // Вікна і двері
+    rows.push({name:"Вікна металопласт.",qty:cfg.modules*2,unit:"шт",price:4500,sum:cfg.modules*2*4500});
+    rows.push({name:"Двері вхідні",qty:cfg.modules,unit:"шт",price:7000,sum:cfg.modules*7000});
+    rows.push({name:"Двері міжкімнатні",qty:Math.max(1,cfg.modules*1),unit:"шт",price:11000,sum:Math.max(1,cfg.modules)*11000});
+
+    // Комунікації
+    if(cfg.hasElectric){
+      rows.push({name:"Комплект електропроводки",qty:1,unit:"компл.",price:8000,sum:8000});
+      rows.push({name:"Електрофурнітура",qty:1,unit:"компл.",price:5000,sum:5000});
+      rows.push({name:"Щиток+автомати",qty:1,unit:"компл.",price:4500,sum:4500});
+    }
+    if(cfg.hasWater){
+      rows.push({name:"Труба металопласт.+фітинги",qty:Math.round(floorArea*0.8),unit:"п.м.",price:45,sum:Math.round(floorArea*0.8*45)});
+    }
+    if(cfg.hasSewage){
+      rows.push({name:"Каналізація ПП труби+фітинги",qty:1,unit:"компл.",price:8000,sum:8000});
+    }
+    if(cfg.hasWater&&cfg.hasSewage){
+      rows.push({name:"Сантехніка (унітаз,умив,душ)",qty:1,unit:"компл.",price:18000,sum:18000});
+    }
+
+    // Оздоблення
+    if(cfg.kit!=="rough"){
+      rows.push({name:"Підлога ламінат+підкладка",qty:Math.round(floorArea*1.05),unit:"м²",price:450,sum:Math.round(floorArea*1.05*450)});
+      rows.push({name:"Оздоблення стін (планкен/ламінат)",qty:Math.round(extWallArea*0.8),unit:"м²",price:185,sum:Math.round(extWallArea*0.8*185)});
+      rows.push({name:"Підвіконники",qty:cfg.modules*2,unit:"шт",price:650,sum:cfg.modules*2*650});
+    }
+    if(cfg.hasKitchen) rows.push({name:"Кухня (базовий набір)",qty:1,unit:"компл.",price:35000,sum:35000});
+    if(cfg.hasHeatedFloor) rows.push({name:"Тепла підлога (мат)",qty:Math.round(floorArea),unit:"м²",price:650,sum:Math.round(floorArea*650)});
+
+    // Розхідники
+    rows.push({name:"Розхідники (цвяхи,скоби,біти,ін.)",qty:1,unit:"компл.",price:Math.round(floorArea*150),sum:Math.round(floorArea*150)});
+
+    return rows;
+  }
+
+  const breakdown=W>0&&L>0?calcMatBreakdown():[];
+  const matCost=breakdown.reduce((s,r)=>s+r.sum,0);
+  const labCost=cfg.labourScheme==="fixed"?+cfg.labourFixed:Math.round(floorArea*+cfg.labourSqmFloor+extWallArea*+cfg.labourSqmWall+roofArea*+cfg.labourSqmRoof);
+  const opex=+cfg.opexPerModule*cfg.modules;
+  const overhead=Math.round((matCost+labCost)*0.06);
+  const totalCost=matCost+labCost+opex+overhead;
+  const salePrice=Math.round(totalCost*(1+cfg.margin/100));
+  const marginAmt=salePrice-totalCost;
+
+  const KITS=[
+    {v:"rough",   l:"🔨 Під ремонт"},
+    {v:"turnkey", l:"🏠 Під ключ"},
+    {v:"premium", l:"⭐ Преміум"},
+  ];
+
+  const popularSizes=sizes.filter(s=>s.is_popular&&s.status==="active");
+
+  return <div>
+    <div style={{display:"flex",gap:6,marginBottom:14}}>
+      {[["params","⚙️ Параметри"],["materials","📦 Матеріали"],["labour","👷 Бригада"],["facade_lib","🎨 Бібліотека"]].map(([id,lbl])=>(
+        <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"7px 4px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:10,background:tab===id?"#1e293b":"#e2e8f0",color:tab===id?"#fff":"#64748b"}}>{lbl}</button>
+      ))}
+    </div>
+
+    {/* ── ПАРАМЕТРИ ── */}
+    {tab==="params"&&<>
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📐 Розмір модуля</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+          {popularSizes.map(s=><button key={s.id} onClick={()=>set("sizeId")(s.id)}
+            style={{padding:"6px 12px",borderRadius:8,border:`2px solid ${cfg.sizeId===s.id?"#3b82f6":"#e2e8f0"}`,background:cfg.sizeId===s.id?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.sizeId===s.id?700:400,color:cfg.sizeId===s.id?"#3b82f6":"#475569"}}>
+            {s.name}
+          </button>)}
+          <button onClick={()=>setAddSizeModal(true)} style={{padding:"6px 12px",borderRadius:8,border:"1px dashed #94a3b8",background:"transparent",cursor:"pointer",fontSize:11,color:"#64748b"}}>+ Новий</button>
+        </div>
+        {selSize&&<div style={{fontSize:11,color:"#10b981",marginBottom:8}}>
+          Площа: {floorArea.toFixed(1)}м² · Стіни: {extWallArea.toFixed(1)}м² · Покрівля: {roofArea.toFixed(1)}м²
+        </div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div><Lbl>Модулів</Lbl>
+            <div style={{display:"flex",gap:4}}>
+              {[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)}
+                style={{flex:1,padding:"6px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:8,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.modules===n?700:400}}>
+                {n}
+              </button>)}
+            </div>
+          </div>
+          <div><Lbl>Маржа: {cfg.margin}%</Lbl>
+            <input type="range" min="15" max="60" value={cfg.margin} onChange={e=>set("margin")(+e.target.value)} style={{width:"100%",accentColor:"#10b981",marginTop:8}}/>
+          </div>
+        </div>
+      </Card>
+
+      {/* Тераса */}
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:cfg.hasTerrace?10:0}}>
+          <div style={{fontWeight:700,fontSize:13}}>🏡 Тераса</div>
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+            <input type="checkbox" checked={cfg.hasTerrace} onChange={e=>set("hasTerrace")(e.target.checked)} style={{width:18,height:18,accentColor:"#3b82f6"}}/>
+            <span style={{fontSize:12}}>{cfg.hasTerrace?"Є":"Немає"}</span>
+          </label>
+        </div>
+        {cfg.hasTerrace&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div><Lbl>Ширина (м)</Lbl><Input type="number" value={cfg.terraceW} onChange={set("terraceW")}/></div>
+          <div><Lbl>Довжина (м)</Lbl><Input type="number" value={cfg.terraceL} onChange={set("terraceL")}/></div>
+        </div>}
+      </Card>
+
+      {/* Покрівля */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏠 Тип покрівлі</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          {ROOF_TYPES.map(r=><button key={r.v} onClick={()=>set("roofType")(r.v)}
+            style={{padding:"8px",border:`2px solid ${cfg.roofType===r.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.roofType===r.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:11,fontWeight:cfg.roofType===r.v?700:400,color:cfg.roofType===r.v?"#3b82f6":"#475569",textAlign:"left"}}>
+            <div>{r.l}</div>
+            <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>₴{r.price}/м²</div>
+          </button>)}
+        </div>
+      </Card>
+
+      {/* Фасад — кілька варіантів */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🎨 Фасадне оздоблення</div>
+        {cfg.facadeVariants.map((fv,i)=><div key={i} style={{background:"#f8fafc",borderRadius:10,padding:"10px",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <div style={{fontSize:12,fontWeight:600}}>Варіант {i+1}</div>
+            {cfg.facadeVariants.length>1&&<button onClick={()=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.filter((_,j)=>j!==i)}))
+            } style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✕</button>}
+          </div>
+          <Lbl>Матеріал</Lbl>
+          <Sel value={fv.matId} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,matId:v}:f)}))}
+            options={[{v:"",l:"— Оберіть матеріал —"},...facadeMats.filter(m=>m.category==="facade").map(m=>({v:m.id,l:`${m.name} — ₴${m.current_price}/м²`}))]}/>
+          <Lbl>Площа (м²)</Lbl>
+          <Input type="number" value={fv.area} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,area:+v}:f)}))}
+            placeholder={`Авто: ${extWallArea.toFixed(0)}м²`}/>
+        </div>)}
+        <button onClick={()=>setCfg(p=>({...p,facadeVariants:[...p.facadeVariants,{matId:"",area:0}]}))}
+          style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#6366f1"}}>
+          + Додати варіант фасаду
+        </button>
+
+        {/* Колір */}
+        <Lbl style={{marginTop:10}}>Колір фасаду</Lbl>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {["#6B4226","#2C3E50","#8B7355","#C5B9A8","#4A5568","#2D6A4F","#E8DCC8"].map(c=><button key={c} onClick={()=>set("facadeColor")(c)}
+            style={{width:28,height:28,borderRadius:"50%",background:c,border:`3px solid ${cfg.facadeColor===c?"#3b82f6":"transparent"}`,cursor:"pointer"}}/>)}
+          <input type="color" value={cfg.facadeColor} onChange={e=>set("facadeColor")(e.target.value)}
+            style={{width:32,height:32,border:"none",borderRadius:8,cursor:"pointer",background:"none"}}/>
+          <span style={{fontSize:10,color:"#94a3b8"}}>{cfg.facadeColor}</span>
+        </div>
+      </Card>
+
+      {/* Комплектація */}
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📦 Комплектація</div>
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
+          {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)}
+            style={{flex:1,padding:"7px",border:`2px solid ${cfg.kit===k.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.kit===k.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:10,fontWeight:cfg.kit===k.v?700:400,color:cfg.kit===k.v?"#3b82f6":"#475569"}}>
+            {k.l}
+          </button>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          {[{k:"hasElectric",l:"⚡ Електрика"},{k:"hasWater",l:"🚿 Водопровід"},{k:"hasSewage",l:"🔧 Каналізація"},{k:"hasKitchen",l:"🍳 Кухня"},{k:"hasHeatedFloor",l:"🌡 Тепла підлога"},{k:"hasAC",l:"❄️ Кондиціонер"}].map(({k,l})=>(
+            <label key={k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",background:cfg[k]?"#f0fdf4":"#f8fafc",borderRadius:8,cursor:"pointer",fontSize:11,border:`1px solid ${cfg[k]?"#10b981":"#e2e8f0"}`}}>
+              <input type="checkbox" checked={cfg[k]} onChange={e=>set(k)(e.target.checked)} style={{accentColor:"#10b981"}}/>
+              {l}
+            </label>
+          ))}
+        </div>
+      </Card>
+    </>}
+
+    {/* ── МАТЕРІАЛИ (РОЗБИВКА) ── */}
+    {tab==="materials"&&<>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:12,fontWeight:600}}>Всього: <span style={{color:"#f59e0b"}}>₴{fmt(matCost)}</span></div>
+        <div style={{fontSize:11,color:"#94a3b8"}}>{breakdown.length} позицій</div>
+      </div>
+      {W===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20}}>Оберіть розмір у вкладці Параметри</div>}
+      {breakdown.map((row,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f9fafb",fontSize:12}}>
+        <span style={{flex:1,color:"#475569"}}>{row.name}</span>
+        <span style={{color:"#94a3b8",margin:"0 8px",flexShrink:0}}>{row.qty} {row.unit}</span>
+        <span style={{fontWeight:600,color:"#10b981",flexShrink:0}}>₴{fmt(row.sum)}</span>
+      </div>)}
+      {breakdown.length>0&&<div style={{fontWeight:800,fontSize:14,color:"#f59e0b",textAlign:"right",marginTop:10,padding:"8px 0",borderTop:"2px solid #e2e8f0"}}>
+        Разом: ₴{fmt(matCost)}
+      </div>}
+    </>}
+
+    {/* ── БРИГАДА І ВИТРАТИ ── */}
+    {tab==="labour"&&<>
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>👷 Оплата бригади</div>
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
+          {[{v:"fixed",l:"Фіксована"},{v:"perSqm",l:"По м²"}].map(s=>(
+            <button key={s.v} onClick={()=>set("labourScheme")(s.v)}
+              style={{flex:1,padding:"7px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:cfg.labourScheme===s.v?700:400,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>
+              {s.l}
+            </button>
+          ))}
+        </div>
+        {cfg.labourScheme==="fixed"&&<>
+          <Lbl>Сума (₴)</Lbl>
+          <Input type="number" value={cfg.labourFixed} onChange={set("labourFixed")} placeholder="150000"/>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
+            {[70000,100000,125000,150000,175000,200000].map(v=><button key={v} onClick={()=>set("labourFixed")(v)}
+              style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${cfg.labourFixed===v?"#3b82f6":"#e2e8f0"}`,background:cfg.labourFixed===v?"#eff6ff":"#fff",cursor:"pointer",color:cfg.labourFixed===v?"#3b82f6":"#475569"}}>
+              ₴{fmt(v)}
+            </button>)}
+          </div>
+        </>}
+        {cfg.labourScheme==="perSqm"&&<>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <div><Lbl>Підлога ₴/м²</Lbl><Input type="number" value={cfg.labourSqmFloor} onChange={set("labourSqmFloor")}/></div>
+            <div><Lbl>Стіни ₴/м²</Lbl><Input type="number" value={cfg.labourSqmWall} onChange={set("labourSqmWall")}/></div>
+            <div><Lbl>Покрівля ₴/м²</Lbl><Input type="number" value={cfg.labourSqmRoof} onChange={set("labourSqmRoof")}/></div>
+          </div>
+          <div style={{fontSize:11,color:"#06b6d4",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginTop:8}}>
+            {floorArea.toFixed(0)}м²×{cfg.labourSqmFloor} + {extWallArea.toFixed(0)}м²×{cfg.labourSqmWall} + {roofArea.toFixed(0)}м²×{cfg.labourSqmRoof} = <strong>₴{fmt(labCost)}</strong>
+          </div>
+        </>}
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏢 Операційні витрати</div>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>Оренда ангара, комуналка, телефонія, маркетинг, інструменти, інше</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"end"}}>
+          <div><Lbl>На один модуль (₴)</Lbl><Input type="number" value={cfg.opexPerModule} onChange={set("opexPerModule")}/></div>
+          <div style={{fontSize:12,color:"#8b5cf6",fontWeight:700,paddingBottom:8}}>×{cfg.modules} = ₴{fmt(opex)}</div>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
+          {[5000,10000,15000,20000,25000].map(v=><button key={v} onClick={()=>set("opexPerModule")(v)}
+            style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${+cfg.opexPerModule===v?"#8b5cf6":"#e2e8f0"}`,background:+cfg.opexPerModule===v?"#f5f3ff":"#fff",cursor:"pointer",color:+cfg.opexPerModule===v?"#7c3aed":"#475569"}}>
+            ₴{fmt(v)}
+          </button>)}
+        </div>
+      </Card>
+    </>}
+
+    {/* ── БІБЛІОТЕКА ФАСАДНИХ МАТЕРІАЛІВ ── */}
+    {tab==="facade_lib"&&<>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:12,color:"#64748b"}}>Матеріали і покрівля</div>
+        <Btn onClick={()=>{setFacadeForm({name:"",description:"",category:"facade",current_price:0,unit:"м²",color_hex:""});setFacadeModal(true);}} small color="#6366f1">+ Додати</Btn>
+      </div>
+
+      {["facade","roof"].map(cat=><div key={cat} style={{marginBottom:14}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>
+          {cat==="facade"?"🎨 ФАСАДНІ МАТЕРІАЛИ":"🏠 ПОКРІВЕЛЬНІ МАТЕРІАЛИ"}
+        </div>
+        {facadeMats.filter(m=>m.category===cat).map(m=><Card key={m.id} style={{padding:"10px 12px",margin:"0 0 6px",borderLeft:"3px solid #6366f1"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700}}>{m.name}</div>
+              {m.description&&<div style={{fontSize:11,color:"#64748b",marginTop:2}}>{m.description}</div>}
+            </div>
+            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
+              {editPriceId===m.id
+                ?<div style={{display:"flex",gap:4,alignItems:"center"}}>
+                  <Input type="number" value={newPrice} onChange={setNewPrice} style={{width:80,fontSize:11}}/>
+                  <Btn small onClick={async()=>{
+                    await updateFacade(m.id,{current_price:+newPrice});
+                    if(priceHistoryH?.create) await priceHistoryH.create({material_id:m.id,price:+newPrice,note:"Оновлено вручну"});
+                    setEditPriceId(null);setNewPrice("");
+                  }}>✓</Btn>
+                  <Btn small outline color="#94a3b8" onClick={()=>setEditPriceId(null)}>✕</Btn>
+                </div>
+                :<div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontWeight:700,color:"#10b981",fontSize:14}}>₴{fmt(m.current_price)}/{m.unit}</span>
+                  <button onClick={()=>{setEditPriceId(m.id);setNewPrice(m.current_price);}}
+                    style={{background:"#f0fdf4",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10,color:"#10b981"}}>✏️ Ціна</button>
+                </div>}
+            </div>
+          </div>
+        </Card>)}
+      </div>)}
+
+      {facadeModal&&<Modal title="Новий матеріал" onClose={()=>setFacadeModal(false)}>
+        <Lbl>Назва</Lbl><Input value={facadeForm.name} onChange={v=>setFacadeForm(p=>({...p,name:v}))} placeholder="Наприклад: Фіброцементні панелі"/>
+        <Lbl>Опис</Lbl><Input value={facadeForm.description} onChange={v=>setFacadeForm(p=>({...p,description:v}))} placeholder="Короткий опис"/>
+        <Lbl>Категорія</Lbl>
+        <Sel value={facadeForm.category} onChange={v=>setFacadeForm(p=>({...p,category:v}))} options={[{v:"facade",l:"🎨 Фасад"},{v:"roof",l:"🏠 Покрівля"}]}/>
+        <Lbl>Ціна (₴/м²)</Lbl><Input type="number" value={facadeForm.current_price} onChange={v=>setFacadeForm(p=>({...p,current_price:+v}))}/>
+        <Lbl>Колір (hex, опційно)</Lbl>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <Input value={facadeForm.color_hex} onChange={v=>setFacadeForm(p=>({...p,color_hex:v}))} placeholder="#RRGGBB" style={{flex:1}}/>
+          <input type="color" value={facadeForm.color_hex||"#6B4226"} onChange={e=>setFacadeForm(p=>({...p,color_hex:e.target.value}))} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          <Btn onClick={()=>setFacadeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+          <Btn onClick={async()=>{
+            await createFacade(facadeForm);
+            setFacadeModal(false);
+          }} color="#6366f1" style={{flex:2}}>💾 Додати</Btn>
+        </div>
+      </Modal>}
+    </>}
+
+    {/* РЕЗУЛЬТАТ — завжди внизу якщо є розміри */}
+    {W>0&&L>0&&tab==="params"&&<>
+      <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff",marginTop:4}}>
+        <div style={{fontSize:11,color:"#475569",marginBottom:12}}>РЕЗУЛЬТАТ · {W}×{L*cfg.modules}м · {floorArea.toFixed(0)}м²</div>
+        {[
+          {l:"🪵 Матеріали",           v:matCost,   c:"#f59e0b"},
+          {l:"👷 Праця бригади",        v:labCost,   c:"#06b6d4"},
+          {l:"🏢 Операційні витрати",   v:opex,      c:"#8b5cf6"},
+          {l:"📋 Накладні 6%",          v:overhead,  c:"#94a3b8"},
+          {l:"СОБІВАРТІСТЬ",             v:totalCost, c:"#e2e8f0", bold:true},
+          {l:`ЦІНА (${cfg.margin}%)`,    v:salePrice, c:"#10b981", big:true},
+          {l:"МАРЖА ₴",                 v:marginAmt, c:"#22c55e", bold:true},
+        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:i<6?"1px solid #ffffff10":"none"}}>
+          <span style={{fontSize:x.bold||x.big?12:11,color:x.bold||x.big?"#cbd5e1":"#94a3b8"}}>{x.l}</span>
+          <span style={{fontSize:x.big?20:x.bold?15:13,fontWeight:x.big?900:x.bold?700:600,color:x.c}}>₴{fmt(x.v)}</span>
+        </div>)}
+      </Card>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <Btn onClick={()=>{
+          setSaveName(`Каркасний ${W}×${L*cfg.modules}м`);
+          setSaveModal(true);
+        }} color="#10b981" full>💾 Зберегти як продукт</Btn>
+        <Btn onClick={()=>{
+          const win=window.open("","_blank");
+          win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body><h1>🏗️ МОДУЛЕР ПРО — КП</h1><p>${new Date().toLocaleDateString("uk-UA")} · ${W}×${L*cfg.modules}м (${floorArea.toFixed(1)}м²)</p><table><tr><th>Складова</th><th>Сума</th></tr><tr><td>Матеріали</td><td>₴${fmt(matCost)}</td></tr><tr><td>Праця бригади</td><td>₴${fmt(labCost)}</td></tr><tr><td>Операційні витрати</td><td>₴${fmt(opex)}</td></tr><tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr><tr><td><b>Собівартість</b></td><td><b>₴${fmt(totalCost)}</b></td></tr><tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(salePrice)}</span></td></tr></table><h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p></body></html>`);
+          win.document.close();win.print();
+        }} color="#6366f1" full>📄 КП (PDF)</Btn>
+      </div>
+    </>}
+
+    {/* Модал — зберегти як продукт */}
+    {saveModal&&<Modal title="💾 Зберегти як продукт" onClose={()=>setSaveModal(false)}>
+      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
+        {W}×{L*cfg.modules}м · Ціна <strong>₴{fmt(salePrice)}</strong> · Маржа <strong>{cfg.margin}%</strong>
+      </div>
+      <Lbl>Назва продукту</Lbl>
+      <Input value={saveName} onChange={setSaveName} placeholder={`Каркасний ${W}×${L*cfg.modules}м`}/>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{
+          if(!saveName.trim())return;
+          await productsH.create({
+            name:saveName,
+            description:`${W}×${L*cfg.modules}м · ${cfg.modules} модулів · ${KITS.find(k=>k.v===cfg.kit)?.l}`,
+            model:`${W}x${L*cfg.modules}`,
+            status:"draft",
+            sale_price:salePrice,
+            cost_price:totalCost,
+            margin_pct:cfg.margin,
+            notes:`Матеріали: ₴${fmt(matCost)}\nПраця: ₴${fmt(labCost)}\nОперац. витрати: ₴${fmt(opex)}\nНакладні: ₴${fmt(overhead)}`,
+            version:"1.0",
+            valid_date:today(),
+            sort_order:0,
+          });
+          setSaveModal(false);
+          setSavedOk(true);
+          setTimeout(()=>setSavedOk(false),3000);
+        }} color="#10b981" style={{flex:2}}>💾 Зберегти</Btn>
+      </div>
+    </Modal>}
+
+    {/* Сповіщення про збереження */}
+    {savedOk&&<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,zIndex:999,boxShadow:"0 4px 20px #00000030"}}>
+      ✅ Продукт збережено в каталог!
+    </div>}
+
+    {/* Модал — додати розмір */}
+    {addSizeModal&&<Modal title="Новий розмір модуля" onClose={()=>setAddSizeModal(false)}>
+      <Lbl>Назва</Lbl><Input value={newSize.name} onChange={v=>setNewSize(p=>({...p,name:v}))} placeholder="3.5×7"/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <div><Lbl>Ширина (м)</Lbl><Input type="number" value={newSize.width} onChange={v=>setNewSize(p=>({...p,width:+v}))}/></div>
+        <div><Lbl>Довжина (м)</Lbl><Input type="number" value={newSize.length} onChange={v=>setNewSize(p=>({...p,length:+v}))}/></div>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setAddSizeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{
+          await createSize({name:newSize.name,width:newSize.width,length:newSize.length,is_popular:true,status:"active",sort_order:sizes.length+1});
+          setAddSizeModal(false);setNewSize({name:"",width:0,length:0});
+        }} color="#3b82f6" style={{flex:2}}>💾 Додати</Btn>
+      </div>
+    </Modal>}
+  </div>;
+}
   const {data:sizes,create:createSize,update:updateSize}=sizesH;
   const materials=materialsH.data;
   const workers=workersH.data;
@@ -4473,6 +4990,9 @@ export default function App(){
   const docsH      =useTable("project_documents","order=created_at.desc");
   const notifsH    =useTable("notifications","order=created_at.desc");
   const lumberH    =useTable("lumber_log","order=date.desc");
+  const facadeH    =useTable("facade_materials","order=category.asc,sort_order.asc");
+  const priceHistoryH=useTable("facade_price_history","order=created_at.desc");
+  const foldersH   =useTable("product_folders","order=sort_order.asc");
   const commentsH  =useTable("project_comments","order=created_at.desc");
   const tasksH     =useTable("project_tasks","order=created_at.asc");
 
@@ -4523,8 +5043,8 @@ export default function App(){
 
   const content = <>
     {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} clients={clientsH.data} materials={materialsH.data} knowledge={knowledgeH.data} onNav={nav}/>}
-    {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH}/>}
-    {module==="products"    && <Products    productsH={productsH} onNav={nav}/>}
+    {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH} facadeH={facadeH} priceHistoryH={priceHistoryH}/>}
+    {module==="products"    && <Products    productsH={productsH} foldersH={foldersH} onNav={nav}/>}
     {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
     {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data} bomH={bomH}/>}
     {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>}
