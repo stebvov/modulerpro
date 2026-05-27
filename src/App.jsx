@@ -598,73 +598,7 @@ function NotificationCenter({notifsH,onNav}){
     </div>
   </div>;
 }
-
-// ─── GLOBAL SEARCH ────────────────────────────────────────────────────────────
-function GlobalSearch({projects,clients,materials,knowledge,tasks,onNav,onClose}){
-  const [q,setQ]=useState("");
-  const ref=useRef(null);
-  useEffect(()=>{ ref.current?.focus(); },[]);
-  const q_=q.toLowerCase();
-  const results=q.trim()?[
-    ...projects.filter(p=>p.name?.toLowerCase().includes(q_)||p.client?.toLowerCase().includes(q_)).slice(0,4).map(p=>({type:"Проєкт",icon:"🏗",title:p.name,sub:p.client,nav:"projects",color:"#3b82f6"})),
-    ...clients.filter(c=>c.name?.toLowerCase().includes(q_)||c.phone?.includes(q_)).slice(0,3).map(c=>({type:"Клієнт",icon:"👥",title:c.name,sub:c.phone,nav:"crm",color:"#6366f1"})),
-    ...materials.filter(m=>m.name?.toLowerCase().includes(q_)).slice(0,3).map(m=>({type:"Матеріал",icon:"📦",title:m.name,sub:`₴${fmt(m.opt_price)}/${m.unit}`,nav:"bom",color:"#f59e0b"})),
-    ...knowledge.filter(k=>k.title?.toLowerCase().includes(q_)||k.content?.toLowerCase().includes(q_)).slice(0,2).map(k=>({type:"База знань",icon:"📚",title:k.title,sub:k.category,nav:"knowledge",color:"#8b5cf6"})),
-    ...tasks.filter(t=>t.text?.toLowerCase().includes(q_)&&!t.done).slice(0,2).map(t=>({type:"Задача",icon:"✅",title:t.text?.slice(0,60),sub:t.assignee,nav:"projects",color:"#10b981"})),
-  ]:[];
-  return <div>
-    <input ref={ref} value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 Пошук по всій системі..."
-      style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${q?"#3b82f6":"#e2e8f0"}`,fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:q?12:0}}/>
-    {q&&results.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:16,fontSize:13}}>Нічого не знайдено за «{q}»</div>}
-    {results.map((r,i)=><div key={i} onClick={()=>{onNav(r.nav);onClose();}}
-      style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:10,marginBottom:6,background:"#f8fafc",cursor:"pointer",borderLeft:`3px solid ${r.color}`}}>
-      <span style={{fontSize:20}}>{r.icon}</span>
-      <div style={{flex:1}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#1e293b"}}>{r.title}</div>
-        <div style={{fontSize:11,color:"#94a3b8"}}>{r.sub}</div>
-      </div>
-      <Badge color={r.color}>{r.type}</Badge>
-    </div>)}
-  </div>;
-}
-
-// ─── FINANCIAL FORECAST ───────────────────────────────────────────────────────
-function FinancialForecast({projects}){
-  const active=projects.filter(p=>!["paid","lead"].includes(p.stage));
-  const forecast=active.map(p=>{
-    const progress=+p.progress||0;
-    let nextPayment=0,nextLabel="",nextDate=null;
-    if(progress<40){nextPayment=Math.round(+p.sale_price*0.4);nextLabel="40% — старт";nextDate=p.deadline?new Date(new Date(p.deadline).getTime()-90*86400000):null;}
-    else if(progress<70){nextPayment=Math.round(+p.sale_price*0.3);nextLabel="30% — коробка";nextDate=p.deadline?new Date(new Date(p.deadline).getTime()-30*86400000):null;}
-    else if(progress<100){nextPayment=Math.round(+p.sale_price*0.2);nextLabel="20% — здача";nextDate=p.deadline?new Date(p.deadline):null;}
-    return {project:p,nextPayment,nextLabel,nextDate};
-  }).filter(f=>f.nextPayment>0);
-  const total3m=forecast.filter(f=>f.nextDate&&f.nextDate<=new Date(Date.now()+90*86400000)).reduce((s,f)=>s+f.nextPayment,0);
-  const totalExpected=forecast.reduce((s,f)=>s+f.nextPayment,0);
-  if(!forecast.length)return null;
-  return <Card style={{borderLeft:"3px solid #8b5cf6",marginBottom:14}}>
-    <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>💎 Очікувані платежі</div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-      <div style={{background:"#f5f3ff",borderRadius:10,padding:"8px 10px"}}>
-        <div style={{fontSize:9,color:"#94a3b8"}}>Найближчі 3 місяці</div>
-        <div style={{fontSize:16,fontWeight:800,color:"#8b5cf6"}}>₴{fmt(total3m)}</div>
-      </div>
-      <div style={{background:"#f8fafc",borderRadius:10,padding:"8px 10px"}}>
-        <div style={{fontSize:9,color:"#94a3b8"}}>Всього до отримання</div>
-        <div style={{fontSize:16,fontWeight:800,color:"#3b82f6"}}>₴{fmt(totalExpected)}</div>
-      </div>
-    </div>
-    {forecast.map((f,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #f1f5f9"}}>
-      <div style={{flex:1}}>
-        <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:160}}>{f.project.name}</div>
-        <div style={{fontSize:10,color:"#94a3b8"}}>{f.nextLabel}{f.nextDate&&` · ${f.nextDate.toLocaleDateString("uk-UA",{day:"2-digit",month:"2-digit"})}`}</div>
-      </div>
-      <div style={{fontWeight:700,fontSize:13,color:"#8b5cf6"}}>₴{fmt(f.nextPayment)}</div>
-    </div>)}
-  </Card>;
-}
-
-function Dashboard({projects,workers,operations,procurement,onNav,tasks,projectsH,commentsH,tasksH,user,clients,materials,knowledge}){
+function Dashboard({projects,workers,operations,procurement,onNav,tasks,projectsH,commentsH,tasksH,user}){
   const tSale =projects.reduce((s,p)=>s+ +p.sale_price,0);
   const tSpent=projects.reduce((s,p)=>s+ +p.spent,0);
   const tAdv  =projects.reduce((s,p)=>s+ +p.advance,0);
@@ -676,23 +610,8 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
   const openTasks=(tasks||[]).filter(t=>!t.done).length;
   const critTasks=(tasks||[]).filter(t=>!t.done&&t.priority==="critical").length;
 
-  const [searchOpen,setSearchOpen]=useState(false);
-  const [quickComment,setQuickComment]=useState({});
-  const [commentSaved,setCommentSaved]=useState({});
-  const [expanded,setExpanded]=useState(null);
-  const [selectedProject,setSelectedProject]=useState(null); // для детального перегляду
-
-  const STAGE_HINTS={
-    lead:"Нова заявка — клієнт зацікавлений, переговори",
-    design:"Проєктування — КД, специфікація, погодження",
-    purchase:"Закупівля — замовлення матеріалів",
-    production:"Виробництво — виготовлення каркасу",
-    installation:"Монтаж — встановлення на об'єкті",
-    delivery:"Здача — фінальна перевірка, акт",
-    paid:"Оплачено — проєкт завершено ✅",
-  };
-
-  const near=[...projects].filter(p=>p.stage!=="paid"&&p.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline)).slice(0,5);
+  const [quickComment,setQuickComment]=useState({});  // projectId → text
+  const [expanded,setExpanded]=useState(null);         // projectId
 
   const kpis=[
     {l:"Активних проєктів", v:projects.filter(p=>p.stage!=="paid").length, c:"#3b82f6", i:"🏗️", nav:"projects"},
@@ -703,121 +622,14 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
     {l:"Аванси в касі",     v:"₴"+fmt(tAdv), c:"#8b5cf6", i:"💳", nav:"analytics"},
   ];
 
-  // Детальний вигляд одного проєкту
-  if(selectedProject){
-    const p=projects.find(x=>x.id===selectedProject);
-    if(!p) return null;
-    const s=STAGES.find(x=>x.id===p.stage)||STAGES[0];
-    const pTasks=(tasks||[]).filter(t=>t.project_id===p.id);
-    const pComments=(commentsH?.data||[]).filter(c=>c.project_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-    return <div>
-      <button onClick={()=>setSelectedProject(null)} style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>← Назад до дашборду</button>
-      <Card style={{borderLeft:`3px solid ${s.color}`}}>
-        <div style={{fontWeight:800,fontSize:16,marginBottom:4}}>{p.name}</div>
-        <div style={{fontSize:12,color:"#64748b",marginBottom:10}}>👤 {p.client}</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-          <Badge color={s.color}>{s.emoji} {s.label}</Badge>
-          <DL date={p.deadline}/>
-          <Badge color={+p.sale_price-+p.spent>=0?"#10b981":"#ef4444"}>Маржа {+p.sale_price>0?Math.round((+p.sale_price-+p.spent)/+p.sale_price*100):0}%</Badge>
-        </div>
-        <div style={{fontSize:11,color:"#64748b",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginBottom:10}}>
-          💡 {STAGE_HINTS[p.stage]||""}
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
-          <span style={{color:"#94a3b8"}}>Прогрес</span>
-          <span style={{fontWeight:700,color:s.color}}>{p.progress}%</span>
-        </div>
-        <PBar value={p.progress} color={s.color}/>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
-          <input type="range" min="0" max="100" value={p.progress}
-            onChange={e=>projectsH.update(p.id,{progress:+e.target.value})}
-            style={{flex:1,accentColor:s.color}}/>
-          <input type="number" min="0" max="100" value={p.progress}
-            onChange={e=>projectsH.update(p.id,{progress:Math.min(100,Math.max(0,+e.target.value))})}
-            style={{width:52,padding:"4px 6px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:12,textAlign:"center"}}/>
-          <span style={{fontSize:11,color:"#94a3b8"}}>%</span>
-        </div>
-      </Card>
-
-      {/* Зміна етапу з підказками */}
-      <Card>
-        <div style={{fontWeight:700,fontSize:12,marginBottom:10}}>Змінити етап</div>
-        {STAGES.map(st=><button key={st.id} onClick={()=>projectsH.update(p.id,{stage:st.id})}
-          style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"8px 10px",marginBottom:5,border:`2px solid ${p.stage===st.id?st.color:"#e2e8f0"}`,borderRadius:10,background:p.stage===st.id?st.color+"15":"#fff",cursor:"pointer",textAlign:"left"}}>
-          <span style={{fontSize:16}}>{st.emoji}</span>
-          <div>
-            <div style={{fontSize:12,fontWeight:p.stage===st.id?700:500,color:p.stage===st.id?st.color:"#1e293b"}}>{st.label}</div>
-            <div style={{fontSize:10,color:"#94a3b8"}}>{STAGE_HINTS[st.id]}</div>
-          </div>
-          {p.stage===st.id&&<span style={{marginLeft:"auto",color:st.color,fontSize:14}}>✓</span>}
-        </button>)}
-      </Card>
-
-      {/* Задачі */}
-      <Card>
-        <div style={{fontWeight:700,fontSize:12,marginBottom:10}}>
-          ✅ Задачі ({pTasks.filter(t=>!t.done).length} відкритих)
-        </div>
-        {pTasks.map(t=><div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #f9fafb",opacity:t.done?0.6:1}}>
-          <button onClick={()=>tasksH.update(t.id,{done:!t.done,done_at:!t.done?new Date().toISOString():null})}
-            style={{width:22,height:22,borderRadius:6,border:`2px solid ${t.done?"#10b981":"#e2e8f0"}`,background:t.done?"#10b981":"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12}}>
-            {t.done?"✓":""}
-          </button>
-          <span style={{fontSize:12,flex:1,textDecoration:t.done?"line-through":"none",color:t.done?"#94a3b8":"#1e293b"}}>{t.text}</span>
-          {t.done&&<span style={{fontSize:10,color:"#94a3b8"}}>↩ скасувати</span>}
-        </div>)}
-        {pTasks.length===0&&<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:8}}>Задач немає</div>}
-      </Card>
-
-      {/* Коментар */}
-      <Card>
-        <div style={{fontWeight:700,fontSize:12,marginBottom:8}}>💬 Додати коментар</div>
-        <div style={{display:"flex",gap:6}}>
-          <Input value={quickComment[p.id]||""} onChange={v=>setQuickComment(prev=>({...prev,[p.id]:v}))}
-            placeholder="Оновлення, проблема, нотатка..." style={{flex:1,fontSize:12}}/>
-          <Btn small onClick={async()=>{
-            const text=quickComment[p.id]?.trim();
-            if(!text)return;
-            await commentsH.create({project_id:p.id,author:user?.name||"Менеджер",text,type:"update"});
-            setQuickComment(prev=>({...prev,[p.id]:""}));
-            setCommentSaved(prev=>({...prev,[p.id]:true}));
-            setTimeout(()=>setCommentSaved(prev=>({...prev,[p.id]:false})),2000);
-          }}>→</Btn>
-        </div>
-        {commentSaved[p.id]&&<div style={{fontSize:11,color:"#10b981",marginTop:6}}>✅ Коментар збережено в логу проєкту</div>}
-
-        {pComments.length>0&&<>
-          <div style={{fontSize:10,color:"#94a3b8",margin:"10px 0 6px",fontWeight:600}}>ОСТАННІ КОМЕНТАРІ</div>
-          {pComments.slice(0,3).map(c=><div key={c.id} style={{padding:"6px 0",borderBottom:"1px solid #f9fafb"}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-              <span style={{fontSize:11,fontWeight:600}}>{c.author}</span>
-              <span style={{fontSize:10,color:"#94a3b8"}}>{fmtDate(c.created_at)}</span>
-            </div>
-            <div style={{fontSize:12,color:"#475569"}}>{c.text}</div>
-          </div>)}
-        </>}
-      </Card>
-    </div>;
-  }
+  const near=[...projects].filter(p=>p.stage!=="paid"&&p.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline)).slice(0,5);
 
   return <div>
-    {/* Пошуковий рядок */}
-    <div style={{marginBottom:12}}>
-      {searchOpen
-        ?<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",boxShadow:"0 4px 20px #00000015"}}>
-          <GlobalSearch projects={projects} clients={clients||[]} materials={materials||[]} knowledge={knowledge||[]} tasks={tasks||[]} onNav={onNav} onClose={()=>setSearchOpen(false)}/>
-          <button onClick={()=>setSearchOpen(false)} style={{width:"100%",background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:12,marginTop:8}}>Закрити</button>
-        </div>
-        :<button onClick={()=>setSearchOpen(true)} style={{width:"100%",padding:"10px 14px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"#fff",cursor:"pointer",textAlign:"left",fontSize:13,color:"#94a3b8",display:"flex",alignItems:"center",gap:8}}>
-          <span>🔍</span><span>Пошук по системі...</span>
-        </button>}
-    </div>
-
     {overdue.length>0&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
       🚨 {overdue.length} прострочено! <span onClick={()=>onNav("projects")} style={{textDecoration:"underline",cursor:"pointer"}}>Переглянути →</span>
     </div>}
 
-    {/* KPI картки — клікабельні */}
+    {/* KPI картки */}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
       {kpis.map((k,i)=><Card key={i} style={{margin:0,padding:"12px 14px",cursor:"pointer",borderBottom:`3px solid ${k.c}`}} onClick={()=>onNav(k.nav)}>
         <div style={{fontSize:20,marginBottom:4}}>{k.i}</div>
@@ -827,29 +639,28 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
       </Card>)}
     </div>
 
-    {/* Фінансовий прогноз — клікабельний */}
-    <div onClick={()=>onNav("analytics")} style={{cursor:"pointer"}}>
-      <FinancialForecast projects={projects}/>
-    </div>
-
-    {/* Активні проєкти */}
+    {/* Активні проєкти з quick actions */}
     <div style={{fontWeight:700,fontSize:11,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>АКТИВНІ ПРОЄКТИ</div>
     {near.map(p=>{
       const s=STAGES.find(x=>x.id===p.stage)||STAGES[0];
       const m=+p.sale_price- +p.spent;
       const mPct_=+p.sale_price>0?Math.round(m/+p.sale_price*100):0;
       const pTasks=(tasks||[]).filter(t=>t.project_id===p.id&&!t.done);
-      return <Card key={p.id} style={{margin:"0 0 8px",cursor:"pointer"}} onClick={()=>setSelectedProject(p.id)}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+      const isExpanded=expanded===p.id;
+
+      return <Card key={p.id} style={{margin:"0 0 8px"}}>
+        {/* Заголовок — клік відкриває quick actions */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,cursor:"pointer"}} onClick={()=>setExpanded(isExpanded?null:p.id)}>
           <div style={{flex:1}}>
             <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
             <div style={{fontSize:11,color:"#64748b"}}>👤 {p.client}</div>
           </div>
           <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0,marginLeft:8}}>
             <Badge color={s.color}>{s.emoji} {s.label}</Badge>
-            <span style={{fontSize:11,color:"#3b82f6"}}>→</span>
+            <span style={{fontSize:12,color:"#94a3b8"}}>{isExpanded?"▲":"▼"}</span>
           </div>
         </div>
+
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             <DL date={p.deadline}/>
@@ -859,9 +670,62 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
           <span style={{fontSize:11,fontWeight:700,color:s.color}}>{p.progress}%</span>
         </div>
         <PBar value={p.progress} color={s.color}/>
+
         {p.issues&&<div style={{fontSize:10,color:"#b45309",background:"#fef3c7",borderRadius:6,padding:"3px 8px",marginTop:6}}>⚠️ {p.issues}</div>}
+
+        {/* QUICK ACTIONS — розгортається */}
+        {isExpanded&&<div style={{marginTop:10,borderTop:"1px solid #f1f5f9",paddingTop:10}}>
+
+          {/* Зміна етапу */}
+          <div style={{fontSize:10,color:"#94a3b8",marginBottom:5,fontWeight:600}}>ЗМІНИТИ ЕТАП</div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
+            {STAGES.map(st=><button key={st.id} onClick={()=>projectsH.update(p.id,{stage:st.id})}
+              style={{fontSize:10,padding:"4px 8px",borderRadius:99,border:"none",cursor:"pointer",fontWeight:p.stage===st.id?700:400,background:p.stage===st.id?st.color:"#f1f5f9",color:p.stage===st.id?"#fff":"#64748b"}}>
+              {st.emoji} {st.label}
+            </button>)}
+          </div>
+
+          {/* Прогрес */}
+          <div style={{fontSize:10,color:"#94a3b8",marginBottom:4,fontWeight:600}}>ПРОГРЕС: {p.progress}%</div>
+          <input type="range" min="0" max="100" value={p.progress}
+            onChange={e=>projectsH.update(p.id,{progress:+e.target.value})}
+            style={{width:"100%",accentColor:s.color,marginBottom:10}}/>
+
+          {/* Задачі */}
+          {pTasks.length>0&&<>
+            <div style={{fontSize:10,color:"#94a3b8",marginBottom:5,fontWeight:600}}>ВІДКРИТІ ЗАДАЧІ</div>
+            {pTasks.slice(0,3).map(t=><div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #f9fafb"}}>
+              <button onClick={()=>tasksH.update(t.id,{done:true,done_at:new Date().toISOString()})}
+                style={{width:20,height:20,borderRadius:6,border:"2px solid #e2e8f0",background:"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11}}>
+              </button>
+              <span style={{fontSize:11,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.text}</span>
+              <Badge color={t.priority==="critical"?"#ef4444":t.priority==="high"?"#f59e0b":"#3b82f6"}>{t.priority==="critical"?"🔴":t.priority==="high"?"🟡":"🔵"}</Badge>
+            </div>)}
+            {pTasks.length>3&&<div style={{fontSize:10,color:"#3b82f6",marginTop:4}}>+ ще {pTasks.length-3} задач</div>}
+            <div style={{marginBottom:8}}/>
+          </>}
+
+          {/* Швидкий коментар */}
+          <div style={{fontSize:10,color:"#94a3b8",marginBottom:5,fontWeight:600}}>ШВИДКИЙ КОМЕНТАР</div>
+          <div style={{display:"flex",gap:6}}>
+            <Input value={quickComment[p.id]||""} onChange={v=>setQuickComment(prev=>({...prev,[p.id]:v}))}
+              placeholder="Оновлення, проблема..." style={{flex:1,fontSize:11}}/>
+            <Btn small onClick={async()=>{
+              const text=quickComment[p.id]?.trim();
+              if(!text)return;
+              await commentsH.create({project_id:p.id,author:user?.name||"Менеджер",text,type:"update"});
+              setQuickComment(prev=>({...prev,[p.id]:""}));
+            }}>→</Btn>
+          </div>
+
+          {/* Відкрити повністю */}
+          <Btn onClick={()=>onNav("projects")} full outline color="#3b82f6" small style={{marginTop:8}}>
+            Відкрити проєкт повністю →
+          </Btn>
+        </div>}
       </Card>;
     })}
+
     {projects.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20,fontSize:13}}>
       Немає проєктів. <span onClick={()=>onNav("projects")} style={{color:"#3b82f6",cursor:"pointer"}}>Додати →</span>
     </div>}
@@ -869,9 +733,10 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
 }
 
 // ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
+// ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
 function Products({productsH,foldersH,onNav}){
   const {data:products,loading,saving,create,update,remove}=productsH;
-  const {data:folders=[],create:createFolder,update:updateFolder,remove:removeFolder}=foldersH||{data:[],create:async()=>{},update:async()=>{},remove:async()=>{}};
+  const {data:folders=[],create:createFolder,remove:removeFolder}=foldersH||{data:[],create:async()=>{},remove:async()=>{}};
   const [modal,setModal]=useState(null);
   const [view,setView]=useState(null);
   const [form,setForm]=useState(null);
@@ -880,66 +745,55 @@ function Products({productsH,foldersH,onNav}){
   const [compareB,setCompareB]=useState(null);
   const [folderModal,setFolderModal]=useState(false);
   const [folderForm,setFolderForm]=useState({name:"",color:"#6366f1"});
-  const [activeFolder,setActiveFolder]=useState(null); // null = всі, uuid = папка
+  const [activeFolder,setActiveFolder]=useState(null);
   const [movingProduct,setMovingProduct]=useState(null);
 
   const STATUS={
-    active: {l:"✅ Актуальний", c:"#10b981"},
-    draft:  {l:"📝 Чернетка",   c:"#6366f1"},
-    archive:{l:"📦 Архів",      c:"#94a3b8"},
+    active:{l:"✅ Актуальний",c:"#10b981"},
+    draft:{l:"📝 Чернетка",c:"#6366f1"},
+    archive:{l:"📦 Архів",c:"#94a3b8"},
   };
-
   const empty={name:"",description:"",model:"3x6",status:"draft",sale_price:0,cost_price:0,margin_pct:30,notes:"",version:"1.0",valid_date:today(),sort_order:0,folder_id:null};
 
-  // Сортуємо продукти: по sort_order, потім по даті (нові спочатку)
   const sorted=[...products].sort((a,b)=>{
-    if(a.sort_order!==b.sort_order) return (a.sort_order||0)-(b.sort_order||0);
+    if((a.sort_order||0)!==(b.sort_order||0)) return (a.sort_order||0)-(b.sort_order||0);
     return new Date(b.created_at)-new Date(a.created_at);
   });
-
-  const filtered=activeFolder===null
-    ? sorted
-    : activeFolder==="no_folder"
-      ? sorted.filter(p=>!p.folder_id)
-      : sorted.filter(p=>p.folder_id===activeFolder);
+  const filtered=activeFolder===null?sorted:activeFolder==="no_folder"?sorted.filter(p=>!p.folder_id):sorted.filter(p=>p.folder_id===activeFolder);
 
   async function moveUp(p){
     const idx=sorted.findIndex(x=>x.id===p.id);
     if(idx<=0)return;
-    const prev=sorted[idx-1];
-    await update(p.id,{sort_order:(prev.sort_order||0)-1});
+    await update(p.id,{sort_order:(sorted[idx-1].sort_order||0)-1});
   }
   async function moveDown(p){
     const idx=sorted.findIndex(x=>x.id===p.id);
     if(idx>=sorted.length-1)return;
-    const next=sorted[idx+1];
-    await update(p.id,{sort_order:(next.sort_order||0)+1});
+    await update(p.id,{sort_order:(sorted[idx+1].sort_order||0)+1});
   }
 
-  if(loading) return <Spin/>;
+  if(loading)return <Spin/>;
 
-  // Порівняння двох продуктів
   if(compareMode&&compareA&&compareB){
     const A=products.find(p=>p.id===compareA);
     const B=products.find(p=>p.id===compareB);
-    if(!A||!B) return null;
+    if(!A||!B)return null;
     const mA=+A.sale_price>0?Math.round((+A.sale_price-+A.cost_price)/+A.sale_price*100):0;
     const mB=+B.sale_price>0?Math.round((+B.sale_price-+B.cost_price)/+B.sale_price*100):0;
     return <div>
-      <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}}
-        style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>← Назад</button>
+      <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}} style={{background:"none",border:"none",color:"#3b82f6",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:12}}>← Назад</button>
       <div style={{fontWeight:700,fontSize:14,marginBottom:14,textAlign:"center"}}>⚖️ Порівняння</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
         {[A,B].map((p,i)=><Card key={i} style={{margin:0,textAlign:"center",borderTop:`3px solid ${i===0?"#3b82f6":"#10b981"}`}}>
-          <div style={{fontWeight:800,fontSize:13,marginBottom:4}}>{p.name}</div>
+          <div style={{fontWeight:800,fontSize:13}}>{p.name}</div>
           <Badge color="#6366f1">📐 {p.model}</Badge>
         </Card>)}
       </div>
       {[
-        {l:"💰 Ціна",       vA:"₴"+fmt(+A.sale_price),   vB:"₴"+fmt(+B.sale_price),   better:+A.sale_price>+B.sale_price?"A":"B"},
-        {l:"📉 Собівартість",vA:"₴"+fmt(+A.cost_price),  vB:"₴"+fmt(+B.cost_price),   better:+A.cost_price<+B.cost_price?"A":"B"},
-        {l:"📈 Маржа %",     vA:`${mA}%`,                 vB:`${mB}%`,                  better:mA>mB?"A":"B"},
-        {l:"💵 Маржа ₴",     vA:"₴"+fmt(+A.sale_price-+A.cost_price),vB:"₴"+fmt(+B.sale_price-+B.cost_price),better:(+A.sale_price-+A.cost_price)>(+B.sale_price-+B.cost_price)?"A":"B"},
+        {l:"💰 Ціна",vA:"₴"+fmt(+A.sale_price),vB:"₴"+fmt(+B.sale_price),better:+A.sale_price>+B.sale_price?"A":"B"},
+        {l:"📉 Собівартість",vA:"₴"+fmt(+A.cost_price),vB:"₴"+fmt(+B.cost_price),better:+A.cost_price<+B.cost_price?"A":"B"},
+        {l:"📈 Маржа %",vA:`${mA}%`,vB:`${mB}%`,better:mA>mB?"A":"B"},
+        {l:"💵 Маржа ₴",vA:"₴"+fmt(+A.sale_price-+A.cost_price),vB:"₴"+fmt(+B.sale_price-+B.cost_price),better:(+A.sale_price-+A.cost_price)>(+B.sale_price-+B.cost_price)?"A":"B"},
       ].map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:4,marginBottom:6,alignItems:"center"}}>
         <div style={{background:row.better==="A"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px 10px",textAlign:"center",border:row.better==="A"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
           <div style={{fontSize:13,fontWeight:700,color:row.better==="A"?"#10b981":"#1e293b"}}>{row.vA}</div>
@@ -964,72 +818,45 @@ function Products({productsH,foldersH,onNav}){
       </div>
     </div>
 
-    {/* Папки */}
     {folders.length>0&&<div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:10,paddingBottom:4}}>
-      <button onClick={()=>setActiveFolder(null)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===null?"#1e293b":"#e2e8f0",color:activeFolder===null?"#fff":"#475569"}}>
-        Всі ({products.length})
-      </button>
-      {folders.map(f=><button key={f.id} onClick={()=>setActiveFolder(f.id)}
-        style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===f.id?f.color:"#e2e8f0",color:activeFolder===f.id?"#fff":"#475569"}}>
-        📁 {f.name} ({products.filter(p=>p.folder_id===f.id).length})
-      </button>)}
-      <button onClick={()=>setActiveFolder("no_folder")} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder==="no_folder"?"#64748b":"#e2e8f0",color:activeFolder==="no_folder"?"#fff":"#475569"}}>
-        Без папки ({products.filter(p=>!p.folder_id).length})
-      </button>
+      <button onClick={()=>setActiveFolder(null)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===null?"#1e293b":"#e2e8f0",color:activeFolder===null?"#fff":"#475569"}}>Всі ({products.length})</button>
+      {folders.map(f=><button key={f.id} onClick={()=>setActiveFolder(f.id)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===f.id?f.color:"#e2e8f0",color:activeFolder===f.id?"#fff":"#475569"}}>📁 {f.name} ({products.filter(p=>p.folder_id===f.id).length})</button>)}
+      <button onClick={()=>setActiveFolder("no_folder")} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder==="no_folder"?"#64748b":"#e2e8f0",color:activeFolder==="no_folder"?"#fff":"#475569"}}>Без папки</button>
     </div>}
 
-    {/* Режим порівняння */}
     {compareMode&&(!compareA||!compareB)&&<div style={{background:"#ede9fe",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#6d28d9"}}>
-      ⚖️ Оберіть {!compareA?"перший":"другий"} продукт для порівняння
+      ⚖️ Оберіть {!compareA?"перший":"другий"} продукт
       <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}} style={{float:"right",background:"none",border:"none",cursor:"pointer",color:"#6d28d9"}}>✕</button>
     </div>}
 
-    {/* Переміщення в папку */}
     {movingProduct&&folders.length>0&&<Modal title="Перемістити в папку" onClose={()=>setMovingProduct(null)}>
-      <div style={{marginBottom:8}}>
-        <button onClick={async()=>{await update(movingProduct,{folder_id:null});setMovingProduct(null);}}
-          style={{width:"100%",padding:"10px",marginBottom:6,border:"1px solid #e2e8f0",borderRadius:10,cursor:"pointer",fontSize:13,background:"#f8fafc",textAlign:"left"}}>
-          📋 Без папки
-        </button>
-        {folders.map(f=><button key={f.id} onClick={async()=>{await update(movingProduct,{folder_id:f.id});setMovingProduct(null);}}
-          style={{width:"100%",padding:"10px",marginBottom:6,border:`2px solid ${f.color}`,borderRadius:10,cursor:"pointer",fontSize:13,background:f.color+"15",textAlign:"left",color:f.color,fontWeight:600}}>
-          📁 {f.name}
-        </button>)}
-      </div>
+      <button onClick={async()=>{await update(movingProduct,{folder_id:null});setMovingProduct(null);}} style={{width:"100%",padding:"10px",marginBottom:6,border:"1px solid #e2e8f0",borderRadius:10,cursor:"pointer",fontSize:13,background:"#f8fafc",textAlign:"left"}}>📋 Без папки</button>
+      {folders.map(f=><button key={f.id} onClick={async()=>{await update(movingProduct,{folder_id:f.id});setMovingProduct(null);}} style={{width:"100%",padding:"10px",marginBottom:6,border:`2px solid ${f.color}`,borderRadius:10,cursor:"pointer",fontSize:13,background:f.color+"15",textAlign:"left",color:f.color,fontWeight:600}}>📁 {f.name}</button>)}
     </Modal>}
 
     {filtered.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:40,fontSize:13}}>
-      {products.length===0?"Каталог порожній. Збережіть з Конфігуратора.":"Немає продуктів в цій папці."}
+      {products.length===0?"Каталог порожній. Збережіть з Конфігуратора.":"Немає продуктів."}
       {products.length===0&&<div style={{marginTop:12}}><Btn onClick={()=>onNav("configurator")} outline color="#3b82f6" small>⚡ Конфігуратор</Btn></div>}
     </div>}
 
-    {filtered.map((p,idx)=>{
+    {filtered.map(p=>{
       const s=STATUS[p.status]||STATUS.draft;
-      const margin_=+p.sale_price>0?Math.round((+p.sale_price-+p.cost_price)/+p.sale_price*100):0;
+      const m_=+p.sale_price>0?Math.round((+p.sale_price-+p.cost_price)/+p.sale_price*100):0;
       const folder=folders.find(f=>f.id===p.folder_id);
-      const isSelectedA=compareA===p.id;
-      const isSelectedB=compareB===p.id;
-      return <Card key={p.id} style={{borderLeft:`3px solid ${isSelectedA?"#3b82f6":isSelectedB?"#10b981":s.c}`,background:isSelectedA||isSelectedB?"#f8faff":"#fff",margin:"0 0 8px"}}
-        onClick={()=>{
-          if(compareMode){
-            if(!compareA&&compareB!==p.id) setCompareA(p.id);
-            else if(!compareB&&compareA!==p.id) setCompareB(p.id);
-          }
-        }}>
+      const isA=compareA===p.id, isB=compareB===p.id;
+      return <Card key={p.id} style={{borderLeft:`3px solid ${isA?"#3b82f6":isB?"#10b981":s.c}`,margin:"0 0 8px"}} onClick={()=>{if(compareMode){if(!compareA&&compareB!==p.id)setCompareA(p.id);else if(!compareB&&compareA!==p.id)setCompareB(p.id);}}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
           <div style={{flex:1}}>
             <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
-            {folder&&<div style={{fontSize:9,color:folder.color,marginTop:1}}>📁 {folder.name}</div>}
+            {folder&&<div style={{fontSize:9,color:folder.color}}>📁 {folder.name}</div>}
             <div style={{fontSize:11,color:"#64748b"}}>{p.description?.slice(0,50)}</div>
           </div>
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
-            {compareMode&&<div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isSelectedA?"#3b82f6":isSelectedB?"#10b981":"#e2e8f0"}`,background:isSelectedA?"#3b82f6":isSelectedB?"#10b981":"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12}}>
-              {isSelectedA?"A":isSelectedB?"B":""}
-            </div>}
+            {compareMode&&<div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isA?"#3b82f6":isB?"#10b981":"#e2e8f0"}`,background:isA?"#3b82f6":isB?"#10b981":"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12}}>{isA?"A":isB?"B":""}</div>}
             {!compareMode&&<>
-              <button onClick={e=>{e.stopPropagation();moveUp(p);}} title="Вгору" style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↑</button>
-              <button onClick={e=>{e.stopPropagation();moveDown(p);}} title="Вниз" style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↓</button>
-              {folders.length>0&&<button onClick={e=>{e.stopPropagation();setMovingProduct(p.id);}} title="В папку" style={{background:"#f5f3ff",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>📁</button>}
+              <button onClick={e=>{e.stopPropagation();moveUp(p);}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↑</button>
+              <button onClick={e=>{e.stopPropagation();moveDown(p);}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>↓</button>
+              {folders.length>0&&<button onClick={e=>{e.stopPropagation();setMovingProduct(p.id);}} style={{background:"#f5f3ff",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>📁</button>}
               <button onClick={e=>{e.stopPropagation();setView(p);}} style={{background:"#f0f9ff",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>👁</button>
               <button onClick={e=>{e.stopPropagation();setForm({...p});setModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>✏️</button>
               <button onClick={e=>{e.stopPropagation();confirm("Видалити?")&&remove(p.id);}} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>🗑</button>
@@ -1041,7 +868,7 @@ function Products({productsH,foldersH,onNav}){
           <Badge color="#6366f1">📐 {p.model}</Badge>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:"Маржа",v:`${margin_}%`,c:margin_>=25?"#10b981":margin_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
+          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:"Маржа",v:`${m_}%`,c:m_>=25?"#10b981":m_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
             <div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"4px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div>
               <div style={{fontSize:12,fontWeight:700,color:x.c}}>{x.v}</div>
@@ -1051,31 +878,22 @@ function Products({productsH,foldersH,onNav}){
       </Card>;
     })}
 
-    {/* Папка modal */}
-    {folderModal&&<Modal title="📁 Папки продуктів" onClose={()=>setFolderModal(false)}>
-      <div style={{marginBottom:12}}>
-        {folders.map(f=><div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:14,height:14,borderRadius:"50%",background:f.color}}/>
-            <span style={{fontSize:13,fontWeight:600}}>{f.name}</span>
-            <span style={{fontSize:11,color:"#94a3b8"}}>({products.filter(p=>p.folder_id===f.id).length})</span>
-          </div>
-          <button onClick={()=>removeFolder(f.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>🗑</button>
-        </div>)}
-      </div>
-      <Lbl>Нова папка</Lbl>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+    {folderModal&&<Modal title="📁 Папки" onClose={()=>setFolderModal(false)}>
+      {folders.map(f=><div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:14,height:14,borderRadius:"50%",background:f.color}}/>
+          <span style={{fontSize:13,fontWeight:600}}>{f.name}</span>
+          <span style={{fontSize:11,color:"#94a3b8"}}>({products.filter(p=>p.folder_id===f.id).length})</span>
+        </div>
+        <button onClick={()=>removeFolder(f.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:11}}>🗑</button>
+      </div>)}
+      <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
         <Input value={folderForm.name} onChange={v=>setFolderForm(p=>({...p,name:v}))} placeholder="Назва папки" style={{flex:1}}/>
         <input type="color" value={folderForm.color} onChange={e=>setFolderForm(p=>({...p,color:e.target.value}))} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/>
-        <Btn onClick={async()=>{
-          if(!folderForm.name.trim())return;
-          await createFolder(folderForm);
-          setFolderForm({name:"",color:"#6366f1"});
-        }} small color="#6366f1">+</Btn>
+        <Btn onClick={async()=>{if(!folderForm.name.trim())return;await createFolder(folderForm);setFolderForm({name:"",color:"#6366f1"});}} small color="#6366f1">+</Btn>
       </div>
     </Modal>}
 
-    {/* View modal */}
     {view&&<Modal title={view.name} onClose={()=>setView(null)}>
       <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
         <Badge color={STATUS[view.status]?.c||"#94a3b8"}>{STATUS[view.status]?.l}</Badge>
@@ -1095,17 +913,14 @@ function Products({productsH,foldersH,onNav}){
       <Btn onClick={()=>{create({...view,id:undefined,name:view.name+" (копія)",status:"draft",created_at:undefined,sort_order:0});setView(null);}} outline color="#6366f1" full style={{marginTop:12}}>⎘ Копія</Btn>
     </Modal>}
 
-    {/* Add/Edit modal */}
     {modal&&form&&<Modal title={modal==="add"?"Новий продукт":"Редагувати"} onClose={()=>setModal(null)}>
-      <Lbl>Назва</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6 Стандарт"/>
+      <Lbl>Назва</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6"/>
       <Lbl>Опис</Lbl><Input value={form.description} onChange={v=>setForm(p=>({...p,description:v}))}/>
       <Lbl>Модель</Lbl><Sel value={form.model} onChange={v=>setForm(p=>({...p,model:v}))} options={["3x6","4x8","6x9","3x9","4x9","6x12"].map(v=>({v,l:v}))}/>
       <Lbl>Статус</Lbl><Sel value={form.status} onChange={v=>setForm(p=>({...p,status:v}))} options={Object.entries(STATUS).map(([k,v])=>({v:k,l:v.l}))}/>
       {folders.length>0&&<><Lbl>Папка</Lbl><Sel value={form.folder_id||""} onChange={v=>setForm(p=>({...p,folder_id:v||null}))} options={[{v:"",l:"— Без папки —"},...folders.map(f=>({v:f.id,l:f.name}))]}/></>}
       <Lbl>Ціна (₴)</Lbl><Input type="number" value={form.sale_price} onChange={v=>setForm(p=>({...p,sale_price:+v}))}/>
       <Lbl>Собівартість (₴)</Lbl><Input type="number" value={form.cost_price} onChange={v=>setForm(p=>({...p,cost_price:+v}))}/>
-      <Lbl>Нотатки</Lbl>
-      <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} style={{width:"100%",minHeight:80,padding:"8px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:12,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
       <div style={{display:"flex",gap:8,marginTop:14}}>
         <Btn onClick={()=>setModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
         <Btn onClick={async()=>{if(form.id)await update(form.id,form);else await create(form);setModal(null);}} style={{flex:2}}>💾 Зберегти</Btn>
@@ -1113,6 +928,8 @@ function Products({productsH,foldersH,onNav}){
     </Modal>}
   </div>;
 }
+
+
 // ─── CONFIGURATOR ─────────────────────────────────────────────────────────────
 function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,priceHistoryH}){
   const {data:sizes,create:createSize}=sizesH;
@@ -1122,23 +939,16 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
   const [cfg,setCfg]=useState({
     sizeId:"",customW:0,customL:0,modules:1,
     hasTerrace:false,terraceW:2.5,terraceL:6,
-    heightExt:3.0,heightInt:2.5,
-    floorThick:200,wallExtThick:150,wallIntThick:100,roofThick:200,
-    // Фасад — масив варіантів [{matId, area}]
     facadeVariants:[{matId:"",area:0}],
-    roofType:"pvc",   // pvc, proflist, clickfalz, soft
+    roofType:"pvc",
     facadeColor:"#6B4226",
     kit:"turnkey",
     hasElectric:true,hasWater:true,hasSewage:true,
     hasHeatedFloor:false,hasKitchen:false,hasAC:false,
-    // Оплата
     labourScheme:"fixed",labourFixed:150000,
     labourSqmFloor:900,labourSqmWall:700,labourSqmRoof:900,
-    // Операційні витрати
     opexPerModule:15000,
     margin:30,
-    // Розбивка матеріалів
-    showMatBreakdown:false,
   });
   const set=k=>v=>setCfg(p=>({...p,[k]:v}));
 
@@ -1153,7 +963,6 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
   const [newPrice,setNewPrice]=useState("");
   const [tab,setTab]=useState("params");
 
-  // Площі
   const selSize=sizes.find(s=>s.id===cfg.sizeId);
   const W=selSize?.name==="Індивідуальний"?+cfg.customW:(selSize?+selSize.width:0);
   const L=selSize?.name==="Індивідуальний"?+cfg.customL:(selSize?+selSize.length:0);
@@ -1162,105 +971,63 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
   const roofArea=W*L*cfg.modules;
 
   const ROOF_TYPES=[
-    {v:"pvc",      l:"ПВХ мембрана",           price:350},
-    {v:"proflist", l:"Профлист",                price:220},
-    {v:"clickfalz",l:"Клікфальц",               price:480},
-    {v:"soft",     l:"М'яка покрівля (наплавл.)",price:280},
+    {v:"pvc",l:"ПВХ мембрана",price:350},
+    {v:"proflist",l:"Профлист",price:220},
+    {v:"clickfalz",l:"Клікфальц",price:480},
+    {v:"soft",l:"М'яка покрівля",price:280},
   ];
+  const KITS=[{v:"rough",l:"🔨 Під ремонт"},{v:"turnkey",l:"🏠 Під ключ"},{v:"premium",l:"⭐ Преміум"}];
+  const popularSizes=sizes.filter(s=>s.is_popular&&s.status==="active");
 
-  // Детальний розклад матеріалів
   function calcMatBreakdown(){
     const rows=[];
+    if(!W||!L)return rows;
     const add=(name,qty,unit,price)=>rows.push({name,qty:Math.round(qty*10)/10,unit,price,sum:Math.round(qty*price)});
-
-    // Деревина
     const wood_m3=floorArea*0.06;
-    add("Дошка 50×150мм (стійки)",wood_m3*0.4*1000/0.0075,"п.м.",0.12);
-    add("Дошка 50×200мм (лаги/крокви)",wood_m3*0.25*1000/0.01,"п.м.",0.15);
-    add("Дошка 50×100мм (внутр.стіни)",wood_m3*0.15*1000/0.005,"п.м.",0.055);
-    add("Дошка 20×100мм (підшивка)",wood_m3*0.1*1000/0.002,"п.м.",0.035);
-    add("Брусок 40×50мм",wood_m3*0.1*1000/0.002,"п.м.",0.028);
-    // Переводимо в реальні ціни
-    rows.forEach(r=>{if(r.price<10){r.price=r.price*15000;r.sum=Math.round(r.qty*r.price/1000);}});
-
-    // OSB
+    add("Дошка 50×150мм (стійки)",Math.round(wood_m3*53),"п.м.",28);
+    add("Дошка 50×200мм (лаги/крокви)",Math.round(wood_m3*25),"п.м.",38);
+    add("Дошка 50×100мм (внутр.стіни)",Math.round(wood_m3*30),"п.м.",22);
+    add("Дошка 20×100мм (підшивка)",Math.round(wood_m3*50),"п.м.",12);
+    add("Брусок 40×50мм",Math.round(extWallArea*1.5),"п.м.",18);
     const osb22=Math.ceil(floorArea/3.125);
     const osb10=Math.ceil(roofArea/3.125);
-    rows.push({name:"OSB 22мм (підлога)",qty:osb22,unit:"лист",price:850,sum:osb22*850});
-    rows.push({name:"OSB 10мм (покрівля)",qty:osb10,unit:"лист",price:520,sum:osb10*520});
-
-    // Мембрани
+    add("OSB 22мм (підлога)",osb22,"лист",850);
+    add("OSB 10мм (покрівля)",osb10,"лист",520);
     const paraRuls=Math.ceil((floorArea+extWallArea+roofArea)/75);
     const memRuls=Math.ceil((extWallArea+roofArea*1.1)/75);
-    rows.push({name:"Паробар'єр армов. фольгов.",qty:paraRuls,unit:"рул.",price:1500,sum:paraRuls*1500});
-    rows.push({name:"Супердифузійна мембрана",qty:memRuls,unit:"рул.",price:1200,sum:memRuls*1200});
-    rows.push({name:"Скотч фольг. для паробар'єру",qty:Math.ceil(paraRuls*0.8),unit:"рул.",price:285,sum:Math.ceil(paraRuls*0.8)*285});
-    rows.push({name:"Бутилова стрічка (2-ст. скотч)",qty:Math.ceil(extWallArea/20),unit:"рул.",price:380,sum:Math.ceil(extWallArea/20)*380});
-
-    // Базальтова вата
-    const vataArea=floorArea*2+extWallArea*1.5+roofArea*2;
-    rows.push({name:"Базальтова вата 30кг/м³",qty:Math.ceil(vataArea),unit:"м²",price:250,sum:Math.ceil(vataArea)*250});
-
-    // Вогнебіозахист
-    rows.push({name:"Вогнебіозахист деревини",qty:Math.ceil(wood_m3*25),unit:"л",price:140,sum:Math.ceil(wood_m3*25)*140});
-
-    // Покрівля
+    add("Паробар'єр армов. фольгов.",paraRuls,"рул.",1500);
+    add("Супердифузійна мембрана",memRuls,"рул.",1200);
+    add("Скотч фольгований",Math.ceil(paraRuls*0.8),"рул.",285);
+    add("Бутилова стрічка",Math.ceil(extWallArea/20),"рул.",380);
+    add("Базальтова вата 30кг/м³",Math.ceil(floorArea*2+extWallArea*1.5+roofArea*2),"м²",250);
+    add("Вогнебіозахист",Math.ceil(wood_m3*25),"л",140);
+    add("Сітка від гризунів 6×6мм",Math.round(floorArea*1.1),"м²",75);
     const roofT=ROOF_TYPES.find(r=>r.v===cfg.roofType)||ROOF_TYPES[0];
-    rows.push({name:`Покрівля: ${roofT.l}`,qty:Math.round(roofArea*1.15),unit:"м²",price:roofT.price,sum:Math.round(roofArea*1.15*roofT.price)});
-    rows.push({name:"Підкладка під покрівлю",qty:Math.round(roofArea*1.1),unit:"м²",price:68,sum:Math.round(roofArea*1.1*68)});
-    rows.push({name:"Розхідники покрівлі (шайби,планки)",qty:1,unit:"компл.",price:3500,sum:3500});
-
-    // Сітка від гризунів
-    rows.push({name:"Сітка метал. від гризунів 6×6мм",qty:Math.round(floorArea*1.1),unit:"м²",price:75,sum:Math.round(floorArea*1.1*75)});
-
+    add(`Покрівля: ${roofT.l}`,Math.round(roofArea*1.15),"м²",roofT.price);
+    add("Підкладка під покрівлю",Math.round(roofArea*1.1),"м²",68);
+    add("Розхідники покрівлі",1,"компл.",3500);
     // Фасад
+    let facadeDone=false;
     cfg.facadeVariants.forEach((fv,i)=>{
       const mat=facadeMats.find(m=>m.id===fv.matId);
-      if(mat&&+fv.area>0){
-        rows.push({name:`Фасад ${i+1}: ${mat.name}`,qty:Math.round(+fv.area*1.15),unit:"м²",price:+mat.current_price,sum:Math.round(+fv.area*1.15*+mat.current_price)});
-      }
+      if(mat&&+fv.area>0){add(`Фасад ${i+1}: ${mat.name}`,Math.round(+fv.area*1.15),"м²",+mat.current_price);facadeDone=true;}
     });
-    if(cfg.facadeVariants.every(fv=>!fv.matId)){
-      rows.push({name:"Фасад (планкен, орієнтовно)",qty:Math.round(extWallArea*1.15),unit:"м²",price:550,sum:Math.round(extWallArea*1.15*550)});
-    }
-
-    // Вікна і двері
-    rows.push({name:"Вікна металопласт.",qty:cfg.modules*2,unit:"шт",price:4500,sum:cfg.modules*2*4500});
-    rows.push({name:"Двері вхідні",qty:cfg.modules,unit:"шт",price:7000,sum:cfg.modules*7000});
-    rows.push({name:"Двері міжкімнатні",qty:Math.max(1,cfg.modules*1),unit:"шт",price:11000,sum:Math.max(1,cfg.modules)*11000});
-
-    // Комунікації
-    if(cfg.hasElectric){
-      rows.push({name:"Комплект електропроводки",qty:1,unit:"компл.",price:8000,sum:8000});
-      rows.push({name:"Електрофурнітура",qty:1,unit:"компл.",price:5000,sum:5000});
-      rows.push({name:"Щиток+автомати",qty:1,unit:"компл.",price:4500,sum:4500});
-    }
-    if(cfg.hasWater){
-      rows.push({name:"Труба металопласт.+фітинги",qty:Math.round(floorArea*0.8),unit:"п.м.",price:45,sum:Math.round(floorArea*0.8*45)});
-    }
-    if(cfg.hasSewage){
-      rows.push({name:"Каналізація ПП труби+фітинги",qty:1,unit:"компл.",price:8000,sum:8000});
-    }
-    if(cfg.hasWater&&cfg.hasSewage){
-      rows.push({name:"Сантехніка (унітаз,умив,душ)",qty:1,unit:"компл.",price:18000,sum:18000});
-    }
-
-    // Оздоблення
-    if(cfg.kit!=="rough"){
-      rows.push({name:"Підлога ламінат+підкладка",qty:Math.round(floorArea*1.05),unit:"м²",price:450,sum:Math.round(floorArea*1.05*450)});
-      rows.push({name:"Оздоблення стін (планкен/ламінат)",qty:Math.round(extWallArea*0.8),unit:"м²",price:185,sum:Math.round(extWallArea*0.8*185)});
-      rows.push({name:"Підвіконники",qty:cfg.modules*2,unit:"шт",price:650,sum:cfg.modules*2*650});
-    }
-    if(cfg.hasKitchen) rows.push({name:"Кухня (базовий набір)",qty:1,unit:"компл.",price:35000,sum:35000});
-    if(cfg.hasHeatedFloor) rows.push({name:"Тепла підлога (мат)",qty:Math.round(floorArea),unit:"м²",price:650,sum:Math.round(floorArea*650)});
-
-    // Розхідники
-    rows.push({name:"Розхідники (цвяхи,скоби,біти,ін.)",qty:1,unit:"компл.",price:Math.round(floorArea*150),sum:Math.round(floorArea*150)});
-
+    if(!facadeDone) add("Фасад (планкен, орієнтовно)",Math.round(extWallArea*1.15),"м²",550);
+    add("Вікна",cfg.modules*2,"шт",4500);
+    add("Двері вхідні",cfg.modules,"шт",7000);
+    add("Двері міжкімнатні",Math.max(1,cfg.modules),"шт",11000);
+    if(cfg.hasElectric){add("Комплект електропроводки",1,"компл.",8000);add("Електрофурнітура",1,"компл.",5000);add("Щиток+автомати",1,"компл.",4500);}
+    if(cfg.hasWater) add("Водопровід (труби+фітинги)",Math.round(floorArea*0.8),"п.м.",45);
+    if(cfg.hasSewage) add("Каналізація",1,"компл.",8000);
+    if(cfg.hasWater&&cfg.hasSewage) add("Сантехніка (базова)",1,"компл.",18000);
+    if(cfg.kit!=="rough"){add("Підлога ламінат+підкладка",Math.round(floorArea*1.05),"м²",450);add("Оздоблення стін",Math.round(extWallArea*0.8),"м²",185);add("Підвіконники",cfg.modules*2,"шт",650);}
+    if(cfg.hasKitchen) add("Кухня (базовий)",1,"компл.",35000);
+    if(cfg.hasHeatedFloor) add("Тепла підлога",Math.round(floorArea),"м²",650);
+    add("Розхідники (цвяхи,скоби,ін.)",1,"компл.",Math.round(floorArea*150));
     return rows;
   }
 
-  const breakdown=W>0&&L>0?calcMatBreakdown():[];
+  const breakdown=calcMatBreakdown();
   const matCost=breakdown.reduce((s,r)=>s+r.sum,0);
   const labCost=cfg.labourScheme==="fixed"?+cfg.labourFixed:Math.round(floorArea*+cfg.labourSqmFloor+extWallArea*+cfg.labourSqmWall+roofArea*+cfg.labourSqmRoof);
   const opex=+cfg.opexPerModule*cfg.modules;
@@ -1269,14 +1036,6 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
   const salePrice=Math.round(totalCost*(1+cfg.margin/100));
   const marginAmt=salePrice-totalCost;
 
-  const KITS=[
-    {v:"rough",   l:"🔨 Під ремонт"},
-    {v:"turnkey", l:"🏠 Під ключ"},
-    {v:"premium", l:"⭐ Преміум"},
-  ];
-
-  const popularSizes=sizes.filter(s=>s.is_popular&&s.status==="active");
-
   return <div>
     <div style={{display:"flex",gap:6,marginBottom:14}}>
       {[["params","⚙️ Параметри"],["materials","📦 Матеріали"],["labour","👷 Бригада"],["facade_lib","🎨 Бібліотека"]].map(([id,lbl])=>(
@@ -1284,27 +1043,18 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
       ))}
     </div>
 
-    {/* ── ПАРАМЕТРИ ── */}
     {tab==="params"&&<>
       <Card>
         <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📐 Розмір модуля</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
-          {popularSizes.map(s=><button key={s.id} onClick={()=>set("sizeId")(s.id)}
-            style={{padding:"6px 12px",borderRadius:8,border:`2px solid ${cfg.sizeId===s.id?"#3b82f6":"#e2e8f0"}`,background:cfg.sizeId===s.id?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.sizeId===s.id?700:400,color:cfg.sizeId===s.id?"#3b82f6":"#475569"}}>
-            {s.name}
-          </button>)}
+          {popularSizes.map(s=><button key={s.id} onClick={()=>set("sizeId")(s.id)} style={{padding:"6px 12px",borderRadius:8,border:`2px solid ${cfg.sizeId===s.id?"#3b82f6":"#e2e8f0"}`,background:cfg.sizeId===s.id?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.sizeId===s.id?700:400,color:cfg.sizeId===s.id?"#3b82f6":"#475569"}}>{s.name}</button>)}
           <button onClick={()=>setAddSizeModal(true)} style={{padding:"6px 12px",borderRadius:8,border:"1px dashed #94a3b8",background:"transparent",cursor:"pointer",fontSize:11,color:"#64748b"}}>+ Новий</button>
         </div>
-        {selSize&&<div style={{fontSize:11,color:"#10b981",marginBottom:8}}>
-          Площа: {floorArea.toFixed(1)}м² · Стіни: {extWallArea.toFixed(1)}м² · Покрівля: {roofArea.toFixed(1)}м²
-        </div>}
+        {selSize&&<div style={{fontSize:11,color:"#10b981",marginBottom:8}}>Площа: {floorArea.toFixed(1)}м² · Стіни: {extWallArea.toFixed(1)}м²</div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <div><Lbl>Модулів</Lbl>
             <div style={{display:"flex",gap:4}}>
-              {[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)}
-                style={{flex:1,padding:"6px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:8,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.modules===n?700:400}}>
-                {n}
-              </button>)}
+              {[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)} style={{flex:1,padding:"6px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:8,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.modules===n?700:400}}>{n}</button>)}
             </div>
           </div>
           <div><Lbl>Маржа: {cfg.margin}%</Lbl>
@@ -1313,73 +1063,40 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         </div>
       </Card>
 
-      {/* Тераса */}
       <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:cfg.hasTerrace?10:0}}>
-          <div style={{fontWeight:700,fontSize:13}}>🏡 Тераса</div>
-          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
-            <input type="checkbox" checked={cfg.hasTerrace} onChange={e=>set("hasTerrace")(e.target.checked)} style={{width:18,height:18,accentColor:"#3b82f6"}}/>
-            <span style={{fontSize:12}}>{cfg.hasTerrace?"Є":"Немає"}</span>
-          </label>
-        </div>
-        {cfg.hasTerrace&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div><Lbl>Ширина (м)</Lbl><Input type="number" value={cfg.terraceW} onChange={set("terraceW")}/></div>
-          <div><Lbl>Довжина (м)</Lbl><Input type="number" value={cfg.terraceL} onChange={set("terraceL")}/></div>
-        </div>}
-      </Card>
-
-      {/* Покрівля */}
-      <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏠 Тип покрівлі</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏠 Покрівля</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-          {ROOF_TYPES.map(r=><button key={r.v} onClick={()=>set("roofType")(r.v)}
-            style={{padding:"8px",border:`2px solid ${cfg.roofType===r.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.roofType===r.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:11,fontWeight:cfg.roofType===r.v?700:400,color:cfg.roofType===r.v?"#3b82f6":"#475569",textAlign:"left"}}>
+          {ROOF_TYPES.map(r=><button key={r.v} onClick={()=>set("roofType")(r.v)} style={{padding:"8px",border:`2px solid ${cfg.roofType===r.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.roofType===r.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:11,fontWeight:cfg.roofType===r.v?700:400,color:cfg.roofType===r.v?"#3b82f6":"#475569",textAlign:"left"}}>
             <div>{r.l}</div>
-            <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>₴{r.price}/м²</div>
+            <div style={{fontSize:10,color:"#94a3b8"}}>₴{r.price}/м²</div>
           </button>)}
         </div>
       </Card>
 
-      {/* Фасад — кілька варіантів */}
       <Card>
         <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🎨 Фасадне оздоблення</div>
         {cfg.facadeVariants.map((fv,i)=><div key={i} style={{background:"#f8fafc",borderRadius:10,padding:"10px",marginBottom:8}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
             <div style={{fontSize:12,fontWeight:600}}>Варіант {i+1}</div>
-            {cfg.facadeVariants.length>1&&<button onClick={()=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.filter((_,j)=>j!==i)}))
-            } style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✕</button>}
+            {cfg.facadeVariants.length>1&&<button onClick={()=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.filter((_,j)=>j!==i)}))} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✕</button>}
           </div>
           <Lbl>Матеріал</Lbl>
-          <Sel value={fv.matId} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,matId:v}:f)}))}
-            options={[{v:"",l:"— Оберіть матеріал —"},...facadeMats.filter(m=>m.category==="facade").map(m=>({v:m.id,l:`${m.name} — ₴${m.current_price}/м²`}))]}/>
+          <Sel value={fv.matId} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,matId:v}:f)}))} options={[{v:"",l:"— Оберіть —"},...facadeMats.filter(m=>m.category==="facade").map(m=>({v:m.id,l:`${m.name} — ₴${m.current_price}/м²`}))]}/>
           <Lbl>Площа (м²)</Lbl>
-          <Input type="number" value={fv.area} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,area:+v}:f)}))}
-            placeholder={`Авто: ${extWallArea.toFixed(0)}м²`}/>
+          <Input type="number" value={fv.area} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,area:+v}:f)}))} placeholder={`Авто: ${extWallArea.toFixed(0)}м²`}/>
         </div>)}
-        <button onClick={()=>setCfg(p=>({...p,facadeVariants:[...p.facadeVariants,{matId:"",area:0}]}))}
-          style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#6366f1"}}>
-          + Додати варіант фасаду
-        </button>
-
-        {/* Колір */}
-        <Lbl style={{marginTop:10}}>Колір фасаду</Lbl>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {["#6B4226","#2C3E50","#8B7355","#C5B9A8","#4A5568","#2D6A4F","#E8DCC8"].map(c=><button key={c} onClick={()=>set("facadeColor")(c)}
-            style={{width:28,height:28,borderRadius:"50%",background:c,border:`3px solid ${cfg.facadeColor===c?"#3b82f6":"transparent"}`,cursor:"pointer"}}/>)}
-          <input type="color" value={cfg.facadeColor} onChange={e=>set("facadeColor")(e.target.value)}
-            style={{width:32,height:32,border:"none",borderRadius:8,cursor:"pointer",background:"none"}}/>
-          <span style={{fontSize:10,color:"#94a3b8"}}>{cfg.facadeColor}</span>
+        <button onClick={()=>setCfg(p=>({...p,facadeVariants:[...p.facadeVariants,{matId:"",area:0}]}))} style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#6366f1"}}>+ Додати варіант фасаду</button>
+        <Lbl style={{marginTop:10}}>Колір</Lbl>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          {["#6B4226","#2C3E50","#8B7355","#C5B9A8","#4A5568","#2D6A4F","#E8DCC8"].map(c=><button key={c} onClick={()=>set("facadeColor")(c)} style={{width:26,height:26,borderRadius:"50%",background:c,border:`3px solid ${cfg.facadeColor===c?"#3b82f6":"transparent"}`,cursor:"pointer"}}/>)}
+          <input type="color" value={cfg.facadeColor} onChange={e=>set("facadeColor")(e.target.value)} style={{width:32,height:32,border:"none",borderRadius:8,cursor:"pointer"}}/>
         </div>
       </Card>
 
-      {/* Комплектація */}
       <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📦 Комплектація</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📦 Комплектація та опції</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>
-          {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)}
-            style={{flex:1,padding:"7px",border:`2px solid ${cfg.kit===k.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.kit===k.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:10,fontWeight:cfg.kit===k.v?700:400,color:cfg.kit===k.v?"#3b82f6":"#475569"}}>
-            {k.l}
-          </button>)}
+          {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)} style={{flex:1,padding:"7px",border:`2px solid ${cfg.kit===k.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.kit===k.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:10,fontWeight:cfg.kit===k.v?700:400}}>{k.l}</button>)}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
           {[{k:"hasElectric",l:"⚡ Електрика"},{k:"hasWater",l:"🚿 Водопровід"},{k:"hasSewage",l:"🔧 Каналізація"},{k:"hasKitchen",l:"🍳 Кухня"},{k:"hasHeatedFloor",l:"🌡 Тепла підлога"},{k:"hasAC",l:"❄️ Кондиціонер"}].map(({k,l})=>(
@@ -1390,12 +1107,33 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
           ))}
         </div>
       </Card>
+
+      {W>0&&L>0&&<>
+        <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff",marginTop:4}}>
+          <div style={{fontSize:11,color:"#475569",marginBottom:12}}>РЕЗУЛЬТАТ · {W}×{L*cfg.modules}м</div>
+          {[
+            {l:"🪵 Матеріали",v:matCost,c:"#f59e0b"},
+            {l:"👷 Праця",v:labCost,c:"#06b6d4"},
+            {l:"🏢 Операційні витрати",v:opex,c:"#8b5cf6"},
+            {l:"📋 Накладні 6%",v:overhead,c:"#94a3b8"},
+            {l:"СОБІВАРТІСТЬ",v:totalCost,c:"#e2e8f0",bold:true},
+            {l:`ЦІНА (${cfg.margin}%)`,v:salePrice,c:"#10b981",big:true},
+            {l:"МАРЖА ₴",v:marginAmt,c:"#22c55e",bold:true},
+          ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<6?"1px solid #ffffff10":"none"}}>
+            <span style={{fontSize:x.bold||x.big?12:11,color:x.bold||x.big?"#cbd5e1":"#94a3b8"}}>{x.l}</span>
+            <span style={{fontSize:x.big?20:x.bold?15:13,fontWeight:x.big?900:x.bold?700:600,color:x.c}}>₴{fmt(x.v)}</span>
+          </div>)}
+        </Card>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <Btn onClick={()=>{setSaveName(`Каркасний ${W}×${L*cfg.modules}м`);setSaveModal(true);}} color="#10b981" full>💾 Зберегти</Btn>
+          <Btn onClick={()=>{const win=window.open("","_blank");win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body><h1>КП · ${W}×${L*cfg.modules}м</h1><p>${new Date().toLocaleDateString("uk-UA")}</p><table><tr><th>Стаття</th><th>Сума</th></tr><tr><td>Матеріали</td><td>₴${fmt(matCost)}</td></tr><tr><td>Праця</td><td>₴${fmt(labCost)}</td></tr><tr><td>Операційні витрати</td><td>₴${fmt(opex)}</td></tr><tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr><tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">₴${fmt(salePrice)}</span></td></tr></table></body></html>`);win.document.close();win.print();}} color="#6366f1" full>📄 КП</Btn>
+        </div>
+      </>}
     </>}
 
-    {/* ── МАТЕРІАЛИ (РОЗБИВКА) ── */}
     {tab==="materials"&&<>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:12,fontWeight:600}}>Всього: <span style={{color:"#f59e0b"}}>₴{fmt(matCost)}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:12,fontWeight:600}}>Разом: <span style={{color:"#f59e0b"}}>₴{fmt(matCost)}</span></div>
         <div style={{fontSize:11,color:"#94a3b8"}}>{breakdown.length} позицій</div>
       </div>
       {W===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20}}>Оберіть розмір у вкладці Параметри</div>}
@@ -1404,31 +1142,22 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         <span style={{color:"#94a3b8",margin:"0 8px",flexShrink:0}}>{row.qty} {row.unit}</span>
         <span style={{fontWeight:600,color:"#10b981",flexShrink:0}}>₴{fmt(row.sum)}</span>
       </div>)}
-      {breakdown.length>0&&<div style={{fontWeight:800,fontSize:14,color:"#f59e0b",textAlign:"right",marginTop:10,padding:"8px 0",borderTop:"2px solid #e2e8f0"}}>
-        Разом: ₴{fmt(matCost)}
-      </div>}
+      {breakdown.length>0&&<div style={{fontWeight:800,fontSize:14,color:"#f59e0b",textAlign:"right",marginTop:10,padding:"8px 0",borderTop:"2px solid #e2e8f0"}}>Разом: ₴{fmt(matCost)}</div>}
     </>}
 
-    {/* ── БРИГАДА І ВИТРАТИ ── */}
     {tab==="labour"&&<>
       <Card>
         <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>👷 Оплата бригади</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>
           {[{v:"fixed",l:"Фіксована"},{v:"perSqm",l:"По м²"}].map(s=>(
-            <button key={s.v} onClick={()=>set("labourScheme")(s.v)}
-              style={{flex:1,padding:"7px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:cfg.labourScheme===s.v?700:400,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>
-              {s.l}
-            </button>
+            <button key={s.v} onClick={()=>set("labourScheme")(s.v)} style={{flex:1,padding:"7px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:cfg.labourScheme===s.v?700:400,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>{s.l}</button>
           ))}
         </div>
         {cfg.labourScheme==="fixed"&&<>
           <Lbl>Сума (₴)</Lbl>
-          <Input type="number" value={cfg.labourFixed} onChange={set("labourFixed")} placeholder="150000"/>
+          <Input type="number" value={cfg.labourFixed} onChange={set("labourFixed")}/>
           <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-            {[70000,100000,125000,150000,175000,200000].map(v=><button key={v} onClick={()=>set("labourFixed")(v)}
-              style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${cfg.labourFixed===v?"#3b82f6":"#e2e8f0"}`,background:cfg.labourFixed===v?"#eff6ff":"#fff",cursor:"pointer",color:cfg.labourFixed===v?"#3b82f6":"#475569"}}>
-              ₴{fmt(v)}
-            </button>)}
+            {[70000,100000,125000,150000,175000,200000].map(v=><button key={v} onClick={()=>set("labourFixed")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${cfg.labourFixed===v?"#3b82f6":"#e2e8f0"}`,background:cfg.labourFixed===v?"#eff6ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
           </div>
         </>}
         {cfg.labourScheme==="perSqm"&&<>
@@ -1438,121 +1167,67 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
             <div><Lbl>Покрівля ₴/м²</Lbl><Input type="number" value={cfg.labourSqmRoof} onChange={set("labourSqmRoof")}/></div>
           </div>
           <div style={{fontSize:11,color:"#06b6d4",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginTop:8}}>
-            {floorArea.toFixed(0)}м²×{cfg.labourSqmFloor} + {extWallArea.toFixed(0)}м²×{cfg.labourSqmWall} + {roofArea.toFixed(0)}м²×{cfg.labourSqmRoof} = <strong>₴{fmt(labCost)}</strong>
+            Разом: <strong>₴{fmt(labCost)}</strong>
           </div>
         </>}
       </Card>
-
       <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏢 Операційні витрати</div>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>Оренда ангара, комуналка, телефонія, маркетинг, інструменти, інше</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>🏢 Операційні витрати</div>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>Оренда, комуналка, маркетинг, інструменти</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"end"}}>
-          <div><Lbl>На один модуль (₴)</Lbl><Input type="number" value={cfg.opexPerModule} onChange={set("opexPerModule")}/></div>
+          <div><Lbl>На модуль (₴)</Lbl><Input type="number" value={cfg.opexPerModule} onChange={set("opexPerModule")}/></div>
           <div style={{fontSize:12,color:"#8b5cf6",fontWeight:700,paddingBottom:8}}>×{cfg.modules} = ₴{fmt(opex)}</div>
         </div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-          {[5000,10000,15000,20000,25000].map(v=><button key={v} onClick={()=>set("opexPerModule")(v)}
-            style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${+cfg.opexPerModule===v?"#8b5cf6":"#e2e8f0"}`,background:+cfg.opexPerModule===v?"#f5f3ff":"#fff",cursor:"pointer",color:+cfg.opexPerModule===v?"#7c3aed":"#475569"}}>
-            ₴{fmt(v)}
-          </button>)}
+          {[5000,10000,15000,20000,25000].map(v=><button key={v} onClick={()=>set("opexPerModule")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${+cfg.opexPerModule===v?"#8b5cf6":"#e2e8f0"}`,background:+cfg.opexPerModule===v?"#f5f3ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
         </div>
       </Card>
     </>}
 
-    {/* ── БІБЛІОТЕКА ФАСАДНИХ МАТЕРІАЛІВ ── */}
     {tab==="facade_lib"&&<>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:12,color:"#64748b"}}>Матеріали і покрівля</div>
+        <div style={{fontSize:12,color:"#64748b"}}>Матеріали та покрівля</div>
         <Btn onClick={()=>{setFacadeForm({name:"",description:"",category:"facade",current_price:0,unit:"м²",color_hex:""});setFacadeModal(true);}} small color="#6366f1">+ Додати</Btn>
       </div>
-
       {["facade","roof"].map(cat=><div key={cat} style={{marginBottom:14}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>
-          {cat==="facade"?"🎨 ФАСАДНІ МАТЕРІАЛИ":"🏠 ПОКРІВЕЛЬНІ МАТЕРІАЛИ"}
-        </div>
+        <div style={{fontSize:10,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>{cat==="facade"?"🎨 ФАСАДНІ":"🏠 ПОКРІВЕЛЬНІ"}</div>
         {facadeMats.filter(m=>m.category===cat).map(m=><Card key={m.id} style={{padding:"10px 12px",margin:"0 0 6px",borderLeft:"3px solid #6366f1"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div style={{flex:1}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
               <div style={{fontSize:13,fontWeight:700}}>{m.name}</div>
-              {m.description&&<div style={{fontSize:11,color:"#64748b",marginTop:2}}>{m.description}</div>}
+              {m.description&&<div style={{fontSize:11,color:"#64748b"}}>{m.description}</div>}
             </div>
-            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-              {editPriceId===m.id
-                ?<div style={{display:"flex",gap:4,alignItems:"center"}}>
-                  <Input type="number" value={newPrice} onChange={setNewPrice} style={{width:80,fontSize:11}}/>
-                  <Btn small onClick={async()=>{
-                    await updateFacade(m.id,{current_price:+newPrice});
-                    if(priceHistoryH?.create) await priceHistoryH.create({material_id:m.id,price:+newPrice,note:"Оновлено вручну"});
-                    setEditPriceId(null);setNewPrice("");
-                  }}>✓</Btn>
-                  <Btn small outline color="#94a3b8" onClick={()=>setEditPriceId(null)}>✕</Btn>
-                </div>
-                :<div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontWeight:700,color:"#10b981",fontSize:14}}>₴{fmt(m.current_price)}/{m.unit}</span>
-                  <button onClick={()=>{setEditPriceId(m.id);setNewPrice(m.current_price);}}
-                    style={{background:"#f0fdf4",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10,color:"#10b981"}}>✏️ Ціна</button>
-                </div>}
-            </div>
+            {editPriceId===m.id
+              ?<div style={{display:"flex",gap:4,alignItems:"center"}}>
+                <Input type="number" value={newPrice} onChange={setNewPrice} style={{width:80,fontSize:11}}/>
+                <Btn small onClick={async()=>{await updateFacade(m.id,{current_price:+newPrice});setEditPriceId(null);setNewPrice("");}}>✓</Btn>
+                <Btn small outline color="#94a3b8" onClick={()=>setEditPriceId(null)}>✕</Btn>
+              </div>
+              :<div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontWeight:700,color:"#10b981"}}>₴{fmt(m.current_price)}/м²</span>
+                <button onClick={()=>{setEditPriceId(m.id);setNewPrice(m.current_price);}} style={{background:"#f0fdf4",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✏️</button>
+              </div>}
           </div>
         </Card>)}
+        {facadeMats.filter(m=>m.category===cat).length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:12,fontSize:12}}>Немає матеріалів. Додайте перший.</div>}
       </div>)}
 
       {facadeModal&&<Modal title="Новий матеріал" onClose={()=>setFacadeModal(false)}>
-        <Lbl>Назва</Lbl><Input value={facadeForm.name} onChange={v=>setFacadeForm(p=>({...p,name:v}))} placeholder="Наприклад: Фіброцементні панелі"/>
-        <Lbl>Опис</Lbl><Input value={facadeForm.description} onChange={v=>setFacadeForm(p=>({...p,description:v}))} placeholder="Короткий опис"/>
+        <Lbl>Назва</Lbl><Input value={facadeForm.name} onChange={v=>setFacadeForm(p=>({...p,name:v}))} placeholder="Фіброцементні панелі"/>
+        <Lbl>Опис</Lbl><Input value={facadeForm.description} onChange={v=>setFacadeForm(p=>({...p,description:v}))}/>
         <Lbl>Категорія</Lbl>
         <Sel value={facadeForm.category} onChange={v=>setFacadeForm(p=>({...p,category:v}))} options={[{v:"facade",l:"🎨 Фасад"},{v:"roof",l:"🏠 Покрівля"}]}/>
         <Lbl>Ціна (₴/м²)</Lbl><Input type="number" value={facadeForm.current_price} onChange={v=>setFacadeForm(p=>({...p,current_price:+v}))}/>
-        <Lbl>Колір (hex, опційно)</Lbl>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <Input value={facadeForm.color_hex} onChange={v=>setFacadeForm(p=>({...p,color_hex:v}))} placeholder="#RRGGBB" style={{flex:1}}/>
-          <input type="color" value={facadeForm.color_hex||"#6B4226"} onChange={e=>setFacadeForm(p=>({...p,color_hex:e.target.value}))} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/>
-        </div>
         <div style={{display:"flex",gap:8,marginTop:14}}>
           <Btn onClick={()=>setFacadeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-          <Btn onClick={async()=>{
-            await createFacade(facadeForm);
-            setFacadeModal(false);
-          }} color="#6366f1" style={{flex:2}}>💾 Додати</Btn>
+          <Btn onClick={async()=>{await createFacade(facadeForm);setFacadeModal(false);}} color="#6366f1" style={{flex:2}}>💾 Додати</Btn>
         </div>
       </Modal>}
     </>}
 
-    {/* РЕЗУЛЬТАТ — завжди внизу якщо є розміри */}
-    {W>0&&L>0&&tab==="params"&&<>
-      <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff",marginTop:4}}>
-        <div style={{fontSize:11,color:"#475569",marginBottom:12}}>РЕЗУЛЬТАТ · {W}×{L*cfg.modules}м · {floorArea.toFixed(0)}м²</div>
-        {[
-          {l:"🪵 Матеріали",           v:matCost,   c:"#f59e0b"},
-          {l:"👷 Праця бригади",        v:labCost,   c:"#06b6d4"},
-          {l:"🏢 Операційні витрати",   v:opex,      c:"#8b5cf6"},
-          {l:"📋 Накладні 6%",          v:overhead,  c:"#94a3b8"},
-          {l:"СОБІВАРТІСТЬ",             v:totalCost, c:"#e2e8f0", bold:true},
-          {l:`ЦІНА (${cfg.margin}%)`,    v:salePrice, c:"#10b981", big:true},
-          {l:"МАРЖА ₴",                 v:marginAmt, c:"#22c55e", bold:true},
-        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:i<6?"1px solid #ffffff10":"none"}}>
-          <span style={{fontSize:x.bold||x.big?12:11,color:x.bold||x.big?"#cbd5e1":"#94a3b8"}}>{x.l}</span>
-          <span style={{fontSize:x.big?20:x.bold?15:13,fontWeight:x.big?900:x.bold?700:600,color:x.c}}>₴{fmt(x.v)}</span>
-        </div>)}
-      </Card>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <Btn onClick={()=>{
-          setSaveName(`Каркасний ${W}×${L*cfg.modules}м`);
-          setSaveModal(true);
-        }} color="#10b981" full>💾 Зберегти як продукт</Btn>
-        <Btn onClick={()=>{
-          const win=window.open("","_blank");
-          win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body><h1>🏗️ МОДУЛЕР ПРО — КП</h1><p>${new Date().toLocaleDateString("uk-UA")} · ${W}×${L*cfg.modules}м (${floorArea.toFixed(1)}м²)</p><table><tr><th>Складова</th><th>Сума</th></tr><tr><td>Матеріали</td><td>₴${fmt(matCost)}</td></tr><tr><td>Праця бригади</td><td>₴${fmt(labCost)}</td></tr><tr><td>Операційні витрати</td><td>₴${fmt(opex)}</td></tr><tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr><tr><td><b>Собівартість</b></td><td><b>₴${fmt(totalCost)}</b></td></tr><tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(salePrice)}</span></td></tr></table><h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p></body></html>`);
-          win.document.close();win.print();
-        }} color="#6366f1" full>📄 КП (PDF)</Btn>
-      </div>
-    </>}
-
-    {/* Модал — зберегти як продукт */}
     {saveModal&&<Modal title="💾 Зберегти як продукт" onClose={()=>setSaveModal(false)}>
       <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
-        {W}×{L*cfg.modules}м · Ціна <strong>₴{fmt(salePrice)}</strong> · Маржа <strong>{cfg.margin}%</strong>
+        {W}×{L*cfg.modules}м · ₴{fmt(salePrice)} · Маржа {cfg.margin}%
       </div>
       <Lbl>Назва продукту</Lbl>
       <Input value={saveName} onChange={setSaveName} placeholder={`Каркасний ${W}×${L*cfg.modules}м`}/>
@@ -1560,33 +1235,17 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
         <Btn onClick={async()=>{
           if(!saveName.trim())return;
-          await productsH.create({
-            name:saveName,
-            description:`${W}×${L*cfg.modules}м · ${cfg.modules} модулів · ${KITS.find(k=>k.v===cfg.kit)?.l}`,
-            model:`${W}x${L*cfg.modules}`,
-            status:"draft",
-            sale_price:salePrice,
-            cost_price:totalCost,
-            margin_pct:cfg.margin,
-            notes:`Матеріали: ₴${fmt(matCost)}\nПраця: ₴${fmt(labCost)}\nОперац. витрати: ₴${fmt(opex)}\nНакладні: ₴${fmt(overhead)}`,
-            version:"1.0",
-            valid_date:today(),
-            sort_order:0,
-          });
-          setSaveModal(false);
-          setSavedOk(true);
-          setTimeout(()=>setSavedOk(false),3000);
+          await productsH.create({name:saveName,description:`${W}×${L*cfg.modules}м · ${cfg.modules} модулів`,model:`${W}x${L*cfg.modules}`,status:"draft",sale_price:salePrice,cost_price:totalCost,margin_pct:cfg.margin,notes:`Матеріали: ₴${fmt(matCost)}\nПраця: ₴${fmt(labCost)}\nОперац: ₴${fmt(opex)}\nНакладні: ₴${fmt(overhead)}`,version:"1.0",valid_date:today(),sort_order:0});
+          setSaveModal(false);setSavedOk(true);setTimeout(()=>setSavedOk(false),3000);
         }} color="#10b981" style={{flex:2}}>💾 Зберегти</Btn>
       </div>
     </Modal>}
 
-    {/* Сповіщення про збереження */}
     {savedOk&&<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,zIndex:999,boxShadow:"0 4px 20px #00000030"}}>
       ✅ Продукт збережено в каталог!
     </div>}
 
-    {/* Модал — додати розмір */}
-    {addSizeModal&&<Modal title="Новий розмір модуля" onClose={()=>setAddSizeModal(false)}>
+    {addSizeModal&&<Modal title="Новий розмір" onClose={()=>setAddSizeModal(false)}>
       <Lbl>Назва</Lbl><Input value={newSize.name} onChange={v=>setNewSize(p=>({...p,name:v}))} placeholder="3.5×7"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
         <div><Lbl>Ширина (м)</Lbl><Input type="number" value={newSize.width} onChange={v=>setNewSize(p=>({...p,width:+v}))}/></div>
@@ -1594,326 +1253,13 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
       </div>
       <div style={{display:"flex",gap:8,marginTop:14}}>
         <Btn onClick={()=>setAddSizeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          await createSize({name:newSize.name,width:newSize.width,length:newSize.length,is_popular:true,status:"active",sort_order:sizes.length+1});
-          setAddSizeModal(false);setNewSize({name:"",width:0,length:0});
-        }} color="#3b82f6" style={{flex:2}}>💾 Додати</Btn>
+        <Btn onClick={async()=>{await createSize({name:newSize.name,width:newSize.width,length:newSize.length,is_popular:true,status:"active",sort_order:sizes.length+1});setAddSizeModal(false);setNewSize({name:"",width:0,length:0});}} color="#3b82f6" style={{flex:2}}>💾 Додати</Btn>
       </div>
     </Modal>}
   </div>;
 }
-  function calcMaterials(){
-    let cost=0;
-    // Базальтова вата
-    const vataFloor=floorArea*2*250;      // 200мм = 2 шари по 100мм × 250грн
-    const vataWalls=extWallArea*1.5*250;  // 150мм
-    const vataRoof=roofArea*2*250;        // 200мм
-    cost+=vataFloor+vataWalls+vataRoof;
-    // Паробар'єр
-    const paraArea=floorArea+extWallArea+roofArea;
-    cost+=Math.ceil(paraArea/75)*1500;
-    // Мембрана
-    cost+=Math.ceil((extWallArea+roofArea*1.1)/75)*1200;
-    // ПВХ покрівля
-    cost+=roofArea*1.15*350;
-    // Дошка каркас (орієнтовно 0.06м³ на м² підлоги)
-    cost+=floorArea*0.06*15000;
-    // OSB підлога
-    cost+=Math.ceil(floorArea/3.125)*850;
-    // OSB покрівля
-    cost+=Math.ceil(roofArea/3.125)*520;
-    // Сітка від гризунів
-    cost+=floorArea*1.1*85;
-    // Фасад
-    const facadePrices={planken:550,termo:2000,imitacia:420,siding:380};
-    cost+=extWallArea*1.15*(facadePrices[cfg.facade]||550)+5000;
-    // Скотчі
-    cost+=8*280+6*185+8*95+8*145;
-    // Вікна і двері (орієнтовно 2 вікна + 1 двері)
-    const windowArea=cfg.modules*3.5; // ~3.5м² вікон на модуль
-    cost+=windowArea*4500+7000; // вікна + вхідні двері
-    // Міжкімнатні двері
-    const intDoors=cfg.modules>1?2:1;
-    cost+=intDoors*11000;
-    // Комунікації
-    if(cfg.hasElectric) cost+=20000;
-    if(cfg.hasWater)    cost+=20000;
-    if(cfg.hasSewage)   cost+=20000;
-    // Тепла підлога
-    if(cfg.hasHeatedFloor) cost+=floorArea*650;
-    // Кухня
-    if(cfg.hasKitchen) cost+=35000;
-    // Внутрішнє оздоблення (базово ламінат + вагонка)
-    cost+=floorArea*450+floorArea*0.5+extWallArea*0.8*185;
-    return Math.round(cost);
-  }
 
-  // Розрахунок праці
-  function calcLabour(){
-    if(cfg.labourScheme==="fixed") return +cfg.labourFixed;
-    // По м²
-    const labour=
-      floorArea*900+        // підлога
-      extWallArea*700+      // стіни
-      roofArea*900+         // покрівля
-      (cfg.hasElectric?floorArea*300:0)+
-      (cfg.hasWater?floorArea*200:0)+
-      extWallArea*800;      // фасад
-    return Math.round(labour);
-  }
 
-  const matCost=W>0&&L>0?calcMaterials():0;
-  const labCost=W>0&&L>0?calcLabour():0;
-  const overhead=Math.round((matCost+labCost)*0.06);
-  const totalCost=matCost+labCost+overhead;
-  const salePrice=Math.round(totalCost*(1+cfg.margin/100));
-  const marginAmt=salePrice-totalCost;
-
-  const FACADES=[
-    {v:"planken",l:"🪵 Планкен сосна (550 грн/м²)"},
-    {v:"termo",  l:"🌑 Термодерево (2000 грн/м²)"},
-    {v:"imitacia",l:"📋 Імітація бруса"},
-    {v:"siding", l:"🔲 Сайдинг"},
-  ];
-  const KITS=[
-    {v:"rough",   l:"🔨 Під ремонт (без оздоблення)"},
-    {v:"turnkey", l:"🏠 Під ключ (стандарт)"},
-    {v:"premium", l:"⭐ Преміум"},
-  ];
-
-  const [addSizeModal,setAddSizeModal]=useState(false);
-  const [newSize,setNewSize]=useState({name:"",width:0,length:0});
-  const [saveModal,setSaveModal]=useState(false);
-  const [saveName,setSaveName]=useState("");
-
-  const popularSizes=sizes.filter(s=>s.is_popular&&s.status==="active");
-  const allSizes=sizes.filter(s=>s.status==="active");
-
-  return <div>
-    {/* КРОК 1 — РОЗМІР */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📐 Розмір модуля</div>
-
-      {/* Популярні */}
-      <div style={{fontSize:10,color:"#94a3b8",marginBottom:6}}>ПОПУЛЯРНІ</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-        {popularSizes.map(s=><button key={s.id} onClick={()=>setCfg(p=>({...p,sizeId:s.id}))}
-          style={{padding:"6px 12px",borderRadius:10,border:`2px solid ${cfg.sizeId===s.id?"#3b82f6":"#e2e8f0"}`,background:cfg.sizeId===s.id?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.sizeId===s.id?700:400,color:cfg.sizeId===s.id?"#3b82f6":"#475569"}}>
-          {s.name}
-        </button>)}
-      </div>
-
-      {/* Всі розміри */}
-      <Lbl>Всі розміри</Lbl>
-      <Sel value={cfg.sizeId} onChange={set("sizeId")} options={[{v:"",l:"— Оберіть розмір —"},...allSizes.map(s=>({v:s.id,l:s.name+(s.is_popular?" ⭐":"")}))]}/>
-
-      {/* Індивідуальний */}
-      {selSize?.name==="Індивідуальний"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
-        <div><Lbl>Ширина (м)</Lbl><Input type="number" value={cfg.customW} onChange={set("customW")}/></div>
-        <div><Lbl>Довжина (м)</Lbl><Input type="number" value={cfg.customL} onChange={set("customL")}/></div>
-      </div>}
-
-      {/* Кількість модулів */}
-      <Lbl>Кількість модулів</Lbl>
-      <div style={{display:"flex",gap:6}}>
-        {[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)}
-          style={{flex:1,padding:"8px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontWeight:cfg.modules===n?700:400,color:cfg.modules===n?"#3b82f6":"#475569",fontSize:13}}>
-          {n}
-        </button>)}
-      </div>
-
-      {W>0&&L>0&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"8px 12px",marginTop:10,fontSize:12,color:"#0369a1",fontWeight:600}}>
-        📐 {W}×{L*cfg.modules}м = <strong>{(W*L*cfg.modules).toFixed(1)}м²</strong> підлоги
-        {cfg.hasTerrace&&<span> + {cfg.terraceW}×{cfg.terraceL}м тераса = <strong>{terraceArea}м²</strong></span>}
-      </div>}
-
-      {/* Тераса */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
-        <button onClick={()=>set("hasTerrace")(!cfg.hasTerrace)}
-          style={{width:24,height:24,borderRadius:6,border:`2px solid ${cfg.hasTerrace?"#10b981":"#e2e8f0"}`,background:cfg.hasTerrace?"#10b981":"transparent",cursor:"pointer",color:"#fff",fontSize:14}}>
-          {cfg.hasTerrace?"✓":""}
-        </button>
-        <span style={{fontSize:13,fontWeight:600}}>Тераса</span>
-      </div>
-      {cfg.hasTerrace&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
-        <div><Lbl>Ширина тераси (м)</Lbl><Input type="number" value={cfg.terraceW} onChange={set("terraceW")}/></div>
-        <div><Lbl>Довжина тераси (м)</Lbl><Input type="number" value={cfg.terraceL} onChange={set("terraceL")}/></div>
-      </div>}
-
-      {/* Додати новий розмір */}
-      <button onClick={()=>setAddSizeModal(true)} style={{marginTop:10,background:"none",border:"1px dashed #94a3b8",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:11,color:"#64748b",width:"100%"}}>
-        + Додати новий розмір до списку
-      </button>
-    </Card>
-
-    {/* КРОК 2 — ВИСОТИ */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📏 Висоти</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <div><Lbl>Висота зовні (м)</Lbl><Input type="number" value={cfg.heightExt} onChange={set("heightExt")} placeholder="3.0"/></div>
-        <div><Lbl>Чистова всередині (м)</Lbl><Input type="number" value={cfg.heightInt} onChange={set("heightInt")} placeholder="2.5"/></div>
-      </div>
-      <div style={{fontSize:10,color:"#94a3b8",marginTop:6}}>За замовчуванням: зовні 3.0м, всередині 2.5м</div>
-    </Card>
-
-    {/* КРОК 3 — ТОВЩИНИ КОНСТРУКЦІЙ */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏗️ Товщина (з утепленням, мм)</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        {[
-          {k:"floorThick",  l:"Підлога",         def:200},
-          {k:"wallExtThick",l:"Стіни зовн.",      def:150},
-          {k:"wallIntThick",l:"Стіни внутр.",     def:100},
-          {k:"roofThick",   l:"Покрівля",         def:200},
-        ].map(({k,l,def})=><div key={k}>
-          <Lbl>{l} (мм)</Lbl>
-          <Sel value={cfg[k]} onChange={v=>setCfg(p=>({...p,[k]:+v}))} options={[100,150,200,250,300].map(v=>({v,l:`${v}мм${v===def?" (стандарт)":""}`}))}/>
-        </div>)}
-      </div>
-    </Card>
-
-    {/* КРОК 4 — ФАСАД */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🎨 Фасад</div>
-      {FACADES.map(f=><button key={f.v} onClick={()=>set("facade")(f.v)}
-        style={{display:"flex",width:"100%",padding:"8px 12px",marginBottom:6,border:`2px solid ${cfg.facade===f.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.facade===f.v?"#eff6ff":"#fff",cursor:"pointer",textAlign:"left",fontSize:12,fontWeight:cfg.facade===f.v?700:400,color:cfg.facade===f.v?"#3b82f6":"#475569"}}>
-        {f.l}
-      </button>)}
-      {cfg.facade==="planken"&&<>
-        <Lbl>Колір</Lbl>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {[{v:"anthracite",l:"Антрацит",c:"#1e293b"},{v:"brown",l:"Темно-коричневий",c:"#7c3f14"},{v:"yellow",l:"Світло-жовтий",c:"#d4a017"},{v:"custom",l:"Інший",c:"#94a3b8"}].map(col=>(
-            <button key={col.v} onClick={()=>set("facadeColor")(col.v)}
-              style={{padding:"5px 10px",borderRadius:10,border:`2px solid ${cfg.facadeColor===col.v?"#3b82f6":"#e2e8f0"}`,background:col.c,cursor:"pointer",fontSize:11,color:"#fff",fontWeight:cfg.facadeColor===col.v?700:400}}>
-              {col.l}
-            </button>
-          ))}
-        </div>
-      </>}
-    </Card>
-
-    {/* КРОК 5 — КОМПЛЕКТАЦІЯ */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📦 Комплектація</div>
-      {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)}
-        style={{display:"flex",width:"100%",padding:"8px 12px",marginBottom:6,border:`2px solid ${cfg.kit===k.v?"#6366f1":"#e2e8f0"}`,borderRadius:10,background:cfg.kit===k.v?"#eef2ff":"#fff",cursor:"pointer",textAlign:"left",fontSize:12,fontWeight:cfg.kit===k.v?700:400,color:cfg.kit===k.v?"#6366f1":"#475569"}}>
-        {k.l}
-      </button>)}
-
-      {/* Опції */}
-      <Lbl>Опції</Lbl>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {[
-          {k:"hasElectric",   l:"⚡ Електрика"},
-          {k:"hasWater",      l:"🚿 Водопровід"},
-          {k:"hasSewage",     l:"🔧 Каналізація"},
-          {k:"hasHeatedFloor",l:"🌡️ Тепла підлога"},
-          {k:"hasKitchen",    l:"🍳 Кухня"},
-          {k:"hasAC",         l:"❄️ Закладна кондиц."},
-        ].map(({k,l})=><button key={k} onClick={()=>setCfg(p=>({...p,[k]:!p[k]}))}
-          style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",border:`2px solid ${cfg[k]?"#10b981":"#e2e8f0"}`,borderRadius:10,background:cfg[k]?"#f0fdf4":"#fff",cursor:"pointer",fontSize:11,fontWeight:cfg[k]?700:400,color:cfg[k]?"#10b981":"#475569"}}>
-          <div style={{width:16,height:16,borderRadius:4,background:cfg[k]?"#10b981":"transparent",border:`2px solid ${cfg[k]?"#10b981":"#94a3b8"}`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:10,flexShrink:0}}>
-            {cfg[k]?"✓":""}
-          </div>
-          {l}
-        </button>)}
-      </div>
-    </Card>
-
-    {/* КРОК 6 — ОПЛАТА БРИГАДИ */}
-    <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>👷 Оплата бригади</div>
-      <div style={{display:"flex",gap:6,marginBottom:10}}>
-        {[{v:"fixed",l:"Фіксована"},{v:"perSqm",l:"По м²"}].map(s=><button key={s.v} onClick={()=>set("labourScheme")(s.v)}
-          style={{flex:1,padding:"7px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:12,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>{s.l}</button>)}
-      </div>
-      {cfg.labourScheme==="fixed"&&<>
-        <Lbl>Сума (₴)</Lbl>
-        <Sel value={cfg.labourFixed} onChange={v=>set("labourFixed")(+v)} options={[70000,100000,107500,125000,150000,175000].map(v=>({v,l:`₴${fmt(v)}${v===150000?" (поточна)":""}`}))}/>
-      </>}
-      {cfg.labourScheme==="perSqm"&&W>0&&L>0&&<div style={{background:"#f8fafc",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#475569"}}>
-        Підлога {floorArea}м²×900 + Стіни {extWallArea.toFixed(0)}м²×700 + Покрівля {roofArea}м²×900 = <strong style={{color:"#1e293b"}}>₴{fmt(labCost)}</strong>
-      </div>}
-    </Card>
-
-    {/* МАРЖА */}
-    <Card>
-      <Lbl>Маржа: <strong style={{color:"#10b981"}}>{cfg.margin}%</strong></Lbl>
-      <input type="range" min="15" max="60" value={cfg.margin} onChange={e=>set("margin")(+e.target.value)} style={{width:"100%",accentColor:"#10b981"}}/>
-    </Card>
-
-    {/* РЕЗУЛЬТАТ */}
-    {W>0&&L>0&&<>
-      <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff"}}>
-        <div style={{fontSize:11,color:"#475569",marginBottom:12}}>РЕЗУЛЬТАТ КОНФІГУРАТОРА · {W}×{L*cfg.modules}м</div>
-        {[
-          {l:"🪵 Матеріали (орієнт.)",  v:matCost,    c:"#f59e0b"},
-          {l:"👷 Праця бригади",         v:labCost,    c:"#06b6d4"},
-          {l:"📋 Накладні 6%",           v:overhead,   c:"#8b5cf6"},
-          {l:"СОБІВАРТІСТЬ",              v:totalCost,  c:"#e2e8f0", bold:true},
-          {l:`ЦІНА (${cfg.margin}% маржа)`,v:salePrice, c:"#10b981", big:true},
-          {l:"МАРЖА ₴",                  v:marginAmt,  c:"#22c55e", bold:true},
-        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:i<5?"1px solid #ffffff10":"none"}}>
-          <span style={{fontSize:x.bold||x.big?12:11,color:x.bold||x.big?"#cbd5e1":"#94a3b8"}}>{x.l}</span>
-          <span style={{fontSize:x.big?20:x.bold?15:13,fontWeight:x.big?900:x.bold?700:600,color:x.c}}>₴{fmt(x.v)}</span>
-        </div>)}
-      </Card>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <Btn onClick={()=>setSaveModal(true)} color="#10b981" full>💾 Зберегти як продукт</Btn>
-        <Btn onClick={()=>{
-          const win=window.open("","_blank");
-win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body> <h1>🏗️ МОДУЛЕР ПРО — КП</h1> <p>${new Date().toLocaleDateString("uk-UA")} · ${W}×${L*cfg.modules}м (${(W*L*cfg.modules).toFixed(1)}м²)${cfg.hasTerrace?` + тераса ${cfg.terraceW}×${cfg.terraceL}м`:""}</p> <table><tr><th>Складова</th><th>Сума</th></tr> <tr><td>Матеріали</td><td>₴${fmt(matCost)}</td></tr> <tr><td>Праця бригади</td><td>₴${fmt(labCost)}</td></tr> <tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr> <tr><td><b>Собівартість</b></td><td><b>₴${fmt(totalCost)}</b></td></tr> <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(salePrice)}</span></td></tr></table> <p>Фасад: ${FACADES.find(f=>f.v===cfg.facade)?.l||cfg.facade}</p> <p>Комплектація: ${KITS.find(k=>k.v===cfg.kit)?.l||cfg.kit}</p> <h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p> </body></html>`);
-          win.document.close(); win.print();
-        }} color="#6366f1" full>📄 КП (PDF)</Btn>
-      </div>
-    </>}
-
-    {/* Модал — додати розмір */}
-    {addSizeModal&&<Modal title="Новий розмір модуля" onClose={()=>setAddSizeModal(false)}>
-      <Lbl>Назва</Lbl><Input value={newSize.name} onChange={v=>setNewSize(p=>({...p,name:v}))} placeholder="3.5×7"/>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <div><Lbl>Ширина (м)</Lbl><Input type="number" value={newSize.width} onChange={v=>setNewSize(p=>({...p,width:+v}))}/></div>
-        <div><Lbl>Довжина (м)</Lbl><Input type="number" value={newSize.length} onChange={v=>setNewSize(p=>({...p,length:+v}))}/></div>
-      </div>
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setAddSizeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          await createSize({name:newSize.name,width:newSize.width,length:newSize.length,is_popular:false,status:"active",sort_order:sizes.length+1});
-          setAddSizeModal(false);setNewSize({name:"",width:0,length:0});
-        }} color="#3b82f6" style={{flex:2}}>💾 Додати</Btn>
-      </div>
-    </Modal>}
-
-    {/* Модал — зберегти як продукт */}
-    {saveModal&&<Modal title="Зберегти як продукт" onClose={()=>setSaveModal(false)}>
-      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
-        {W}×{L*cfg.modules}м · Ціна <strong>₴{fmt(salePrice)}</strong> · Маржа <strong>{cfg.margin}%</strong>
-      </div>
-      <Lbl>Назва продукту</Lbl>
-      <Input value={saveName} onChange={setSaveName} placeholder={`Каркасний ${W}×${L*cfg.modules} ${FACADES.find(f=>f.v===cfg.facade)?.l?.split(" ")[1]||""}`}/>
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          if(!saveName.trim())return;
-          await productsH.create({
-            name:saveName,
-            description:`${W}×${L*cfg.modules}м (${(W*L*cfg.modules).toFixed(1)}м²)${cfg.hasTerrace?` + тераса`:""} · ${FACADES.find(f=>f.v===cfg.facade)?.l} · ${KITS.find(k=>k.v===cfg.kit)?.l}`,
-            model:`${W}x${L*cfg.modules}`,
-            status:"draft",
-            sale_price:salePrice,
-            cost_price:totalCost,
-            margin_pct:cfg.margin,
-            notes:JSON.stringify({cfg,areas:{floorArea,extWallArea,roofArea,terraceArea}}),
-            version:"1.0",
-            valid_date:today(),
-          });
-          setSaveModal(false);setSaveName("");
-        }} color="#10b981" style={{flex:2}}>💾 Зберегти</Btn>
-      </div>
-    </Modal>}
-  </div>;
-}
 
 // ─── COSTING ──────────────────────────────────────────────────────────────────
 function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppliersH,pricesH,projectsH}){
@@ -2067,7 +1413,17 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
         <Btn onClick={()=>setSaveModal(true)} color="#10b981" full>💾 Зберегти</Btn>
         <Btn onClick={()=>{
           const win=window.open("","_blank");
-win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body> <h1>🏗️ МОДУЛЕР ПРО — КП</h1> <p>${new Date().toLocaleDateString("uk-UA")} · Модель ${model} · ${qty} од.</p> <table><tr><th>Стаття</th><th>Сума</th></tr> <tr><td>Матеріали (опт)</td><td>₴${fmt(matOpt*qty)}</td></tr> <tr><td>Праця бригади</td><td>₴${fmt(laborCost*qty)}</td></tr> <tr><td>Накладні</td><td>₴${fmt(overhead6*qty)}</td></tr> <tr><td><b>Собівартість</b></td><td><b>₴${fmt(cost*qty)}</b></td></tr> <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table> <p>Схема: 10% бронювання · 40% старт · 30% коробка · 20% здача</p> </body></html>`);
+          win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body>
+          <h1>🏗️ МОДУЛЕР ПРО — КП</h1>
+          <p>${new Date().toLocaleDateString("uk-UA")} · Модель ${model} · ${qty} од.</p>
+          <table><tr><th>Стаття</th><th>Сума</th></tr>
+          <tr><td>Матеріали (опт)</td><td>₴${fmt(matOpt*qty)}</td></tr>
+          <tr><td>Праця бригади</td><td>₴${fmt(laborCost*qty)}</td></tr>
+          <tr><td>Накладні</td><td>₴${fmt(overhead6*qty)}</td></tr>
+          <tr><td><b>Собівартість</b></td><td><b>₴${fmt(cost*qty)}</b></td></tr>
+          <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table>
+          <p>Схема: 10% бронювання · 40% старт · 30% коробка · 20% здача</p>
+          </body></html>`);
           win.document.close();win.print();
         }} color="#6366f1" full>📄 КП</Btn>
       </div>
@@ -2224,6 +1580,123 @@ win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП
   </div>;
 }
 
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+        <Btn onClick={()=>setSaveModal(true)} color="#10b981" full>💾 Зберегти як продукт</Btn>
+        <Btn onClick={()=>{
+          const w=window.open("","_blank");
+          w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — МОДУЛЕР ПРО</title><style>body{font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body>
+          <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1>
+          <p style="color:#64748b;font-size:13px">${new Date().toLocaleDateString("uk-UA")} · Дерев'яний каркас · ${qty} од.</p>
+          <table><tr><th>Стаття</th><th>Сума (₴)</th></tr>
+          <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matOpt*qty)}</td></tr>
+          <tr><td>Оплата праці (${totalHours} год)</td><td>₴${fmt(laborCost*qty)}</td></tr>
+          <tr><td>Накладні (6%)</td><td>₴${fmt(overhead*qty)}</td></tr>
+          <tr><td><strong>Собівартість</strong></td><td><strong>₴${fmt(cost*qty)}</strong></td></tr>
+          <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table>
+          <h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:30px">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</p>
+          </body></html>`);
+          w.document.close();w.print();
+        }} color="#6366f1" full>📄 КП для клієнта (PDF)</Btn>
+      </div>
+    </>}
+
+    {tab==="phases"&&<>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:12,color:"#64748b"}}>Праця: <strong style={{color:"#06b6d4"}}>₴{fmt(laborCost)}</strong> · {totalHours}год</div>
+        <Btn onClick={()=>{setOpForm({phase:"",name:"",worker_id:workers[0]?.id||"",hours:0,qty:1,unit:"компл",note:"",sort_order:99});setOpModal("add");}} small color="#06b6d4">+ Операція</Btn>
+      </div>
+      {phases.map(ph=>{
+        const ops=operations.filter(o=>o.phase===ph).sort((a,b)=>a.sort_order-b.sort_order);
+        const phCost=ops.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
+        const phHours=ops.reduce((s,o)=>s+o.hours*o.qty,0);
+        const isOpen=expandPhase===ph;
+        return <div key={ph} style={{marginBottom:8}}>
+          <button onClick={()=>setExpandPhase(isOpen?null:ph)} style={{width:"100%",background:"#fff",border:"none",borderRadius:12,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px #00000010"}}>
+            <div style={{textAlign:"left"}}><div style={{fontWeight:700,fontSize:13}}>{ph}</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{ops.length} операцій · {phHours}год</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#06b6d4",fontSize:14}}>₴{fmt(phCost)}</div><div style={{fontSize:12,color:"#94a3b8"}}>{isOpen?"▲":"▼"}</div></div>
+          </button>
+          {isOpen&&<div style={{background:"#f8fafc",borderRadius:"0 0 12px 12px",padding:"8px 8px 4px"}}>
+            {ops.map(op=>{
+              const w=workers.find(x=>x.id===op.worker_id);
+              const opCost=w?w.rate*op.hours*op.qty:0;
+              return <div key={op.id} style={{background:"#fff",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",gap:10}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:600}}>{op.name}</div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{w?.name||"—"} · ₴{w?.rate}/год · {op.hours}год × {op.qty}</div>
+                  {op.note&&<div style={{fontSize:10,color:"#64748b",marginTop:2,fontStyle:"italic"}}>💬 {op.note}</div>}
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontWeight:700,color:"#06b6d4",fontSize:12}}>₴{fmt(opCost)}</div>
+                  <div style={{display:"flex",gap:3,marginTop:4}}>
+                    <button onClick={()=>{setOpForm({...op});setOpModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✏️</button>
+                    <button onClick={()=>operationsH.remove(op.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>🗑</button>
+                  </div>
+                </div>
+              </div>;
+            })}
+          </div>}
+        </div>;
+      })}
+    </>}
+
+    {tab==="materials"&&<>
+      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>BOM шаблон 3×6 · {bom.length} позицій</div>
+      {bom.map(item=>{
+        const mat=materials.find(m=>m.id===item.material_id);
+        if(!mat)return null;
+        return <Card key={item.id} style={{padding:"8px 12px",margin:"0 0 6px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600}}>{mat.name}</div>
+              <div style={{fontSize:10,color:"#94a3b8"}}>{item.qty} {mat.unit} · {mat.supplier}</div>
+              <div style={{fontSize:10,color:"#64748b"}}>{item.note}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
+              <div style={{fontWeight:700,color:"#10b981",fontSize:12}}>₴{fmt(mat.opt_price*item.qty)}</div>
+              <div style={{fontSize:9,color:"#94a3b8"}}>роздріб ₴{fmt(mat.retail_price*item.qty)}</div>
+            </div>
+          </div>
+        </Card>;
+      })}
+    </>}
+
+    {/* Save as product modal */}
+    {saveModal&&<Modal title="Зберегти як продукт" onClose={()=>setSaveModal(false)}>
+      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
+        Калькуляція буде збережена як продукт в каталозі.<br/>
+        Ціна: <strong>₴{fmt(price)}</strong> · Собівартість: <strong>₴{fmt(cost)}</strong> · Маржа: <strong>{margin}%</strong>
+      </div>
+      <Lbl>Назва продукту</Lbl>
+      <Input value={saveName} onChange={setSaveName} placeholder="Каркасний 3×6 Стандарт"/>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{
+          if(!saveName.trim())return;
+          await productsH.create({name:saveName,description:"",model:"3x6",status:"draft",sale_price:price,cost_price:cost,margin_pct:margin,notes:`Матеріали: ₴${fmt(matOpt)}\nПраця: ₴${fmt(laborCost)}\nНакладні: ₴${fmt(overhead)}\nГодин: ${totalHours}`,version:"1.0",valid_date:today()});
+          setSaveModal(false);setSaveName("");
+        }} color="#10b981" style={{flex:2}}>💾 Зберегти в каталог</Btn>
+      </div>
+    </Modal>}
+
+    {/* Operation modal */}
+    {opModal&&opForm&&<Modal title={opModal==="add"?"Нова операція":"Редагувати"} onClose={()=>setOpModal(null)}>
+      <Lbl>Фаза</Lbl><Input value={opForm.phase} onChange={v=>setOpForm(p=>({...p,phase:v}))} placeholder="3. Каркас стін"/>
+      <Lbl>Назва</Lbl><Input value={opForm.name} onChange={v=>setOpForm(p=>({...p,name:v}))} placeholder="Монтаж стійок"/>
+      <Lbl>Виконавець</Lbl><Sel value={opForm.worker_id} onChange={v=>setOpForm(p=>({...p,worker_id:v}))} options={workers.map(w=>({v:w.id,l:`${w.name} — ₴${w.rate}/год`}))}/>
+      <Lbl>Годин</Lbl><Input type="number" value={opForm.hours} onChange={v=>setOpForm(p=>({...p,hours:+v}))}/>
+      <Lbl>Кількість</Lbl><Input type="number" value={opForm.qty} onChange={v=>setOpForm(p=>({...p,qty:+v}))}/>
+      <Lbl>Нотатка</Lbl><Input value={opForm.note} onChange={v=>setOpForm(p=>({...p,note:v}))} placeholder="Деталі..."/>
+      {opForm.worker_id&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"10px 12px",marginTop:10,fontSize:12,fontWeight:600,color:"#0369a1"}}>
+        💰 Вартість: ₴{fmt((workers.find(w=>w.id===opForm.worker_id)?.rate||0)*opForm.hours*opForm.qty)}
+      </div>}
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setOpModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{ if(opForm.id)await operationsH.update(opForm.id,opForm);else await operationsH.create(opForm);setOpModal(null); }} color="#06b6d4" style={{flex:2}}>💾 Зберегти</Btn>
+      </div>
+    </Modal>}
+  </div>;
+}
 
 // ─── BOM MODULE — FULL EDIT ───────────────────────────────────────────────────
 function BOMModule({materialsH,bomH,workersH,operationsH}){
@@ -2675,13 +2148,10 @@ function ProjectSpec({project,bom,materials,procH,projectsH}){
 }
 
 // ─── PROCUREMENT ──────────────────────────────────────────────────────────────
-function Procurement({procH,materials,projects,bomH}){
+function Procurement({procH,materials,projects}){
   const {data:procurement,loading,saving,create,update,remove}=procH;
-  const bom=bomH?.data||[];
   const [modal,setModal]=useState(null);
   const [form,setForm]=useState(null);
-  const [autoModal,setAutoModal]=useState(false);
-  const [autoProject,setAutoProject]=useState("");
   const STATUS={
     pending: {l:"🟡 Замовити",  c:"#f59e0b"},
     ordered: {l:"🔵 Замовлено", c:"#3b82f6"},
@@ -2696,35 +2166,8 @@ function Procurement({procH,materials,projects,bomH}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
       {[{l:"Потрібно замовити",v:"₴"+fmt(pendingVal),c:"#f59e0b",i:"🟡"},{l:"В дорозі",v:"₴"+fmt(orderedVal),c:"#3b82f6",i:"🔵"}].map((x,i)=><Card key={i} style={{margin:0,padding:"12px 14px"}}><div style={{fontSize:18,marginBottom:4}}>{x.i}</div><div style={{fontSize:15,fontWeight:800,color:x.c}}>{x.v}</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{x.l}</div></Card>)}
     </div>
-    <div style={{display:"flex",gap:6,marginBottom:14}}>
-      <Btn onClick={()=>{setForm({material_id:materials[0]?.id||"",project_id:projects[0]?.id||"",qty:1,status:"pending",ordered_date:"",expected_date:"",supplier:"",price_paid:0,note:""});setModal("add");}} small style={{flex:1}}>+ Нова позиція</Btn>
-      <Btn onClick={()=>setAutoModal(true)} small color="#6366f1" outline style={{flex:1}}>🤖 Авто з BOM</Btn>
-    </div>
+    <Btn onClick={()=>{setForm({material_id:materials[0]?.id||"",project_id:projects[0]?.id||"",qty:1,status:"pending",ordered_date:"",expected_date:"",supplier:"",price_paid:0,note:""});setModal("add");}} small full style={{marginBottom:14}}>+ Нова закупівля</Btn>
     {saving&&<div style={{fontSize:11,color:"#3b82f6",textAlign:"center",marginBottom:8}}>⟳ Збереження...</div>}
-
-    {/* Авто-генерація modal */}
-    {autoModal&&<Modal title="🤖 Авто-список з BOM" onClose={()=>setAutoModal(false)}>
-      <div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Система додасть всі матеріали з BOM шаблону проєкту в список закупок автоматично</div>
-      <Lbl>Оберіть проєкт</Lbl>
-      <Sel value={autoProject} onChange={setAutoProject} options={[{v:"",l:"— Оберіть проєкт —"},...projects.filter(p=>!["paid"].includes(p.stage)).map(p=>({v:p.id,l:`${p.name} (${p.bom_model||"3x6"})`}))]}/>
-      {autoProject&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"8px 12px",marginTop:8,fontSize:12,color:"#0369a1"}}>
-        Буде додано ~{bom.filter(b=>b.model===(projects.find(p=>p.id===autoProject)?.bom_model||"3x6")).length} позицій
-      </div>}
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setAutoModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          const proj=projects.find(p=>p.id===autoProject);
-          if(!proj)return;
-          const projBOM=bom.filter(b=>b.model===proj.bom_model||b.model==="3x6");
-          for(const item of projBOM){
-            const exists=procurement.some(p=>p.project_id===proj.id&&p.material_id===item.material_id);
-            if(!exists) await create({project_id:proj.id,material_id:item.material_id,qty:item.qty,status:"pending",note:item.note||"",supplier:"",price_paid:0});
-          }
-          setAutoModal(false);
-          setAutoProject("");
-        }} color="#6366f1" style={{flex:2}} disabled={!autoProject}>🤖 Генерувати список</Btn>
-      </div>
-    </Modal>}
     {byStatus.map(s=><div key={s.id} style={{marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"6px 12px",background:s.c+"15",borderRadius:10,borderLeft:`3px solid ${s.c}`}}>
         <span style={{fontWeight:700,color:s.c,fontSize:13}}>{s.l}</span>
@@ -3494,23 +2937,12 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
   const [membersModal,setMembersModal]=useState(null);
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
-  const [sortBy,setSortBy]=useState("deadline"); // deadline, margin, progress, name
   const canEdit=user.role!=="brigade";
   const empty={name:"",client:"",phone:"",stage:"lead",deadline:"",sale_price:0,advance:0,spent:0,progress:0,team:"",manager:"",notes:"",issues:"",bom_model:"3x6"};
-
-  const filtered=[...projects.filter(p=>{
+  const filtered=projects.filter(p=>{
     const ms=filter==="all"||p.stage===filter;
     const mq=!search||p.name?.toLowerCase().includes(search.toLowerCase())||p.client?.toLowerCase().includes(search.toLowerCase());
     return ms&&mq;
-  })].sort((a,b)=>{
-    if(sortBy==="deadline") return new Date(a.deadline||"9999")-new Date(b.deadline||"9999");
-    if(sortBy==="margin"){
-      const ma=+a.sale_price- +a.spent; const mb=+b.sale_price- +b.spent;
-      return mb-ma;
-    }
-    if(sortBy==="progress") return +b.progress- +a.progress;
-    if(sortBy==="name") return (a.name||"").localeCompare(b.name||"","uk");
-    return 0;
   });
 
   function getProjectMembers(projectId){
@@ -3526,12 +2958,6 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
     <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
       <button onClick={()=>setFilter("all")} style={{flexShrink:0,fontSize:11,padding:"4px 12px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter==="all"?"#1e293b":"#e2e8f0",color:filter==="all"?"#fff":"#475569"}}>Всі ({projects.length})</button>
       {STAGES.map(s=>{const c=projects.filter(p=>p.stage===s.id).length;if(!c)return null;return <button key={s.id} onClick={()=>setFilter(s.id)} style={{flexShrink:0,fontSize:11,padding:"4px 12px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter===s.id?s.color:"#e2e8f0",color:filter===s.id?"#fff":"#475569"}}>{s.emoji}{s.label}({c})</button>;})}
-    </div>
-    <div style={{display:"flex",gap:5,marginBottom:10,alignItems:"center"}}>
-      <span style={{fontSize:10,color:"#94a3b8",flexShrink:0}}>Сортування:</span>
-      {[["deadline","📅 Дедлайн"],["margin","💰 Маржа"],["progress","📊 %"],["name","🔤 А-Я"]].map(([k,l])=>(
-        <button key={k} onClick={()=>setSortBy(k)} style={{flexShrink:0,fontSize:10,padding:"3px 8px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:sortBy===k?"#3b82f6":"#e2e8f0",color:sortBy===k?"#fff":"#475569"}}>{l}</button>
-      ))}
     </div>
     {saving&&<div style={{fontSize:11,color:"#3b82f6",textAlign:"center",marginBottom:8}}>⟳ Збереження...</div>}
     {filtered.map(p=>{
@@ -3652,10 +3078,84 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
 
     {/* Log modal */}
     {logProject&&<Modal title={logProject.name} onClose={()=>setLogProject(null)}>
+      <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user}/>
+    </Modal>}
+  </div>;
+}
+  if(loading)return <Spin/>;
+  return <div>
+    <div style={{display:"flex",gap:8,marginBottom:12}}>
+      <Input value={search} onChange={setSearch} placeholder="🔍 Пошук..." style={{flex:1}}/>
+      {canEdit&&<Btn onClick={()=>{setForm({...empty});setModal("add");}} small>+ Новий</Btn>}
+    </div>
+    <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
+      <button onClick={()=>setFilter("all")} style={{flexShrink:0,fontSize:11,padding:"4px 12px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter==="all"?"#1e293b":"#e2e8f0",color:filter==="all"?"#fff":"#475569"}}>Всі ({projects.length})</button>
+      {STAGES.map(s=>{const c=projects.filter(p=>p.stage===s.id).length;if(!c)return null;return <button key={s.id} onClick={()=>setFilter(s.id)} style={{flexShrink:0,fontSize:11,padding:"4px 12px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:filter===s.id?s.color:"#e2e8f0",color:filter===s.id?"#fff":"#475569"}}>{s.emoji}{s.label}({c})</button>;})}
+    </div>
+    {saving&&<div style={{fontSize:11,color:"#3b82f6",textAlign:"center",marginBottom:8}}>⟳ Збереження...</div>}
+    {filtered.map(p=>{
+      const stage=STAGES.find(s=>s.id===p.stage)||STAGES[0];
+      const margin=+p.sale_price- +p.spent;
+      const mPct=+p.sale_price>0?Math.round(margin/+p.sale_price*100):0;
+      const pComments=allComments.filter(c=>c.project_id===p.id).length;
+      const pTasks=allTasks.filter(t=>t.project_id===p.id&&!t.done).length;
+      return <Card key={p.id} style={{borderLeft:p.issues?`3px solid #f59e0b`:`3px solid ${stage.color}40`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{p.name}</div><div style={{fontSize:11,color:"#64748b"}}>👤 {p.client} · {p.phone}</div></div>
+          <div style={{display:"flex",gap:5,marginLeft:8}}>
+            <button onClick={()=>setLogProject(p)} style={{background:"#f0f9ff",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#3b82f6",fontWeight:600}}>
+              💬{pComments>0?pComments:""}{pTasks>0?` ✅${pTasks}`:""}
+            </button>
+            {canEdit&&<><button onClick={()=>{setForm({...p});setModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>✏️</button>
+            <button onClick={()=>confirm("Видалити з бази?")&&remove(p.id)} style={{background:"#fef2f2",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12}}>🗑</button></>}
+          </div>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+          <Badge color={stage.color}>{stage.emoji} {stage.label}</Badge>
+          <DL date={p.deadline}/>
+          {p.team&&<Badge color="#6366f1">👷 {p.team}</Badge>}
+        </div>
+        {p.issues&&<div style={{fontSize:11,color:"#b45309",background:"#fef3c7",borderRadius:8,padding:"4px 10px",marginBottom:8}}>⚠️ {p.issues}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#3b82f6"},{l:"Витрати",v:"₴"+fmt(+p.spent),c:"#e11d48"},{l:`Маржа ${mPct}%`,v:"₴"+fmt(margin),c:margin>=0?"#10b981":"#ef4444"}].map((x,i)=><div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"5px 8px"}}><div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div><div style={{fontSize:12,fontWeight:700,color:x.c}}>{x.v}</div></div>)}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#94a3b8",marginBottom:3}}><span>Готовність</span><span style={{fontWeight:700,color:stage.color}}>{p.progress}%</span></div>
+        <PBar value={p.progress} color={stage.color}/>
+        <div style={{display:"flex",gap:5,marginTop:10,flexWrap:"wrap"}}>
+          {STAGES.map(s=><button key={s.id} onClick={()=>update(p.id,{stage:s.id})} style={{fontSize:10,padding:"3px 8px",borderRadius:99,border:"none",cursor:"pointer",fontWeight:p.stage===s.id?700:400,background:p.stage===s.id?s.color:"#f1f5f9",color:p.stage===s.id?"#fff":"#64748b"}}>{s.emoji}</button>)}
+        </div>
+        {canEdit&&<div style={{marginTop:8}}>
+          <input type="range" min="0" max="100" value={p.progress} onChange={e=>update(p.id,{progress:+e.target.value})} style={{width:"100%",accentColor:stage.color}}/>
+        </div>}
+      </Card>;
+    })}
+    {modal&&form&&<Modal title={modal==="add"?"Новий проєкт":"Редагувати"} onClose={()=>setModal(null)}>
+      <Lbl>Назва</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6 — Локація"/>
+      <Lbl>Клієнт</Lbl><Input value={form.client} onChange={v=>setForm(p=>({...p,client:v}))} placeholder="Ім'я Прізвище"/>
+      <Lbl>Телефон</Lbl><Input value={form.phone} onChange={v=>setForm(p=>({...p,phone:v}))} placeholder="+380..."/>
+      <Lbl>Ціна продажу (₴)</Lbl><Input type="number" value={form.sale_price} onChange={v=>setForm(p=>({...p,sale_price:+v}))}/>
+      <Lbl>Витрачено (₴)</Lbl><Input type="number" value={form.spent} onChange={v=>setForm(p=>({...p,spent:+v}))}/>
+      <Lbl>Аванс (₴)</Lbl><Input type="number" value={form.advance} onChange={v=>setForm(p=>({...p,advance:+v}))}/>
+      <Lbl>Етап</Lbl><Sel value={form.stage} onChange={v=>setForm(p=>({...p,stage:v}))} options={STAGES.map(s=>({v:s.id,l:s.emoji+" "+s.label}))}/>
+      <Lbl>Дедлайн</Lbl><Input type="date" value={form.deadline||""} onChange={v=>setForm(p=>({...p,deadline:v}))}/>
+      <Lbl>Готовність: {form.progress}%</Lbl>
+      <input type="range" min="0" max="100" value={form.progress} onChange={e=>setForm(p=>({...p,progress:+e.target.value}))} style={{width:"100%",accentColor:"#3b82f6"}}/>
+      <Lbl>Бригада</Lbl><Input value={form.team} onChange={v=>setForm(p=>({...p,team:v}))} placeholder="Бригада А"/>
+      <Lbl>Нотатки</Lbl><Input value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Деталі..."/>
+      <Lbl>⚠️ Проблема</Lbl><Input value={form.issues} onChange={v=>setForm(p=>({...p,issues:v}))} placeholder="Порожньо = все ок"/>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <Btn onClick={()=>setModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
+        <Btn onClick={async()=>{ if(form.id)await update(form.id,form);else await create(form);setModal(null); }} style={{flex:2}}>💾 Зберегти</Btn>
+      </div>
+    </Modal>}
+
+    {/* Log modal */}
+    {logProject&&<Modal title={logProject.name} onClose={()=>setLogProject(null)}>
       <ProjectLog project={logProject} commentsH={commentsH} tasksH={tasksH} user={user} bomH={bomH} materialsH={materialsH} procH={procH} projectsH={hook} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>
     </Modal>}
   </div>;
 }
+
 // ─── CRM CALCULATOR ───────────────────────────────────────────────────────────
 function CRMCalculator({client,bomData,materialsData,sizesData,onSave}){
   const [open,setOpen]=useState(false);
@@ -3798,7 +3298,24 @@ function CRMCalculator({client,bomData,materialsData,sizesData,onSave}){
         </Btn>
         <Btn onClick={()=>{
           const win=window.open("","_blank");
-win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — ${client.name}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:22px;margin-bottom:4px}.sub{color:#64748b;font-size:13px;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:10px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:28px;text-align:center;padding:20px}.footer{color:#94a3b8;font-size:11px;margin-top:40px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head><body> <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1> <div class="sub">Клієнт: ${client.name} · ${client.phone} · ${new Date().toLocaleDateString("uk-UA")}</div> <h3>Об'єкт: каркасний будинок ${W}×${L*cfg.modules}м (${(W*L*cfg.modules).toFixed(0)}м²)</h3> <table><tr><th>Складова</th><th>Сума (₴)</th></tr> <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matCost)}</td></tr> <tr><td>Праця (${cfg.labourScheme==="fixed"?"фіксована":"по м²"})</td><td>₴${fmt(labCost)}</td></tr> <tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr> <tr><td><b>Собівартість</b></td><td><b>₴${fmt(cost)}</b></td></tr></table> <div class="price">Ціна: ₴${fmt(price)}</div> <h3>Схема оплат</h3> <p>🔸 10% — бронювання/договір: ₴${fmt(Math.round(price*0.1))}<br> 🔸 40% — старт виробництва: ₴${fmt(Math.round(price*0.4))}<br> 🔸 30% — готовність коробки: ₴${fmt(Math.round(price*0.3))}<br> 🔸 20% — здача під ключ: ₴${fmt(Math.round(price*0.2))}</p> <p><b>Склад:</b> ${FACADES.find(f=>f.v===cfg.facade)?.l||cfg.facade} · ${cfg.hasElectric?"Електрика":""}${cfg.hasWater?" · Водопровід":""}${cfg.hasSewage?" · Каналізація":""}${cfg.hasKitchen?" · Кухня":""}${cfg.hasHeatedFloor?" · Тепла підлога":""}</p> <div class="footer">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</div> </body></html>`);
+          win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — ${client.name}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:22px;margin-bottom:4px}.sub{color:#64748b;font-size:13px;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:10px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:28px;text-align:center;padding:20px}.footer{color:#94a3b8;font-size:11px;margin-top:40px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head><body>
+          <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1>
+          <div class="sub">Клієнт: ${client.name} · ${client.phone} · ${new Date().toLocaleDateString("uk-UA")}</div>
+          <h3>Об'єкт: каркасний будинок ${W}×${L*cfg.modules}м (${(W*L*cfg.modules).toFixed(0)}м²)</h3>
+          <table><tr><th>Складова</th><th>Сума (₴)</th></tr>
+          <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matCost)}</td></tr>
+          <tr><td>Праця (${cfg.labourScheme==="fixed"?"фіксована":"по м²"})</td><td>₴${fmt(labCost)}</td></tr>
+          <tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr>
+          <tr><td><b>Собівартість</b></td><td><b>₴${fmt(cost)}</b></td></tr></table>
+          <div class="price">Ціна: ₴${fmt(price)}</div>
+          <h3>Схема оплат</h3>
+          <p>🔸 10% — бронювання/договір: ₴${fmt(Math.round(price*0.1))}<br>
+          🔸 40% — старт виробництва: ₴${fmt(Math.round(price*0.4))}<br>
+          🔸 30% — готовність коробки: ₴${fmt(Math.round(price*0.3))}<br>
+          🔸 20% — здача під ключ: ₴${fmt(Math.round(price*0.2))}</p>
+          <p><b>Склад:</b> ${FACADES.find(f=>f.v===cfg.facade)?.l||cfg.facade} · ${cfg.hasElectric?"Електрика":""}${cfg.hasWater?" · Водопровід":""}${cfg.hasSewage?" · Каналізація":""}${cfg.hasKitchen?" · Кухня":""}${cfg.hasHeatedFloor?" · Тепла підлога":""}</p>
+          <div class="footer">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</div>
+          </body></html>`);
           win.document.close();win.print();
         }} color="#6366f1" full>📄 Друк КП</Btn>
       </div>
@@ -4510,6 +4027,91 @@ function Analytics({projects,workers,operations,materials,bom,overhead,statsH}){
     </>}
   </div>;
 }
+
+  // Офісні витрати за поточний місяць
+  const curMonth=new Date().toISOString().slice(0,7);
+  const monthOverhead=overhead.filter(o=>o.month&&o.month.startsWith(curMonth));
+  const totalOverhead=monthOverhead.reduce((s,o)=>s+ +o.amount,0);
+  const activeProjects=projects.filter(p=>p.stage!=="paid"&&p.stage!=="lead");
+  const overheadPerProject=activeProjects.length>0?Math.round(totalOverhead/activeProjects.length):0;
+
+  const margin=tSale-tSpent;
+  const realMargin=tSale-tSpent-totalOverhead;
+  const mPct  =tSale>0?Math.round(margin/tSale*100):0;
+  const realMPct=tSale>0?Math.round(realMargin/tSale*100):0;
+  const laborCost=operations.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
+  const matOpt=bom.reduce((s,i)=>{const m=materials.find(x=>x.id===i.material_id);return s+(m?m.opt_price*i.qty:0);},0);
+  const matRetail=bom.reduce((s,i)=>{const m=materials.find(x=>x.id===i.material_id);return s+(m?m.retail_price*i.qty:0);},0);
+
+  return <div>
+    <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+      {[["margin","Маржа"],["overhead","Накладні"],["structure","Структура"]].map(([id,lbl])=>(
+        <button key={id} onClick={()=>setTab(id)} style={{flexShrink:0,padding:"7px 14px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:12,background:tab===id?"#1e293b":"#e2e8f0",color:tab===id?"#fff":"#64748b"}}>{lbl}</button>
+      ))}
+    </div>
+
+    {tab==="margin"&&<>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        {[
+          {l:"Загальна виручка",v:"₴"+fmt(tSale),c:"#3b82f6"},
+          {l:"Загальні витрати",v:"₴"+fmt(tSpent),c:"#e11d48"},
+          {l:`Маржа без накл (${mPct}%)`,v:"₴"+fmt(margin),c:mPct>=25?"#10b981":"#f59e0b"},
+          {l:`Реальна маржа (${realMPct}%)`,v:"₴"+fmt(realMargin),c:realMPct>=20?"#10b981":realMPct>=10?"#f59e0b":"#ef4444"},
+        ].map((x,i)=><Card key={i} style={{margin:0}}><div style={{fontSize:9,color:"#94a3b8",marginBottom:4}}>{x.l}</div><div style={{fontSize:14,fontWeight:800,color:x.c}}>{x.v}</div></Card>)}
+      </div>
+
+      {totalOverhead>0&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#dc2626"}}>
+        ⚠️ Офісні витрати цього місяця: <strong>₴{fmt(totalOverhead)}</strong> зменшують маржу на <strong>{mPct-realMPct}%</strong>
+      </div>}
+
+      <Card>
+        <div style={{fontWeight:700,fontSize:12,marginBottom:12}}>📊 Реальна маржа по проєктах</div>
+        {projects.filter(p=>p.stage!=="paid").map(p=>{
+          const m=+p.sale_price-+p.spent;
+          const realM=m-overheadPerProject;
+          const pct=+p.sale_price>0?Math.round(m/+p.sale_price*100):0;
+          const realPct=+p.sale_price>0?Math.round(realM/+p.sale_price*100):0;
+          return <div key={p.id} style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"55%",fontWeight:600}}>{p.name}</span>
+              <span>
+                <span style={{color:"#94a3b8",fontSize:10}}>{pct}% → </span>
+                <span style={{fontWeight:800,color:realPct>=20?"#10b981":realPct>=10?"#f59e0b":"#ef4444"}}>{realPct}%</span>
+              </span>
+            </div>
+            <PBar value={realPct} color={realPct>=20?"#10b981":realPct>=10?"#f59e0b":"#ef4444"} height={6}/>
+          </div>;
+        })}
+      </Card>
+
+      <Card style={{borderLeft:"3px solid #10b981"}}>
+        <div style={{fontWeight:700,fontSize:12,marginBottom:8}}>💡 Оптові закупки</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          {[{l:"Роздріб",v:"₴"+fmt(matRetail),c:"#e11d48"},{l:"Опт",v:"₴"+fmt(matOpt),c:"#10b981"},{l:"Економія",v:"₴"+fmt(matRetail-matOpt),c:"#f59e0b"}].map((x,i)=><div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div><div style={{fontSize:13,fontWeight:700,color:x.c}}>{x.v}</div></div>)}
+        </div>
+      </Card>
+    </>}
+
+    {tab==="overhead"&&<OverheadCosts overheadH={{data:overhead,loading:false,create:()=>{},update:()=>{},remove:()=>{}}} catsH={{data:[],create:async()=>{},update:async()=>{}}} projects={projects}/>}
+
+    {tab==="structure"&&<Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff"}}>
+      <div style={{fontSize:11,color:"#475569",marginBottom:14}}>СТРУКТУРА СОБІВАРТОСТІ</div>
+      {[
+        {l:"🪵 Матеріали (опт)",  v:matOpt,        c:"#f59e0b"},
+        {l:"👷 Оплата праці",     v:laborCost,     c:"#06b6d4"},
+        {l:"🏢 Офісні витрати/міс",v:totalOverhead, c:"#ef4444"},
+      ].map((x,i)=>{
+        const total=matOpt+laborCost+totalOverhead;
+        const pct=total>0?Math.round(x.v/total*100):0;
+        return <div key={i} style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{color:"#94a3b8"}}>{x.l}</span><span style={{fontWeight:700,color:x.c}}>₴{fmt(x.v)} ({pct}%)</span></div>
+          <div style={{background:"#ffffff15",borderRadius:99,height:8}}><div style={{width:pct+"%",height:"100%",background:x.c,borderRadius:99}}/></div>
+        </div>;
+      })}
+    </Card>}
+  </div>;
+}
+
 // ─── SUPPLIERS MODULE ─────────────────────────────────────────────────────────
 function Suppliers({suppliersH,pricesH,materials}){
   const {data:suppliers,loading,create,update,remove}=suppliersH;
@@ -4754,136 +4356,9 @@ function Knowledge({hook,user}){
   </div>;
 }
 
-// ─── EXPORT MODULE ────────────────────────────────────────────────────────────
-function ExportModule({projects,clients,materials,bom,workers,operations,overhead,stats}){
-  const [selProject,setSelProject]=useState("");
-
-  // ── Excel специфікація матеріалів ──
-  function exportSpecExcel(project){
-    const proj=projects.find(p=>p.id===project)||projects[0];
-    if(!proj)return;
-    const bomItems=bom.filter(b=>b.model===proj.bom_model||b.model==="3x6");
-    const rows=[
-      ["СПЕЦИФІКАЦІЯ МАТЕРІАЛІВ"],
-      [`Проєкт: ${proj.name}`],
-      [`Клієнт: ${proj.client}`],
-      [`Дата: ${new Date().toLocaleDateString("uk-UA")}`],
-      [],
-      ["№","Категорія","Назва матеріалу","Од.","К-сть (BOM)","Ціна опт (₴)","Сума опт (₴)","Ціна роздріб (₴)","Постачальник","Нотатка"],
-    ];
-    let total=0;
-    bomItems.forEach((item,i)=>{
-      const mat=materials.find(m=>m.id===item.material_id);
-      if(!mat)return;
-      const sum=mat.opt_price*item.qty;
-      total+=sum;
-      rows.push([i+1,mat.category,mat.name,mat.unit,item.qty,mat.opt_price,sum,mat.retail_price,mat.supplier||"",item.note||""]);
-    });
-    rows.push([]);
-    rows.push(["","","","","","РАЗОМ:",total,"","",""]);
-
-    // Генеруємо CSV (відкривається в Excel)
-    const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
-    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=`Специфікація_${proj.name.replace(/\s+/g,"_")}_${today()}.csv`;
-    a.click();
-  }
-
-  // ── PDF Акт здачі ──
-  function exportAct(projectId){
-    const proj=projects.find(p=>p.id===projectId)||projects[0];
-    if(!proj)return;
-    const win=window.open("","_blank");
-win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Акт здачі — ${proj.name}</title> <style> body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#1e293b;font-size:14px} h1{font-size:20px;text-align:center;margin-bottom:4px} .sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:30px} table{width:100%;border-collapse:collapse;margin:16px 0} th,td{border:1px solid #e2e8f0;padding:8px 12px;text-align:left;font-size:13px} th{background:#f8fafc;font-weight:600} .sign-block{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px} .sign-line{border-bottom:1px solid #000;margin-top:40px;margin-bottom:4px} .total{font-size:18px;font-weight:900;color:#10b981} @media print{body{padding:20px}} </style></head><body> <h1>АКТ ЗДАЧІ-ПРИЙМАННЯ РОБІТ</h1> <div class="sub">МОДУЛЕР ПРО · ${new Date().toLocaleDateString("uk-UA")}</div>  <table> <tr><th>Об'єкт</th><td>${proj.name}</td></tr> <tr><th>Клієнт</th><td>${proj.client}</td></tr> <tr><th>Телефон</th><td>${proj.phone||"—"}</td></tr> <tr><th>Дата здачі</th><td>${new Date().toLocaleDateString("uk-UA")}</td></tr> <tr><th>Відповідальний</th><td>${proj.manager||"Менеджер"}</td></tr> </table>  <h3>Виконані роботи</h3> <table> <tr><th>№</th><th>Вид роботи</th><th>Обсяг</th><th>Статус</th></tr> <tr><td>1</td><td>Каркас будинку</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>2</td><td>Утеплення (вата + мембрани)</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>3</td><td>Покрівля ПВХ мембрана</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>4</td><td>Зовнішнє оздоблення (фасад)</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>5</td><td>Внутрішнє оздоблення</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>6</td><td>Електрика</td><td>Повністю</td><td>✅ Виконано</td></tr> <tr><td>7</td><td>Сантехніка</td><td>Повністю</td><td>✅ Виконано</td></tr> </table>  <h3>Фінанси</h3> <table> <tr><th>Вартість за договором</th><td class="total">₴${fmt(+proj.sale_price)}</td></tr> <tr><th>Отримано авансів</th><td>₴${fmt(+proj.advance)}</td></tr> <tr><th>До сплати залишок</th><td style="font-weight:700;color:#ef4444">₴${fmt(+proj.sale_price- +proj.advance)}</td></tr> </table>  <p style="margin-top:16px">Роботи виконані в повному обсязі відповідно до договору. Претензій до якості виконаних робіт не маю.</p>  <div class="sign-block"> <div> <p><strong>ВИКОНАВЕЦЬ</strong></p> <p>МОДУЛЕР ПРО</p> <div class="sign-line"></div> <p style="font-size:12px;color:#64748b">підпис / дата</p> </div> <div> <p><strong>ЗАМОВНИК</strong></p> <p>${proj.client}</p> <div class="sign-line"></div> <p style="font-size:12px;color:#64748b">підпис / дата</p> </div> </div> </body></html>`);
-    win.document.close();
-    win.print();
-  }
-
-  // ── PDF Місячний звіт ──
-  function exportMonthReport(){
-    const month=new Date().toLocaleDateString("uk-UA",{month:"long",year:"numeric"});
-    const active=projects.filter(p=>!["paid"].includes(p.stage));
-    const tSale=projects.reduce((s,p)=>s+ +p.sale_price,0);
-    const tSpent=projects.reduce((s,p)=>s+ +p.spent,0);
-    const tAdv=projects.reduce((s,p)=>s+ +p.advance,0);
-    const totalOverhead=overhead.reduce((s,o)=>s+ +o.amount,0);
-    const laborCost=operations.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
-
-    const win=window.open("","_blank");
-win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Звіт ${month}</title> <style> body{font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px;color:#1e293b} h1{font-size:22px;margin-bottom:4px} .sub{color:#64748b;font-size:13px;margin-bottom:24px} table{width:100%;border-collapse:collapse;margin:16px 0} th,td{border:1px solid #e2e8f0;padding:8px 12px;font-size:13px} th{background:#f8fafc;font-weight:600;text-align:left} .big{font-size:20px;font-weight:900} .green{color:#10b981} .red{color:#ef4444} .blue{color:#3b82f6} @media print{body{padding:20px}} </style></head><body> <h1>📊 МІСЯЧНИЙ ЗВІТ</h1> <div class="sub">МОДУЛЕР ПРО · ${month} · Сформовано ${new Date().toLocaleDateString("uk-UA")}</div>  <h3>Фінансові показники</h3> <table> <tr><th>Загальна виручка (всі проєкти)</th><td class="big blue">₴${fmt(tSale)}</td></tr> <tr><th>Загальні витрати</th><td class="big red">₴${fmt(tSpent)}</td></tr> <tr><th>Маржа</th><td class="big green">₴${fmt(tSale-tSpent)} (${tSale>0?Math.round((tSale-tSpent)/tSale*100):0}%)</td></tr> <tr><th>Аванси отримано</th><td>₴${fmt(tAdv)}</td></tr> <tr><th>До отримання</th><td>₴${fmt(tSale-tAdv)}</td></tr> <tr><th>Офісні витрати місяця</th><td class="red">₴${fmt(totalOverhead)}</td></tr> <tr><th>Реальна маржа (з накладними)</th><td class="big ${tSale-tSpent-totalOverhead>0?"green":"red"}">₴${fmt(tSale-tSpent-totalOverhead)}</td></tr> </table>  <h3>Активні проєкти (${active.length})</h3> <table> <tr><th>Проєкт</th><th>Клієнт</th><th>Статус</th><th>Прогрес</th><th>Ціна</th><th>Маржа</th></tr> ${active.map(p=>{ const m=+p.sale_price-+p.spent; const pct=+p.sale_price>0?Math.round(m/+p.sale_price*100):0; const stage=STAGES.find(s=>s.id===p.stage)||STAGES[0]; return `<tr> <td>${p.name}</td><td>${p.client}</td> <td>${stage.emoji} ${stage.label}</td> <td>${p.progress}%</td> <td>₴${fmt(+p.sale_price)}</td> <td style="color:${pct>=25?"#10b981":"#ef4444"}">₴${fmt(m)} (${pct}%)</td> </tr>`; }).join("")} </table>  <h3>Офісні витрати</h3> <table> <tr><th>Стаття</th><th>Сума</th></tr> ${overhead.map(o=>`<tr><td>${o.category}</td><td>₴${fmt(+o.amount)}</td></tr>`).join("")} <tr><th>РАЗОМ</th><th>₴${fmt(totalOverhead)}</th></tr> </table> </body></html>`);
-    win.document.close();
-    win.print();
-  }
-
-  // ── Excel клієнтська база ──
-  function exportClientsCSV(){
-    const rows=[
-      ["Ім'я","Телефон","Email","Статус","Бюджет","Джерело","Відповідальний","Нотатки"],
-      ...clients.map(c=>[c.name,c.phone,c.email,c.stage,c.budget,c.source,c.assigned_to,c.notes])
-    ];
-    const csv=rows.map(r=>r.map(c=>`"${String(c||"").replace(/"/g,'""')}"`).join(";")).join("\n");
-    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=`Клієнти_${today()}.csv`;
-    a.click();
-  }
-
-  return <div>
-    <div style={{fontSize:12,color:"#64748b",marginBottom:14}}>Генерація документів і звітів</div>
-
-    {/* Акт здачі */}
-    <Card style={{borderLeft:"3px solid #10b981"}}>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>✅ Акт здачі-приймання</div>
-      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>PDF з підписами замовника і виконавця</div>
-      <Lbl>Оберіть проєкт</Lbl>
-      <Sel value={selProject} onChange={setSelProject} options={[{v:"",l:"— Оберіть проєкт —"},...projects.map(p=>({v:p.id,l:p.name}))]}/>
-      <Btn onClick={()=>selProject&&exportAct(selProject)} color="#10b981" full style={{marginTop:8}} disabled={!selProject}>
-        📄 Друк акту здачі
-      </Btn>
-    </Card>
-
-    {/* Специфікація Excel */}
-    <Card style={{borderLeft:"3px solid #3b82f6"}}>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>📊 Специфікація матеріалів (Excel/CSV)</div>
-      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Список всіх матеріалів з цінами для замовлення постачальнику</div>
-      <Sel value={selProject} onChange={setSelProject} options={[{v:"",l:"— Оберіть проєкт —"},...projects.map(p=>({v:p.id,l:p.name}))]}/>
-      <Btn onClick={()=>selProject&&exportSpecExcel(selProject)} color="#3b82f6" full style={{marginTop:8}} disabled={!selProject}>
-        📥 Завантажити CSV (Excel)
-      </Btn>
-    </Card>
-
-    {/* Місячний звіт */}
-    <Card style={{borderLeft:"3px solid #8b5cf6"}}>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>📈 Місячний звіт</div>
-      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Фінанси, проєкти, маржа, офісні витрати</div>
-      <Btn onClick={exportMonthReport} color="#8b5cf6" full>📄 Друк місячного звіту</Btn>
-    </Card>
-
-    {/* Клієнти CSV */}
-    <Card style={{borderLeft:"3px solid #f59e0b"}}>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>👥 Клієнтська база (Excel/CSV)</div>
-      <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>Всі клієнти з контактами і статусами</div>
-      <Btn onClick={exportClientsCSV} color="#f59e0b" full>📥 Завантажити CSV</Btn>
-    </Card>
-  </div>;
-}
-
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
-function Settings({user,onLogout,projects,clients,materials,bom,workers,operations,overhead,stats}){
-  const [tab,setTab]=useState("info");
+function Settings({user,onLogout}){
   return <div>
-    <div style={{display:"flex",gap:6,marginBottom:14}}>
-      {[["info","⚙️ Система"],["export","📤 Експорт"]].map(([id,lbl])=>(
-        <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"7px",border:"none",borderRadius:10,cursor:"pointer",fontWeight:600,fontSize:12,background:tab===id?"#1e293b":"#e2e8f0",color:tab===id?"#fff":"#64748b"}}>{lbl}</button>
-      ))}
-    </div>
-
-    {tab==="export"&&<ExportModule projects={projects} clients={clients} materials={materials} bom={bom} workers={workers} operations={operations} overhead={overhead} stats={stats}/>}
-
-    {tab==="info"&&<>
     <Card style={{textAlign:"center",padding:"24px 16px"}}>
       <div style={{fontSize:48,marginBottom:8}}>{ROLES[user.role].emoji}</div>
       <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>{user.name}</div>
@@ -4906,11 +4381,10 @@ function Settings({user,onLogout,projects,clients,materials,bom,workers,operatio
       </div>)}
     </Card>
     <Card>
-      <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📋 v7.9 — Що є в системі</div>
-      {["✅ CRM з історією контактів","✅ Специфікація матеріалів по проєкту","✅ Технологічні чеклисти","✅ Документи і фото (Supabase Storage)","✅ Калькулятор в CRM","✅ Сповіщення (дедлайни, контакти)","✅ Контроль якості з фото","✅ Облік деревини і вогнезахист","✅ Пошук по всій системі","✅ Сортування проєктів","✅ Фінансовий прогноз","✅ Eksport PDF/Excel/CSV"].map((f,i)=><div key={i} style={{fontSize:12,color:"#475569",padding:"3px 0",borderBottom:"1px solid #f1f5f9"}}>{f}</div>)}
+      <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📋 v7 — Що нового</div>
+      {["✅ Нижнє меню — всі модулі","✅ Верхнє меню прибрано","✅ Дашборд — картки клікабельні","✅ Матеріали — повне редагування","✅ Виконавці — CRUD + коментарі","✅ Актуалізація цін з датою","✅ Каталог продуктів","✅ Збереження калькуляцій","✅ Копіювання / архівування продуктів"].map((f,i)=><div key={i} style={{fontSize:12,color:"#475569",padding:"3px 0",borderBottom:"1px solid #f1f5f9"}}>{f}</div>)}
     </Card>
     <Btn onClick={onLogout} color="#ef4444" outline full>🚪 Вийти</Btn>
-    </>}
   </div>;
 }
 
@@ -4986,101 +4460,13 @@ export default function App(){
     }
   }
 
-  // Визначаємо чи ПК (>768px)
-  const isDesktop=typeof window!=="undefined"&&window.innerWidth>768;
-
-  const content = <>
-    {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} clients={clientsH.data} materials={materialsH.data} knowledge={knowledgeH.data} onNav={nav}/>}
-    {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH} facadeH={facadeH} priceHistoryH={priceHistoryH}/>}
-    {module==="products"    && <Products    productsH={productsH} foldersH={foldersH} onNav={nav}/>}
-    {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
-    {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data} bomH={bomH}/>}
-    {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>}
-    {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH,bomData:bomH.data,materialsData:materialsH.data,sizesData:sizesH.data}}/>}
-    {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
-    {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
-    {module==="suppliers"   && <Suppliers   suppliersH={suppliersH} pricesH={pricesH} materials={materialsH.data}/>}
-    {module==="bom"         && <BOMModule   materialsH={materialsH} bomH={bomH} workersH={workersH} operationsH={operationsH}/>}
-    {module==="team"        && <Team        hook={teamH} projects={projectsH.data}/>}
-    {module==="knowledge"   && <Knowledge   hook={knowledgeH} user={user}/>}
-    {module==="settings"    && <Settings    user={user} onLogout={()=>setUser(null)} projects={projectsH.data} clients={clientsH.data} materials={materialsH.data} bom={bomH.data} workers={workersH.data} operations={operationsH.data} overhead={overheadH.data} stats={statsH.data}/>}
-  </>;
-
-  // ── DESKTOP LAYOUT ──
-  if(isDesktop) return <div style={{minHeight:"100vh",background:"#f0f4f8",fontFamily:"'Helvetica Neue',system-ui,sans-serif",display:"flex",flexDirection:"column"}}>
-
-    {dbError&&<div style={{background:"#ef4444",color:"#fff",padding:"6px 16px",fontSize:11,textAlign:"center"}}>
-      ⚠️ Помилка БД: {dbError.slice(0,80)}
-    </div>}
-
-    {/* TOP HEADER */}
-    <div style={{background:"#0f172a",padding:"10px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
-      <div style={{display:"flex",alignItems:"center",gap:16}}>
-        <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>🏗️ МОДУЛЕР ПРО</div>
-        <div style={{fontSize:11,color:"#475569"}}>{role.emoji} {user.name}</div>
-      </div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        {overdue>0&&<div style={{background:"#ef444420",color:"#ef4444",borderRadius:99,padding:"4px 10px",fontSize:11,fontWeight:700}}>⏰ {overdue} прострочено</div>}
-        <NotificationCenter notifsH={notifsH} onNav={nav}/>
-        <div style={{background:"#1e293b",borderRadius:99,padding:"4px 10px",fontSize:11,color:anySaving?"#f59e0b":"#22c55e"}}>
-          {anySaving?"⟳ Sync":"☁️ Live"}
-        </div>
-        <button onClick={()=>setUser(null)} style={{background:"#1e293b",border:"none",borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:11,color:"#94a3b8"}}>Вийти</button>
-      </div>
-    </div>
-
-    <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-      {/* SIDEBAR */}
-      <div style={{width:220,background:"#1e293b",minHeight:"calc(100vh - 44px)",position:"sticky",top:44,overflowY:"auto",flexShrink:0}}>
-        <div style={{padding:"16px 12px"}}>
-          {visible.map(m=><button key={m.id} onClick={()=>nav(m.id)}
-            style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 12px",marginBottom:2,border:"none",borderRadius:10,cursor:"pointer",background:active.id===m.id?"#3b82f6":"transparent",textAlign:"left"}}>
-            <span style={{fontSize:17}}>{m.icon}</span>
-            <span style={{fontSize:13,fontWeight:active.id===m.id?700:400,color:active.id===m.id?"#fff":"#94a3b8"}}>{m.label}</span>
-            {active.id===m.id&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
-          </button>)}
-        </div>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <div style={{flex:1,overflowY:"auto",padding:"24px 32px",maxWidth:900}}>
-        <div style={{fontWeight:800,fontSize:22,color:"#1e293b",marginBottom:20}}>{active.icon} {active.label}</div>
-        {content}
-      </div>
-
-      {/* RIGHT PANEL — статистика */}
-      <div style={{width:260,background:"#fff",borderLeft:"1px solid #e2e8f0",padding:"20px 16px",overflowY:"auto",flexShrink:0}}>
-        <div style={{fontSize:11,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:12}}>ШВИДКА СТАТИСТИКА</div>
-        {[
-          {l:"Активних проєктів", v:projectsH.data.filter(p=>p.stage!=="paid").length, c:"#3b82f6"},
-          {l:"Виручка загальна",  v:"₴"+fmt(projectsH.data.reduce((s,p)=>s+ +p.sale_price,0)), c:"#10b981"},
-          {l:"Відкритих задач",   v:tasksH.data.filter(t=>!t.done).length, c:"#f59e0b"},
-          {l:"Клієнтів в CRM",    v:clientsH.data.length, c:"#6366f1"},
-          {l:"Матеріалів в базі", v:materialsH.data.length, c:"#06b6d4"},
-        ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
-          <span style={{fontSize:11,color:"#64748b"}}>{x.l}</span>
-          <span style={{fontSize:14,fontWeight:700,color:x.c}}>{x.v}</span>
-        </div>)}
-
-        <div style={{marginTop:20,fontSize:11,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:12}}>ШВИДКИЙ ПЕРЕХІД</div>
-        {visible.filter(m=>["dashboard","projects","crm","analytics","finance"].includes(m.id)).map(m=>(
-          <button key={m.id} onClick={()=>nav(m.id)}
-            style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"7px 10px",marginBottom:4,border:"none",borderRadius:8,cursor:"pointer",background:active.id===m.id?"#eff6ff":"#f8fafc",textAlign:"left"}}>
-            <span>{m.icon}</span>
-            <span style={{fontSize:12,color:active.id===m.id?"#3b82f6":"#475569",fontWeight:active.id===m.id?600:400}}>{m.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>;
-
-  // ── MOBILE LAYOUT ──
   return <div style={{minHeight:"100vh",background:"#f0f4f8",fontFamily:"'Helvetica Neue',system-ui,sans-serif",maxWidth:480,margin:"0 auto"}}>
 
     {dbError&&<div style={{position:"fixed",top:0,left:0,right:0,background:"#ef4444",color:"#fff",padding:"8px 16px",fontSize:11,zIndex:9999,textAlign:"center"}}>
       ⚠️ Помилка БД: {dbError.slice(0,80)}
     </div>}
 
+    {/* HEADER — тільки назва і статус, без меню */}
     <div style={{background:"#0f172a",padding:"14px 16px 12px",position:"sticky",top:0,zIndex:100}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
@@ -5091,13 +4477,14 @@ export default function App(){
           {overdue>0&&<div style={{background:"#ef444420",color:"#ef4444",borderRadius:99,padding:"3px 8px",fontSize:10,fontWeight:700}}>⏰{overdue}</div>}
           <NotificationCenter notifsH={notifsH} onNav={nav}/>
           <div style={{background:"#1e293b",borderRadius:99,padding:"3px 8px",fontSize:10,color:anySaving?"#f59e0b":"#22c55e"}}>
-            {anySaving?"⟳":"☁️"}
+            {anySaving?"⟳":"☁️"} {anySaving?"Sync":"Live"}
           </div>
-          <button onClick={()=>setModule(module==="more"?"dashboard":"more")} style={{background:"#1e293b",border:"none",borderRadius:99,padding:"3px 10px",fontSize:10,color:"#94a3b8",cursor:"pointer"}}>≡</button>
+          <button onClick={()=>setModule(module==="more"?"dashboard":"more")} style={{background:"#1e293b",border:"none",borderRadius:99,padding:"3px 10px",fontSize:10,color:"#94a3b8",cursor:"pointer"}}>≡ Ще</button>
         </div>
       </div>
     </div>
 
+    {/* MORE MENU */}
     {module==="more"&&<div style={{background:"#1e293b",padding:"8px 16px 16px"}}>
       <div style={{fontSize:10,color:"#64748b",letterSpacing:"0.08em",marginBottom:10,marginTop:4}}>УСІ МОДУЛІ</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
@@ -5108,11 +4495,26 @@ export default function App(){
       </div>
     </div>}
 
+    {/* CONTENT */}
     <div style={{padding:"16px 14px 100px"}}>
       {module!=="more"&&<div style={{fontWeight:800,fontSize:17,color:"#1e293b",marginBottom:14}}>{active.icon} {active.label}</div>}
-      {content}
+      {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} onNav={nav}/>}
+      {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH} facadeH={facadeH} priceHistoryH={priceHistoryH}/>}
+      {module==="products"    && <Products    productsH={productsH} foldersH={foldersH} onNav={nav}/>}
+      {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
+      {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data}/>}
+      {module==="projects"    && <Projects    hook={projectsH} user={user} commentsH={commentsH} tasksH={tasksH} teamMembers={teamH.data} membersH={membersH} bomH={bomH} materialsH={materialsH} procH={procH} operationsH={operationsH} checklistH={checklistH} docsH={docsH} lumberH={lumberH}/>}
+      {module==="crm"         && <CRM         hook={clientsH} contactsH={contactsH} configH={{productsH,bomData:bomH.data,materialsData:materialsH.data,sizesData:sizesH.data}}/>}
+      {module==="analytics"   && <Analytics   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} materials={materialsH.data} bom={bomH.data} overhead={overheadH.data} statsH={statsH}/>}
+      {module==="finance"     && <OverheadCosts overheadH={overheadH} catsH={catsH} projects={projectsH.data}/>}
+      {module==="suppliers"   && <Suppliers   suppliersH={suppliersH} pricesH={pricesH} materials={materialsH.data}/>}
+      {module==="bom"         && <BOMModule   materialsH={materialsH} bomH={bomH} workersH={workersH} operationsH={operationsH}/>}
+      {module==="team"        && <Team        hook={teamH} projects={projectsH.data}/>}
+      {module==="knowledge"   && <Knowledge   hook={knowledgeH} user={user}/>}
+      {module==="settings"    && <Settings    user={user} onLogout={()=>setUser(null)}/>}
     </div>
 
+    {/* BOTTOM NAV — 6 основних модулів */}
     <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"#0f172a",borderTop:"1px solid #1e293b",display:"flex"}}>
       {bottomModules.map(m=><button key={m.id} onClick={()=>setModule(m.id)} style={{flex:1,padding:"9px 2px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
         <span style={{fontSize:15,color:active.id===m.id?"#60a5fa":"#94a3b8"}}>{m.icon}</span>
