@@ -1602,58 +1602,6 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
     </Modal>}
   </div>;
 }
-  const {data:sizes,create:createSize,update:updateSize}=sizesH;
-  const materials=materialsH.data;
-  const workers=workersH.data;
-  const operations=operationsH.data;
-
-  // Конфігурація
-  const [cfg,setCfg]=useState({
-    // Розміри
-    sizeId:"",
-    customW:0, customL:0,        // для індивідуального
-    modules:1,                    // кількість модулів
-    hasTerrace:false,
-    terraceW:2.5, terraceL:6,
-    heightExt:3.0,                // висота зовні
-    heightInt:2.5,                // чистова всередині
-    // Конструкція
-    floorThick:200,
-    wallExtThick:150,
-    wallIntThick:100,
-    roofThick:200,
-    // Фасад
-    facade:"planken",             // planken, termo, imitacia, siding
-    facadeColor:"anthracite",     // anthracite, brown, yellow, custom
-    // Комплектація
-    kit:"turnkey",                // rough=під ремонт, turnkey=під ключ, premium=преміум
-    // Опції
-    hasElectric:true,
-    hasWater:true,
-    hasSewage:true,
-    hasHeatedFloor:false,
-    hasKitchen:false,
-    hasAC:false,                  // закладна під кондиціонер
-    hasWarmPorch:false,
-    // Оплата бригади
-    labourScheme:"fixed",         // fixed=фіксована, perSqm=по м²
-    labourFixed:150000,
-    // Маржа
-    margin:30,
-  });
-
-  const set=k=>v=>setCfg(p=>({...p,[k]:v}));
-
-  // Розрахунок площ
-  const selSize=sizes.find(s=>s.id===cfg.sizeId);
-  const W=selSize?.name==="Індивідуальний"?+cfg.customW:(selSize?+selSize.width:0);
-  const L=selSize?.name==="Індивідуальний"?+cfg.customL:(selSize?+selSize.length:0);
-  const floorArea=W*L*cfg.modules;
-  const terraceArea=cfg.hasTerrace?+cfg.terraceW * +cfg.terraceL:0;
-  const extWallArea=(2*(W+L*cfg.modules))*2.55;
-  const roofArea=W*L*cfg.modules;
-
-  // Розрахунок вартості матеріалів
   function calcMaterials(){
     let cost=0;
     // Базальтова вата
