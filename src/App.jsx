@@ -29,7 +29,11 @@ function useTable(table, query="") {
 // <link rel="manifest" href="/manifest.json">
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const ROLES = {
+const ROLES={
+  owner:   {label:"Власник",  color:"#f59e0b",emoji:"👑",access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
+  manager: {label:"Менеджер", color:"#6366f1",emoji:"👔",access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
+  brigade: {label:"Бригада",  color:"#10b981",emoji:"👷",access:["dashboard","projects","knowledge","settings"]},
+};
 const USERS=[
   {id:"u1",name:"Власник",  role:"owner",  pin:"1111"},
   {id:"u2",name:"Менеджер", role:"manager",pin:"2222"},
