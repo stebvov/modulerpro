@@ -733,6 +733,7 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
 }
 
 // ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
+
 function Products({productsH,foldersH,onNav}){
   const {data:products,loading,saving,create,update,remove}=productsH;
   const {data:folders=[],create:createFolder,remove:removeFolder}=foldersH||{data:[],create:async()=>{},remove:async()=>{}};
@@ -1510,122 +1511,6 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
           await productsH.create({name:saveName,description:"Модель "+model+" · "+(labourScheme==="fixed"?"Бригада ₴"+fmt(labourFixed):"По м²"),model,status:"draft",sale_price:price*qty,cost_price:cost*qty,margin_pct:margin,notes:"Матеріали: ₴"+fmt(matOpt*qty)+"\nПраця: ₴"+fmt(laborCost*qty)+"\nНакладні: ₴"+fmt(overhead6*qty)+(overheadPerUnit>0?"\nОфісні: ₴"+fmt(overheadPerUnit*qty):""),version:"1.0",valid_date:today()});
           setSaveModal(false);setSaveName("");
         }} color="#10b981" style={{flex:2}}>💾 Зберегти в каталог</Btn>
-      </div>
-    </Modal>}
-  </div>;
-}
-
-// ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
-          const w=window.open("","_blank");
-          w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — МОДУЛЕР ПРО</title><style>body{font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body>
-          <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1>
-          <p style="color:#64748b;font-size:13px">${new Date().toLocaleDateString("uk-UA")} · Дерев'яний каркас · ${qty} од.</p>
-          <table><tr><th>Стаття</th><th>Сума (₴)</th></tr>
-          <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matOpt*qty)}</td></tr>
-          <tr><td>Оплата праці (${totalHours} год)</td><td>₴${fmt(laborCost*qty)}</td></tr>
-          <tr><td>Накладні (6%)</td><td>₴${fmt(overhead*qty)}</td></tr>
-          <tr><td><strong>Собівартість</strong></td><td><strong>₴${fmt(cost*qty)}</strong></td></tr>
-          <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table>
-          <h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:30px">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</p>
-          </body></html>`);
-          w.document.close();w.print();
-        }} color="#6366f1" full>📄 КП для клієнта (PDF)</Btn>
-      </div>
-    </>}
-
-    {tab==="phases"&&<>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:12,color:"#64748b"}}>Праця: <strong style={{color:"#06b6d4"}}>₴{fmt(laborCost)}</strong> · {totalHours}год</div>
-        <Btn onClick={()=>{setOpForm({phase:"",name:"",worker_id:workers[0]?.id||"",hours:0,qty:1,unit:"компл",note:"",sort_order:99});setOpModal("add");}} small color="#06b6d4">+ Операція</Btn>
-      </div>
-      {phases.map(ph=>{
-        const ops=operations.filter(o=>o.phase===ph).sort((a,b)=>a.sort_order-b.sort_order);
-        const phCost=ops.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
-        const phHours=ops.reduce((s,o)=>s+o.hours*o.qty,0);
-        const isOpen=expandPhase===ph;
-        return <div key={ph} style={{marginBottom:8}}>
-          <button onClick={()=>setExpandPhase(isOpen?null:ph)} style={{width:"100%",background:"#fff",border:"none",borderRadius:12,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px #00000010"}}>
-            <div style={{textAlign:"left"}}><div style={{fontWeight:700,fontSize:13}}>{ph}</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{ops.length} операцій · {phHours}год</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#06b6d4",fontSize:14}}>₴{fmt(phCost)}</div><div style={{fontSize:12,color:"#94a3b8"}}>{isOpen?"▲":"▼"}</div></div>
-          </button>
-          {isOpen&&<div style={{background:"#f8fafc",borderRadius:"0 0 12px 12px",padding:"8px 8px 4px"}}>
-            {ops.map(op=>{
-              const w=workers.find(x=>x.id===op.worker_id);
-              const opCost=w?w.rate*op.hours*op.qty:0;
-              return <div key={op.id} style={{background:"#fff",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",gap:10}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:600}}>{op.name}</div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{w?.name||"—"} · ₴{w?.rate}/год · {op.hours}год × {op.qty}</div>
-                  {op.note&&<div style={{fontSize:10,color:"#64748b",marginTop:2,fontStyle:"italic"}}>💬 {op.note}</div>}
-                </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontWeight:700,color:"#06b6d4",fontSize:12}}>₴{fmt(opCost)}</div>
-                  <div style={{display:"flex",gap:3,marginTop:4}}>
-                    <button onClick={()=>{setOpForm({...op});setOpModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✏️</button>
-                    <button onClick={()=>operationsH.remove(op.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>🗑</button>
-                  </div>
-                </div>
-              </div>;
-            })}
-          </div>}
-        </div>;
-      })}
-    </>}
-
-    {tab==="materials"&&<>
-      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>BOM шаблон 3×6 · {bom.length} позицій</div>
-      {bom.map(item=>{
-        const mat=materials.find(m=>m.id===item.material_id);
-        if(!mat)return null;
-        return <Card key={item.id} style={{padding:"8px 12px",margin:"0 0 6px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:600}}>{mat.name}</div>
-              <div style={{fontSize:10,color:"#94a3b8"}}>{item.qty} {mat.unit} · {mat.supplier}</div>
-              <div style={{fontSize:10,color:"#64748b"}}>{item.note}</div>
-            </div>
-            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
-              <div style={{fontWeight:700,color:"#10b981",fontSize:12}}>₴{fmt(mat.opt_price*item.qty)}</div>
-              <div style={{fontSize:9,color:"#94a3b8"}}>роздріб ₴{fmt(mat.retail_price*item.qty)}</div>
-            </div>
-          </div>
-        </Card>;
-      })}
-    </>}
-
-    {/* Save as product modal */}
-    {saveModal&&<Modal title="Зберегти як продукт" onClose={()=>setSaveModal(false)}>
-      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
-        Калькуляція буде збережена як продукт в каталозі.<br/>
-        Ціна: <strong>₴{fmt(price)}</strong> · Собівартість: <strong>₴{fmt(cost)}</strong> · Маржа: <strong>{margin}%</strong>
-      </div>
-      <Lbl>Назва продукту</Lbl>
-      <Input value={saveName} onChange={setSaveName} placeholder="Каркасний 3×6 Стандарт"/>
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          if(!saveName.trim())return;
-          await productsH.create({name:saveName,description:"",model:"3x6",status:"draft",sale_price:price,cost_price:cost,margin_pct:margin,notes:"Матеріали: ₴"+fmt(matOpt)+"\nПраця: ₴"+fmt(laborCost)+"\nНакладні: ₴"+fmt(overhead)+"\nГодин: "+totalHours,version:"1.0",valid_date:today()});
-          setSaveModal(false);setSaveName("");
-        }} color="#10b981" style={{flex:2}}>💾 Зберегти в каталог</Btn>
-      </div>
-    </Modal>}
-
-    {/* Operation modal */}
-    {opModal&&opForm&&<Modal title={opModal==="add"?"Нова операція":"Редагувати"} onClose={()=>setOpModal(null)}>
-      <Lbl>Фаза</Lbl><Input value={opForm.phase} onChange={v=>setOpForm(p=>({...p,phase:v}))} placeholder="3. Каркас стін"/>
-      <Lbl>Назва</Lbl><Input value={opForm.name} onChange={v=>setOpForm(p=>({...p,name:v}))} placeholder="Монтаж стійок"/>
-      <Lbl>Виконавець</Lbl><Sel value={opForm.worker_id} onChange={v=>setOpForm(p=>({...p,worker_id:v}))} options={workers.map(w=>({v:w.id,l:`${w.name} — ₴${w.rate}/год`}))}/>
-      <Lbl>Годин</Lbl><Input type="number" value={opForm.hours} onChange={v=>setOpForm(p=>({...p,hours:+v}))}/>
-      <Lbl>Кількість</Lbl><Input type="number" value={opForm.qty} onChange={v=>setOpForm(p=>({...p,qty:+v}))}/>
-      <Lbl>Нотатка</Lbl><Input value={opForm.note} onChange={v=>setOpForm(p=>({...p,note:v}))} placeholder="Деталі..."/>
-      {opForm.worker_id&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"10px 12px",marginTop:10,fontSize:12,fontWeight:600,color:"#0369a1"}}>
-        💰 Вартість: ₴{fmt((workers.find(w=>w.id===opForm.worker_id)?.rate||0)*opForm.hours*opForm.qty)}
-      </div>}
-      <div style={{display:"flex",gap:8,marginTop:14}}>
-        <Btn onClick={()=>setOpModal(null)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{ if(opForm.id)await operationsH.update(opForm.id,opForm);else await operationsH.create(opForm);setOpModal(null); }} color="#06b6d4" style={{flex:2}}>💾 Зберегти</Btn>
       </div>
     </Modal>}
   </div>;
