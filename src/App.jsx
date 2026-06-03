@@ -29,10 +29,10 @@ function useTable(table, query="") {
 // <link rel="manifest" href="/manifest.json">
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const ROLES={
-  owner:   {label:"Власник",  color:"#f59e0b",emoji:"👑",access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
-  manager: {label:"Менеджер", color:"#6366f1",emoji:"👔",access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
-  brigade: {label:"Бригада",  color:"#10b981",emoji:"👷",access:["dashboard","projects","knowledge","settings"]},
+const ROLES = {
+  owner:   {label:"Власник",  color:"#f59e0b",emoji:"👑", access:["dashboard","configurator","products","costing","procurement","projects","crm","analytics","finance","suppliers","bom","team","knowledge","settings"]},
+  manager: {label:"Менеджер", color:"#6366f1",emoji:"👔", access:["dashboard","configurator","products","projects","crm","costing","analytics","finance","suppliers","knowledge"]},
+  brigade: {label:"Бригада",  color:"#10b981",emoji:"👷", access:["projects","knowledge"]},
 };
 const USERS=[
   {id:"u1",name:"Власник",  role:"owner",  pin:"1111"},
@@ -733,20 +733,19 @@ function Dashboard({projects,workers,operations,procurement,onNav,tasks,projects
 }
 
 // ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
-// ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
 function Products({productsH,foldersH,onNav}){
   const {data:products,loading,saving,create,update,remove}=productsH;
   const {data:folders=[],create:createFolder,remove:removeFolder}=foldersH||{data:[],create:async()=>{},remove:async()=>{}};
   const [modal,setModal]=useState(null);
   const [view,setView]=useState(null);
   const [form,setForm]=useState(null);
-  const [compareMode,setCompareMode]=useState(false);
-  const [compareA,setCompareA]=useState(null);
-  const [compareB,setCompareB]=useState(null);
   const [folderModal,setFolderModal]=useState(false);
   const [folderForm,setFolderForm]=useState({name:"",color:"#6366f1"});
   const [activeFolder,setActiveFolder]=useState(null);
   const [movingProduct,setMovingProduct]=useState(null);
+  const [compareMode,setCompareMode]=useState(false);
+  const [compareA,setCompareA]=useState(null);
+  const [compareB,setCompareB]=useState(null);
 
   const STATUS={
     active:{l:"✅ Актуальний",c:"#10b981"},
@@ -756,7 +755,7 @@ function Products({productsH,foldersH,onNav}){
   const empty={name:"",description:"",model:"3x6",status:"draft",sale_price:0,cost_price:0,margin_pct:30,notes:"",version:"1.0",valid_date:today(),sort_order:0,folder_id:null};
 
   const sorted=[...products].sort((a,b)=>{
-    if((a.sort_order||0)!==(b.sort_order||0)) return (a.sort_order||0)-(b.sort_order||0);
+    if((a.sort_order||0)!==(b.sort_order||0))return (a.sort_order||0)-(b.sort_order||0);
     return new Date(b.created_at)-new Date(a.created_at);
   });
   const filtered=activeFolder===null?sorted:activeFolder==="no_folder"?sorted.filter(p=>!p.folder_id):sorted.filter(p=>p.folder_id===activeFolder);
@@ -786,22 +785,21 @@ function Products({productsH,foldersH,onNav}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
         {[A,B].map((p,i)=><Card key={i} style={{margin:0,textAlign:"center",borderTop:`3px solid ${i===0?"#3b82f6":"#10b981"}`}}>
           <div style={{fontWeight:800,fontSize:13}}>{p.name}</div>
-          <Badge color="#6366f1">📐 {p.model}</Badge>
+          <Badge color="#6366f1">{p.model}</Badge>
         </Card>)}
       </div>
       {[
         {l:"💰 Ціна",vA:"₴"+fmt(+A.sale_price),vB:"₴"+fmt(+B.sale_price),better:+A.sale_price>+B.sale_price?"A":"B"},
-        {l:"📉 Собівартість",vA:"₴"+fmt(+A.cost_price),vB:"₴"+fmt(+B.cost_price),better:+A.cost_price<+B.cost_price?"A":"B"},
-        {l:"📈 Маржа %",vA:`${mA}%`,vB:`${mB}%`,better:mA>mB?"A":"B"},
-        {l:"💵 Маржа ₴",vA:"₴"+fmt(+A.sale_price-+A.cost_price),vB:"₴"+fmt(+B.sale_price-+B.cost_price),better:(+A.sale_price-+A.cost_price)>(+B.sale_price-+B.cost_price)?"A":"B"},
-      ].map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:4,marginBottom:6,alignItems:"center"}}>
-        <div style={{background:row.better==="A"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px 10px",textAlign:"center",border:row.better==="A"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
-          <div style={{fontSize:13,fontWeight:700,color:row.better==="A"?"#10b981":"#1e293b"}}>{row.vA}</div>
+        {l:"📉 Собів.",vA:"₴"+fmt(+A.cost_price),vB:"₴"+fmt(+B.cost_price),better:+A.cost_price<+B.cost_price?"A":"B"},
+        {l:"📈 Маржа",vA:mA+"%",vB:mB+"%",better:mA>mB?"A":"B"},
+      ].map((row,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:4,marginBottom:6}}>
+        <div style={{background:row.better==="A"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px",textAlign:"center",border:row.better==="A"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
+          <div style={{fontWeight:700,color:row.better==="A"?"#10b981":"#1e293b"}}>{row.vA}</div>
           {row.better==="A"&&<div style={{fontSize:9,color:"#10b981"}}>✓ краще</div>}
         </div>
-        <div style={{fontSize:9,color:"#94a3b8",textAlign:"center",padding:"0 4px"}}>{row.l}</div>
-        <div style={{background:row.better==="B"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px 10px",textAlign:"center",border:row.better==="B"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
-          <div style={{fontSize:13,fontWeight:700,color:row.better==="B"?"#10b981":"#1e293b"}}>{row.vB}</div>
+        <div style={{fontSize:9,color:"#94a3b8",textAlign:"center",alignSelf:"center",padding:"0 4px"}}>{row.l}</div>
+        <div style={{background:row.better==="B"?"#f0fdf4":"#f8fafc",borderRadius:10,padding:"8px",textAlign:"center",border:row.better==="B"?"1.5px solid #10b981":"1px solid #f1f5f9"}}>
+          <div style={{fontWeight:700,color:row.better==="B"?"#10b981":"#1e293b"}}>{row.vB}</div>
           {row.better==="B"&&<div style={{fontSize:9,color:"#10b981"}}>✓ краще</div>}
         </div>
       </div>)}
@@ -810,23 +808,23 @@ function Products({productsH,foldersH,onNav}){
 
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-      <div style={{fontSize:12,color:"#64748b"}}>{products.filter(p=>p.status==="active").length} актуальних</div>
+      <div style={{fontSize:12,color:"#64748b"}}>{products.filter(p=>p.status==="active").length} актуальних · {products.length} всього</div>
       <div style={{display:"flex",gap:6}}>
         {products.length>=2&&<Btn onClick={()=>setCompareMode(true)} small outline color="#6366f1">⚖️</Btn>}
         <Btn onClick={()=>setFolderModal(true)} small outline color="#8b5cf6">📁</Btn>
-        <Btn onClick={()=>{setForm({...empty,sort_order:products.length});setModal("add");}} small>+ Новий</Btn>
+        <Btn onClick={()=>{setForm({...empty,sort_order:products.length});setModal("add");}} small>+</Btn>
       </div>
     </div>
-
-    {folders.length>0&&<div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:10,paddingBottom:4}}>
-      <button onClick={()=>setActiveFolder(null)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===null?"#1e293b":"#e2e8f0",color:activeFolder===null?"#fff":"#475569"}}>Всі ({products.length})</button>
-      {folders.map(f=><button key={f.id} onClick={()=>setActiveFolder(f.id)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===f.id?f.color:"#e2e8f0",color:activeFolder===f.id?"#fff":"#475569"}}>📁 {f.name} ({products.filter(p=>p.folder_id===f.id).length})</button>)}
-      <button onClick={()=>setActiveFolder("no_folder")} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder==="no_folder"?"#64748b":"#e2e8f0",color:activeFolder==="no_folder"?"#fff":"#475569"}}>Без папки</button>
-    </div>}
 
     {compareMode&&(!compareA||!compareB)&&<div style={{background:"#ede9fe",borderRadius:12,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#6d28d9"}}>
       ⚖️ Оберіть {!compareA?"перший":"другий"} продукт
       <button onClick={()=>{setCompareMode(false);setCompareA(null);setCompareB(null);}} style={{float:"right",background:"none",border:"none",cursor:"pointer",color:"#6d28d9"}}>✕</button>
+    </div>}
+
+    {folders.length>0&&<div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:10,paddingBottom:4}}>
+      <button onClick={()=>setActiveFolder(null)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===null?"#1e293b":"#e2e8f0",color:activeFolder===null?"#fff":"#475569"}}>Всі ({products.length})</button>
+      {folders.map(f=><button key={f.id} onClick={()=>setActiveFolder(f.id)} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder===f.id?f.color:"#e2e8f0",color:activeFolder===f.id?"#fff":"#475569"}}>📁 {f.name}</button>)}
+      <button onClick={()=>setActiveFolder("no_folder")} style={{flexShrink:0,fontSize:10,padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontWeight:600,background:activeFolder==="no_folder"?"#64748b":"#e2e8f0",color:activeFolder==="no_folder"?"#fff":"#475569"}}>Без папки</button>
     </div>}
 
     {movingProduct&&folders.length>0&&<Modal title="Перемістити в папку" onClose={()=>setMovingProduct(null)}>
@@ -835,7 +833,7 @@ function Products({productsH,foldersH,onNav}){
     </Modal>}
 
     {filtered.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:40,fontSize:13}}>
-      {products.length===0?"Каталог порожній. Збережіть з Конфігуратора.":"Немає продуктів."}
+      {products.length===0?"Каталог порожній.":"Немає продуктів."}
       {products.length===0&&<div style={{marginTop:12}}><Btn onClick={()=>onNav("configurator")} outline color="#3b82f6" small>⚡ Конфігуратор</Btn></div>}
     </div>}
 
@@ -843,8 +841,8 @@ function Products({productsH,foldersH,onNav}){
       const s=STATUS[p.status]||STATUS.draft;
       const m_=+p.sale_price>0?Math.round((+p.sale_price-+p.cost_price)/+p.sale_price*100):0;
       const folder=folders.find(f=>f.id===p.folder_id);
-      const isA=compareA===p.id, isB=compareB===p.id;
-      return <Card key={p.id} style={{borderLeft:`3px solid ${isA?"#3b82f6":isB?"#10b981":s.c}`,margin:"0 0 8px"}} onClick={()=>{if(compareMode){if(!compareA&&compareB!==p.id)setCompareA(p.id);else if(!compareB&&compareA!==p.id)setCompareB(p.id);}}}>
+      const isA=compareA===p.id,isB=compareB===p.id;
+      return <Card key={p.id} style={{borderLeft:`3px solid ${isA?"#3b82f6":isB?"#10b981":s.c}`,margin:"0 0 8px"}} onClick={()=>{if(compareMode){if(!compareA&&p.id!==compareB)setCompareA(p.id);else if(!compareB&&p.id!==compareA)setCompareB(p.id);}}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
           <div style={{flex:1}}>
             <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
@@ -868,7 +866,7 @@ function Products({productsH,foldersH,onNav}){
           <Badge color="#6366f1">📐 {p.model}</Badge>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:"Маржа",v:`${m_}%`,c:m_>=25?"#10b981":m_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
+          {[{l:"Ціна",v:"₴"+fmt(+p.sale_price),c:"#10b981"},{l:"Собів.",v:"₴"+fmt(+p.cost_price),c:"#e11d48"},{l:"Маржа",v:m_+"%",c:m_>=25?"#10b981":m_>=15?"#f59e0b":"#ef4444"}].map((x,i)=>(
             <div key={i} style={{background:"#f8fafc",borderRadius:8,padding:"4px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:"#94a3b8"}}>{x.l}</div>
               <div style={{fontSize:12,fontWeight:700,color:x.c}}>{x.v}</div>
@@ -898,7 +896,6 @@ function Products({productsH,foldersH,onNav}){
       <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
         <Badge color={STATUS[view.status]?.c||"#94a3b8"}>{STATUS[view.status]?.l}</Badge>
         <Badge color="#6366f1">📐 {view.model}</Badge>
-        <Badge color="#94a3b8">v{view.version}</Badge>
       </div>
       {view.description&&<div style={{fontSize:13,color:"#475569",marginBottom:12}}>{view.description}</div>}
       <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff"}}>
@@ -915,7 +912,7 @@ function Products({productsH,foldersH,onNav}){
 
     {modal&&form&&<Modal title={modal==="add"?"Новий продукт":"Редагувати"} onClose={()=>setModal(null)}>
       <Lbl>Назва</Lbl><Input value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="Каркасний 3×6"/>
-      <Lbl>Опис</Lbl><Input value={form.description} onChange={v=>setForm(p=>({...p,description:v}))}/>
+      <Lbl>Опис</Lbl><Input value={form.description||""} onChange={v=>setForm(p=>({...p,description:v}))}/>
       <Lbl>Модель</Lbl><Sel value={form.model} onChange={v=>setForm(p=>({...p,model:v}))} options={["3x6","4x8","6x9","3x9","4x9","6x12"].map(v=>({v,l:v}))}/>
       <Lbl>Статус</Lbl><Sel value={form.status} onChange={v=>setForm(p=>({...p,status:v}))} options={Object.entries(STATUS).map(([k,v])=>({v:k,l:v.l}))}/>
       {folders.length>0&&<><Lbl>Папка</Lbl><Sel value={form.folder_id||""} onChange={v=>setForm(p=>({...p,folder_id:v||null}))} options={[{v:"",l:"— Без папки —"},...folders.map(f=>({v:f.id,l:f.name}))]}/></>}
@@ -931,27 +928,11 @@ function Products({productsH,foldersH,onNav}){
 
 
 // ─── CONFIGURATOR ─────────────────────────────────────────────────────────────
-function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,priceHistoryH}){
+function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH}){
   const {data:sizes,create:createSize}=sizesH;
-  const materials=materialsH.data;
   const {data:facadeMats=[],create:createFacade,update:updateFacade}=facadeH||{data:[],create:async()=>{},update:async()=>{}};
-
-  const [cfg,setCfg]=useState({
-    sizeId:"",customW:0,customL:0,modules:1,
-    hasTerrace:false,terraceW:2.5,terraceL:6,
-    facadeVariants:[{matId:"",area:0}],
-    roofType:"pvc",
-    facadeColor:"#6B4226",
-    kit:"turnkey",
-    hasElectric:true,hasWater:true,hasSewage:true,
-    hasHeatedFloor:false,hasKitchen:false,hasAC:false,
-    labourScheme:"fixed",labourFixed:150000,
-    labourSqmFloor:900,labourSqmWall:700,labourSqmRoof:900,
-    opexPerModule:15000,
-    margin:30,
-  });
+  const [cfg,setCfg]=useState({sizeId:"",customW:0,customL:0,modules:1,hasTerrace:false,facadeVariants:[{matId:"",area:0}],roofType:"pvc",facadeColor:"#6B4226",kit:"turnkey",hasElectric:true,hasWater:true,hasSewage:true,hasHeatedFloor:false,hasKitchen:false,labourScheme:"fixed",labourFixed:150000,labourSqmFloor:900,labourSqmWall:700,labourSqmRoof:900,opexPerModule:15000,margin:30});
   const set=k=>v=>setCfg(p=>({...p,[k]:v}));
-
   const [addSizeModal,setAddSizeModal]=useState(false);
   const [newSize,setNewSize]=useState({name:"",width:0,length:0});
   const [saveModal,setSaveModal]=useState(false);
@@ -970,65 +951,54 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
   const extWallArea=(2*(W+L*cfg.modules))*2.55;
   const roofArea=W*L*cfg.modules;
 
-  const ROOF_TYPES=[
-    {v:"pvc",l:"ПВХ мембрана",price:350},
-    {v:"proflist",l:"Профлист",price:220},
-    {v:"clickfalz",l:"Клікфальц",price:480},
-    {v:"soft",l:"М'яка покрівля",price:280},
-  ];
+  const ROOF_TYPES=[{v:"pvc",l:"ПВХ мембрана",price:350},{v:"proflist",l:"Профлист",price:220},{v:"clickfalz",l:"Клікфальц",price:480},{v:"soft",l:"М'яка покрівля",price:280}];
   const KITS=[{v:"rough",l:"🔨 Під ремонт"},{v:"turnkey",l:"🏠 Під ключ"},{v:"premium",l:"⭐ Преміум"}];
   const popularSizes=sizes.filter(s=>s.is_popular&&s.status==="active");
 
-  function calcMatBreakdown(){
+  function calcBOM(){
+    if(!W||!L)return[];
     const rows=[];
-    if(!W||!L)return rows;
-    const add=(name,qty,unit,price)=>rows.push({name,qty:Math.round(qty*10)/10,unit,price,sum:Math.round(qty*price)});
-    const wood_m3=floorArea*0.06;
-    add("Дошка 50×150мм (стійки)",Math.round(wood_m3*53),"п.м.",28);
-    add("Дошка 50×200мм (лаги/крокви)",Math.round(wood_m3*25),"п.м.",38);
-    add("Дошка 50×100мм (внутр.стіни)",Math.round(wood_m3*30),"п.м.",22);
-    add("Дошка 20×100мм (підшивка)",Math.round(wood_m3*50),"п.м.",12);
+    const add=(n,q,u,p)=>rows.push({name:n,qty:Math.round(q*10)/10,unit:u,sum:Math.round(q*p)});
+    const wm3=floorArea*0.06;
+    add("Дошка 50×150мм",Math.round(wm3*53),"п.м.",28);
+    add("Дошка 50×200мм",Math.round(wm3*25),"п.м.",38);
+    add("Дошка 50×100мм",Math.round(wm3*30),"п.м.",22);
+    add("Дошка 20×100мм",Math.round(wm3*50),"п.м.",12);
     add("Брусок 40×50мм",Math.round(extWallArea*1.5),"п.м.",18);
-    const osb22=Math.ceil(floorArea/3.125);
-    const osb10=Math.ceil(roofArea/3.125);
-    add("OSB 22мм (підлога)",osb22,"лист",850);
-    add("OSB 10мм (покрівля)",osb10,"лист",520);
-    const paraRuls=Math.ceil((floorArea+extWallArea+roofArea)/75);
-    const memRuls=Math.ceil((extWallArea+roofArea*1.1)/75);
-    add("Паробар'єр армов. фольгов.",paraRuls,"рул.",1500);
-    add("Супердифузійна мембрана",memRuls,"рул.",1200);
-    add("Скотч фольгований",Math.ceil(paraRuls*0.8),"рул.",285);
+    add("OSB 22мм",Math.ceil(floorArea/3.125),"лист",850);
+    add("OSB 10мм",Math.ceil(roofArea/3.125),"лист",520);
+    const pr=Math.ceil((floorArea+extWallArea+roofArea)/75);
+    const mr=Math.ceil((extWallArea+roofArea*1.1)/75);
+    add("Паробар'єр армов.",pr,"рул.",1500);
+    add("Мембрана супердиф.",mr,"рул.",1200);
+    add("Скотч фольгований",Math.ceil(pr*0.8),"рул.",285);
     add("Бутилова стрічка",Math.ceil(extWallArea/20),"рул.",380);
     add("Базальтова вата 30кг/м³",Math.ceil(floorArea*2+extWallArea*1.5+roofArea*2),"м²",250);
-    add("Вогнебіозахист",Math.ceil(wood_m3*25),"л",140);
+    add("Вогнебіозахист",Math.ceil(wm3*25),"л",140);
     add("Сітка від гризунів 6×6мм",Math.round(floorArea*1.1),"м²",75);
-    const roofT=ROOF_TYPES.find(r=>r.v===cfg.roofType)||ROOF_TYPES[0];
-    add(`Покрівля: ${roofT.l}`,Math.round(roofArea*1.15),"м²",roofT.price);
-    add("Підкладка під покрівлю",Math.round(roofArea*1.1),"м²",68);
+    const rt=ROOF_TYPES.find(r=>r.v===cfg.roofType)||ROOF_TYPES[0];
+    add("Покрівля: "+rt.l,Math.round(roofArea*1.15),"м²",rt.price);
+    add("Підкладка покрівельна",Math.round(roofArea*1.1),"м²",68);
     add("Розхідники покрівлі",1,"компл.",3500);
-    // Фасад
-    let facadeDone=false;
-    cfg.facadeVariants.forEach((fv,i)=>{
-      const mat=facadeMats.find(m=>m.id===fv.matId);
-      if(mat&&+fv.area>0){add(`Фасад ${i+1}: ${mat.name}`,Math.round(+fv.area*1.15),"м²",+mat.current_price);facadeDone=true;}
-    });
-    if(!facadeDone) add("Фасад (планкен, орієнтовно)",Math.round(extWallArea*1.15),"м²",550);
+    let fDone=false;
+    cfg.facadeVariants.forEach((fv,i)=>{const m=facadeMats.find(x=>x.id===fv.matId);if(m&&+fv.area>0){add("Фасад "+(i+1)+": "+m.name,Math.round(+fv.area*1.15),"м²",+m.current_price);fDone=true;}});
+    if(!fDone)add("Фасад (планкен)",Math.round(extWallArea*1.15),"м²",550);
     add("Вікна",cfg.modules*2,"шт",4500);
     add("Двері вхідні",cfg.modules,"шт",7000);
     add("Двері міжкімнатні",Math.max(1,cfg.modules),"шт",11000);
-    if(cfg.hasElectric){add("Комплект електропроводки",1,"компл.",8000);add("Електрофурнітура",1,"компл.",5000);add("Щиток+автомати",1,"компл.",4500);}
-    if(cfg.hasWater) add("Водопровід (труби+фітинги)",Math.round(floorArea*0.8),"п.м.",45);
-    if(cfg.hasSewage) add("Каналізація",1,"компл.",8000);
-    if(cfg.hasWater&&cfg.hasSewage) add("Сантехніка (базова)",1,"компл.",18000);
-    if(cfg.kit!=="rough"){add("Підлога ламінат+підкладка",Math.round(floorArea*1.05),"м²",450);add("Оздоблення стін",Math.round(extWallArea*0.8),"м²",185);add("Підвіконники",cfg.modules*2,"шт",650);}
-    if(cfg.hasKitchen) add("Кухня (базовий)",1,"компл.",35000);
-    if(cfg.hasHeatedFloor) add("Тепла підлога",Math.round(floorArea),"м²",650);
-    add("Розхідники (цвяхи,скоби,ін.)",1,"компл.",Math.round(floorArea*150));
+    if(cfg.hasElectric){add("Комплект електрики",1,"компл.",8000);add("Електрофурнітура",1,"компл.",5000);add("Щиток+автомати",1,"компл.",4500);}
+    if(cfg.hasWater)add("Водопровід",Math.round(floorArea*0.8),"п.м.",45);
+    if(cfg.hasSewage)add("Каналізація",1,"компл.",8000);
+    if(cfg.hasWater&&cfg.hasSewage)add("Сантехніка",1,"компл.",18000);
+    if(cfg.kit!=="rough"){add("Підлога ламінат",Math.round(floorArea*1.05),"м²",450);add("Оздоблення стін",Math.round(extWallArea*0.8),"м²",185);}
+    if(cfg.hasKitchen)add("Кухня",1,"компл.",35000);
+    if(cfg.hasHeatedFloor)add("Тепла підлога",Math.round(floorArea),"м²",650);
+    add("Розхідники",1,"компл.",Math.round(floorArea*150));
     return rows;
   }
 
-  const breakdown=calcMatBreakdown();
-  const matCost=breakdown.reduce((s,r)=>s+r.sum,0);
+  const bom=calcBOM();
+  const matCost=bom.reduce((s,r)=>s+r.sum,0);
   const labCost=cfg.labourScheme==="fixed"?+cfg.labourFixed:Math.round(floorArea*+cfg.labourSqmFloor+extWallArea*+cfg.labourSqmWall+roofArea*+cfg.labourSqmRoof);
   const opex=+cfg.opexPerModule*cfg.modules;
   const overhead=Math.round((matCost+labCost)*0.06);
@@ -1045,7 +1015,7 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
 
     {tab==="params"&&<>
       <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📐 Розмір модуля</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📐 Розмір</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
           {popularSizes.map(s=><button key={s.id} onClick={()=>set("sizeId")(s.id)} style={{padding:"6px 12px",borderRadius:8,border:`2px solid ${cfg.sizeId===s.id?"#3b82f6":"#e2e8f0"}`,background:cfg.sizeId===s.id?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.sizeId===s.id?700:400,color:cfg.sizeId===s.id?"#3b82f6":"#475569"}}>{s.name}</button>)}
           <button onClick={()=>setAddSizeModal(true)} style={{padding:"6px 12px",borderRadius:8,border:"1px dashed #94a3b8",background:"transparent",cursor:"pointer",fontSize:11,color:"#64748b"}}>+ Новий</button>
@@ -1053,13 +1023,9 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         {selSize&&<div style={{fontSize:11,color:"#10b981",marginBottom:8}}>Площа: {floorArea.toFixed(1)}м² · Стіни: {extWallArea.toFixed(1)}м²</div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <div><Lbl>Модулів</Lbl>
-            <div style={{display:"flex",gap:4}}>
-              {[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)} style={{flex:1,padding:"6px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:8,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.modules===n?700:400}}>{n}</button>)}
-            </div>
+            <div style={{display:"flex",gap:4}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>set("modules")(n)} style={{flex:1,padding:"6px",border:`2px solid ${cfg.modules===n?"#3b82f6":"#e2e8f0"}`,borderRadius:8,background:cfg.modules===n?"#eff6ff":"#fff",cursor:"pointer",fontSize:12,fontWeight:cfg.modules===n?700:400}}>{n}</button>)}</div>
           </div>
-          <div><Lbl>Маржа: {cfg.margin}%</Lbl>
-            <input type="range" min="15" max="60" value={cfg.margin} onChange={e=>set("margin")(+e.target.value)} style={{width:"100%",accentColor:"#10b981",marginTop:8}}/>
-          </div>
+          <div><Lbl>Маржа: {cfg.margin}%</Lbl><input type="range" min="15" max="60" value={cfg.margin} onChange={e=>set("margin")(+e.target.value)} style={{width:"100%",accentColor:"#10b981",marginTop:8}}/></div>
         </div>
       </Card>
 
@@ -1067,42 +1033,40 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🏠 Покрівля</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
           {ROOF_TYPES.map(r=><button key={r.v} onClick={()=>set("roofType")(r.v)} style={{padding:"8px",border:`2px solid ${cfg.roofType===r.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.roofType===r.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:11,fontWeight:cfg.roofType===r.v?700:400,color:cfg.roofType===r.v?"#3b82f6":"#475569",textAlign:"left"}}>
-            <div>{r.l}</div>
-            <div style={{fontSize:10,color:"#94a3b8"}}>₴{r.price}/м²</div>
+            <div>{r.l}</div><div style={{fontSize:10,color:"#94a3b8"}}>₴{r.price}/м²</div>
           </button>)}
         </div>
       </Card>
 
       <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🎨 Фасадне оздоблення</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>🎨 Фасад</div>
         {cfg.facadeVariants.map((fv,i)=><div key={i} style={{background:"#f8fafc",borderRadius:10,padding:"10px",marginBottom:8}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
             <div style={{fontSize:12,fontWeight:600}}>Варіант {i+1}</div>
             {cfg.facadeVariants.length>1&&<button onClick={()=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.filter((_,j)=>j!==i)}))} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✕</button>}
           </div>
           <Lbl>Матеріал</Lbl>
-          <Sel value={fv.matId} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,matId:v}:f)}))} options={[{v:"",l:"— Оберіть —"},...facadeMats.filter(m=>m.category==="facade").map(m=>({v:m.id,l:`${m.name} — ₴${m.current_price}/м²`}))]}/>
+          <Sel value={fv.matId} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,matId:v}:f)}))} options={[{v:"",l:"— Оберіть —"},...facadeMats.filter(m=>m.category==="facade").map(m=>({v:m.id,l:m.name+" — ₴"+m.current_price+"/м²"}))]}/>
           <Lbl>Площа (м²)</Lbl>
-          <Input type="number" value={fv.area} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,area:+v}:f)}))} placeholder={`Авто: ${extWallArea.toFixed(0)}м²`}/>
+          <Input type="number" value={fv.area} onChange={v=>setCfg(p=>({...p,facadeVariants:p.facadeVariants.map((f,j)=>j===i?{...f,area:+v}:f)}))} placeholder={"Авто: "+extWallArea.toFixed(0)+"м²"}/>
         </div>)}
-        <button onClick={()=>setCfg(p=>({...p,facadeVariants:[...p.facadeVariants,{matId:"",area:0}]}))} style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#6366f1"}}>+ Додати варіант фасаду</button>
-        <Lbl style={{marginTop:10}}>Колір</Lbl>
+        <button onClick={()=>setCfg(p=>({...p,facadeVariants:[...p.facadeVariants,{matId:"",area:0}]}))} style={{width:"100%",padding:"7px",border:"1px dashed #94a3b8",borderRadius:10,background:"transparent",cursor:"pointer",fontSize:11,color:"#6366f1"}}>+ Додати варіант</button>
+        <Lbl style={{marginTop:10}}>Колір фасаду</Lbl>
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          {["#6B4226","#2C3E50","#8B7355","#C5B9A8","#4A5568","#2D6A4F","#E8DCC8"].map(c=><button key={c} onClick={()=>set("facadeColor")(c)} style={{width:26,height:26,borderRadius:"50%",background:c,border:`3px solid ${cfg.facadeColor===c?"#3b82f6":"transparent"}`,cursor:"pointer"}}/>)}
+          {["#6B4226","#2C3E50","#8B7355","#C5B9A8","#4A5568","#2D6A4F","#E8DCC8"].map(c=><button key={c} onClick={()=>set("facadeColor")(c)} style={{width:26,height:26,borderRadius:"50%",background:c,border:"3px solid "+(cfg.facadeColor===c?"#3b82f6":"transparent"),cursor:"pointer"}}/>)}
           <input type="color" value={cfg.facadeColor} onChange={e=>set("facadeColor")(e.target.value)} style={{width:32,height:32,border:"none",borderRadius:8,cursor:"pointer"}}/>
         </div>
       </Card>
 
       <Card>
-        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📦 Комплектація та опції</div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📦 Комплектація</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>
-          {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)} style={{flex:1,padding:"7px",border:`2px solid ${cfg.kit===k.v?"#3b82f6":"#e2e8f0"}`,borderRadius:10,background:cfg.kit===k.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:10,fontWeight:cfg.kit===k.v?700:400}}>{k.l}</button>)}
+          {KITS.map(k=><button key={k.v} onClick={()=>set("kit")(k.v)} style={{flex:1,padding:"7px",border:"2px solid "+(cfg.kit===k.v?"#3b82f6":"#e2e8f0"),borderRadius:10,background:cfg.kit===k.v?"#eff6ff":"#fff",cursor:"pointer",fontSize:10,fontWeight:cfg.kit===k.v?700:400}}>{k.l}</button>)}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-          {[{k:"hasElectric",l:"⚡ Електрика"},{k:"hasWater",l:"🚿 Водопровід"},{k:"hasSewage",l:"🔧 Каналізація"},{k:"hasKitchen",l:"🍳 Кухня"},{k:"hasHeatedFloor",l:"🌡 Тепла підлога"},{k:"hasAC",l:"❄️ Кондиціонер"}].map(({k,l})=>(
-            <label key={k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",background:cfg[k]?"#f0fdf4":"#f8fafc",borderRadius:8,cursor:"pointer",fontSize:11,border:`1px solid ${cfg[k]?"#10b981":"#e2e8f0"}`}}>
-              <input type="checkbox" checked={cfg[k]} onChange={e=>set(k)(e.target.checked)} style={{accentColor:"#10b981"}}/>
-              {l}
+          {[{k:"hasElectric",l:"⚡ Електрика"},{k:"hasWater",l:"🚿 Водопровід"},{k:"hasSewage",l:"🔧 Каналізація"},{k:"hasKitchen",l:"🍳 Кухня"},{k:"hasHeatedFloor",l:"🌡 Тепла підлога"}].map(({k,l})=>(
+            <label key={k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",background:cfg[k]?"#f0fdf4":"#f8fafc",borderRadius:8,cursor:"pointer",fontSize:11,border:"1px solid "+(cfg[k]?"#10b981":"#e2e8f0")}}>
+              <input type="checkbox" checked={cfg[k]} onChange={e=>set(k)(e.target.checked)} style={{accentColor:"#10b981"}}/>{l}
             </label>
           ))}
         </div>
@@ -1111,22 +1075,14 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
       {W>0&&L>0&&<>
         <Card style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#fff",marginTop:4}}>
           <div style={{fontSize:11,color:"#475569",marginBottom:12}}>РЕЗУЛЬТАТ · {W}×{L*cfg.modules}м</div>
-          {[
-            {l:"🪵 Матеріали",v:matCost,c:"#f59e0b"},
-            {l:"👷 Праця",v:labCost,c:"#06b6d4"},
-            {l:"🏢 Операційні витрати",v:opex,c:"#8b5cf6"},
-            {l:"📋 Накладні 6%",v:overhead,c:"#94a3b8"},
-            {l:"СОБІВАРТІСТЬ",v:totalCost,c:"#e2e8f0",bold:true},
-            {l:`ЦІНА (${cfg.margin}%)`,v:salePrice,c:"#10b981",big:true},
-            {l:"МАРЖА ₴",v:marginAmt,c:"#22c55e",bold:true},
-          ].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<6?"1px solid #ffffff10":"none"}}>
+          {[{l:"🪵 Матеріали",v:matCost,c:"#f59e0b"},{l:"👷 Праця",v:labCost,c:"#06b6d4"},{l:"🏢 Операційні",v:opex,c:"#8b5cf6"},{l:"📋 Накладні 6%",v:overhead,c:"#94a3b8"},{l:"СОБІВАРТІСТЬ",v:totalCost,c:"#e2e8f0",bold:true},{l:"ЦІНА ("+cfg.margin+"%)",v:salePrice,c:"#10b981",big:true},{l:"МАРЖА ₴",v:marginAmt,c:"#22c55e",bold:true}].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<6?"1px solid #ffffff10":"none"}}>
             <span style={{fontSize:x.bold||x.big?12:11,color:x.bold||x.big?"#cbd5e1":"#94a3b8"}}>{x.l}</span>
             <span style={{fontSize:x.big?20:x.bold?15:13,fontWeight:x.big?900:x.bold?700:600,color:x.c}}>₴{fmt(x.v)}</span>
           </div>)}
         </Card>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <Btn onClick={()=>{setSaveName(`Каркасний ${W}×${L*cfg.modules}м`);setSaveModal(true);}} color="#10b981" full>💾 Зберегти</Btn>
-          <Btn onClick={()=>{const win=window.open("","_blank");win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body><h1>КП · ${W}×${L*cfg.modules}м</h1><p>${new Date().toLocaleDateString("uk-UA")}</p><table><tr><th>Стаття</th><th>Сума</th></tr><tr><td>Матеріали</td><td>₴${fmt(matCost)}</td></tr><tr><td>Праця</td><td>₴${fmt(labCost)}</td></tr><tr><td>Операційні витрати</td><td>₴${fmt(opex)}</td></tr><tr><td>Накладні</td><td>₴${fmt(overhead)}</td></tr><tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">₴${fmt(salePrice)}</span></td></tr></table></body></html>`);win.document.close();win.print();}} color="#6366f1" full>📄 КП</Btn>
+          <Btn onClick={()=>{setSaveName("Каркасний "+W+"×"+(L*cfg.modules)+"м");setSaveModal(true);}} color="#10b981" full>💾 Зберегти</Btn>
+          <Btn onClick={()=>{const win=window.open("","_blank");win.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>КП</title><style>body{font-family:Arial;max-width:800px;margin:0 auto;padding:40px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body><h1>КП · "+W+"×"+(L*cfg.modules)+"м</h1><p>"+new Date().toLocaleDateString("uk-UA")+"</p><table><tr><th>Стаття</th><th>Сума</th></tr><tr><td>Матеріали</td><td>₴"+fmt(matCost)+"</td></tr><tr><td>Праця</td><td>₴"+fmt(labCost)+"</td></tr><tr><td>Операційні</td><td>₴"+fmt(opex)+"</td></tr><tr><td colspan='2' style='text-align:center;padding:16px'><span class='price'>₴"+fmt(salePrice)+"</span></td></tr></table></body></html>");win.document.close();win.print();}} color="#6366f1" full>📄 КП</Btn>
         </div>
       </>}
     </>}
@@ -1134,30 +1090,27 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
     {tab==="materials"&&<>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
         <div style={{fontSize:12,fontWeight:600}}>Разом: <span style={{color:"#f59e0b"}}>₴{fmt(matCost)}</span></div>
-        <div style={{fontSize:11,color:"#94a3b8"}}>{breakdown.length} позицій</div>
+        <div style={{fontSize:11,color:"#94a3b8"}}>{bom.length} позицій</div>
       </div>
-      {W===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20}}>Оберіть розмір у вкладці Параметри</div>}
-      {breakdown.map((row,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f9fafb",fontSize:12}}>
+      {W===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:20}}>Оберіть розмір у Параметрах</div>}
+      {bom.map((row,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f9fafb",fontSize:12}}>
         <span style={{flex:1,color:"#475569"}}>{row.name}</span>
         <span style={{color:"#94a3b8",margin:"0 8px",flexShrink:0}}>{row.qty} {row.unit}</span>
         <span style={{fontWeight:600,color:"#10b981",flexShrink:0}}>₴{fmt(row.sum)}</span>
       </div>)}
-      {breakdown.length>0&&<div style={{fontWeight:800,fontSize:14,color:"#f59e0b",textAlign:"right",marginTop:10,padding:"8px 0",borderTop:"2px solid #e2e8f0"}}>Разом: ₴{fmt(matCost)}</div>}
+      {bom.length>0&&<div style={{fontWeight:800,fontSize:14,color:"#f59e0b",textAlign:"right",marginTop:10,padding:"8px 0",borderTop:"2px solid #e2e8f0"}}>Разом: ₴{fmt(matCost)}</div>}
     </>}
 
     {tab==="labour"&&<>
       <Card>
         <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>👷 Оплата бригади</div>
         <div style={{display:"flex",gap:6,marginBottom:10}}>
-          {[{v:"fixed",l:"Фіксована"},{v:"perSqm",l:"По м²"}].map(s=>(
-            <button key={s.v} onClick={()=>set("labourScheme")(s.v)} style={{flex:1,padding:"7px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:cfg.labourScheme===s.v?700:400,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>{s.l}</button>
-          ))}
+          {[{v:"fixed",l:"Фіксована"},{v:"perSqm",l:"По м²"}].map(s=><button key={s.v} onClick={()=>set("labourScheme")(s.v)} style={{flex:1,padding:"7px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:cfg.labourScheme===s.v?700:400,background:cfg.labourScheme===s.v?"#1e293b":"#e2e8f0",color:cfg.labourScheme===s.v?"#fff":"#64748b"}}>{s.l}</button>)}
         </div>
         {cfg.labourScheme==="fixed"&&<>
-          <Lbl>Сума (₴)</Lbl>
-          <Input type="number" value={cfg.labourFixed} onChange={set("labourFixed")}/>
+          <Lbl>Сума (₴)</Lbl><Input type="number" value={cfg.labourFixed} onChange={set("labourFixed")}/>
           <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-            {[70000,100000,125000,150000,175000,200000].map(v=><button key={v} onClick={()=>set("labourFixed")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${cfg.labourFixed===v?"#3b82f6":"#e2e8f0"}`,background:cfg.labourFixed===v?"#eff6ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
+            {[70000,100000,125000,150000,175000,200000].map(v=><button key={v} onClick={()=>set("labourFixed")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:"1px solid "+(cfg.labourFixed===v?"#3b82f6":"#e2e8f0"),background:cfg.labourFixed===v?"#eff6ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
           </div>
         </>}
         {cfg.labourScheme==="perSqm"&&<>
@@ -1166,9 +1119,7 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
             <div><Lbl>Стіни ₴/м²</Lbl><Input type="number" value={cfg.labourSqmWall} onChange={set("labourSqmWall")}/></div>
             <div><Lbl>Покрівля ₴/м²</Lbl><Input type="number" value={cfg.labourSqmRoof} onChange={set("labourSqmRoof")}/></div>
           </div>
-          <div style={{fontSize:11,color:"#06b6d4",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginTop:8}}>
-            Разом: <strong>₴{fmt(labCost)}</strong>
-          </div>
+          <div style={{fontSize:11,color:"#06b6d4",background:"#f0f9ff",borderRadius:8,padding:"6px 10px",marginTop:8}}>Разом: <strong>₴{fmt(labCost)}</strong></div>
         </>}
       </Card>
       <Card>
@@ -1179,7 +1130,7 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
           <div style={{fontSize:12,color:"#8b5cf6",fontWeight:700,paddingBottom:8}}>×{cfg.modules} = ₴{fmt(opex)}</div>
         </div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-          {[5000,10000,15000,20000,25000].map(v=><button key={v} onClick={()=>set("opexPerModule")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:`1px solid ${+cfg.opexPerModule===v?"#8b5cf6":"#e2e8f0"}`,background:+cfg.opexPerModule===v?"#f5f3ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
+          {[5000,10000,15000,20000,25000].map(v=><button key={v} onClick={()=>set("opexPerModule")(v)} style={{fontSize:10,padding:"3px 8px",borderRadius:20,border:"1px solid "+(+cfg.opexPerModule===v?"#8b5cf6":"#e2e8f0"),background:+cfg.opexPerModule===v?"#f5f3ff":"#fff",cursor:"pointer"}}>₴{fmt(v)}</button>)}
         </div>
       </Card>
     </>}
@@ -1193,10 +1144,7 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
         <div style={{fontSize:10,fontWeight:700,color:"#64748b",letterSpacing:"0.08em",marginBottom:8}}>{cat==="facade"?"🎨 ФАСАДНІ":"🏠 ПОКРІВЕЛЬНІ"}</div>
         {facadeMats.filter(m=>m.category===cat).map(m=><Card key={m.id} style={{padding:"10px 12px",margin:"0 0 6px",borderLeft:"3px solid #6366f1"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700}}>{m.name}</div>
-              {m.description&&<div style={{fontSize:11,color:"#64748b"}}>{m.description}</div>}
-            </div>
+            <div><div style={{fontSize:13,fontWeight:700}}>{m.name}</div>{m.description&&<div style={{fontSize:11,color:"#64748b"}}>{m.description}</div>}</div>
             {editPriceId===m.id
               ?<div style={{display:"flex",gap:4,alignItems:"center"}}>
                 <Input type="number" value={newPrice} onChange={setNewPrice} style={{width:80,fontSize:11}}/>
@@ -1209,14 +1157,12 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
               </div>}
           </div>
         </Card>)}
-        {facadeMats.filter(m=>m.category===cat).length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:12,fontSize:12}}>Немає матеріалів. Додайте перший.</div>}
+        {!facadeMats.filter(m=>m.category===cat).length&&<div style={{textAlign:"center",color:"#94a3b8",padding:12,fontSize:12}}>Немає матеріалів</div>}
       </div>)}
-
       {facadeModal&&<Modal title="Новий матеріал" onClose={()=>setFacadeModal(false)}>
-        <Lbl>Назва</Lbl><Input value={facadeForm.name} onChange={v=>setFacadeForm(p=>({...p,name:v}))} placeholder="Фіброцементні панелі"/>
+        <Lbl>Назва</Lbl><Input value={facadeForm.name} onChange={v=>setFacadeForm(p=>({...p,name:v}))} placeholder="Назва матеріалу"/>
         <Lbl>Опис</Lbl><Input value={facadeForm.description} onChange={v=>setFacadeForm(p=>({...p,description:v}))}/>
-        <Lbl>Категорія</Lbl>
-        <Sel value={facadeForm.category} onChange={v=>setFacadeForm(p=>({...p,category:v}))} options={[{v:"facade",l:"🎨 Фасад"},{v:"roof",l:"🏠 Покрівля"}]}/>
+        <Lbl>Категорія</Lbl><Sel value={facadeForm.category} onChange={v=>setFacadeForm(p=>({...p,category:v}))} options={[{v:"facade",l:"🎨 Фасад"},{v:"roof",l:"🏠 Покрівля"}]}/>
         <Lbl>Ціна (₴/м²)</Lbl><Input type="number" value={facadeForm.current_price} onChange={v=>setFacadeForm(p=>({...p,current_price:+v}))}/>
         <div style={{display:"flex",gap:8,marginTop:14}}>
           <Btn onClick={()=>setFacadeModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
@@ -1226,25 +1172,15 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
     </>}
 
     {saveModal&&<Modal title="💾 Зберегти як продукт" onClose={()=>setSaveModal(false)}>
-      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>
-        {W}×{L*cfg.modules}м · ₴{fmt(salePrice)} · Маржа {cfg.margin}%
-      </div>
+      <div style={{background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534"}}>{W}×{L*cfg.modules}м · ₴{fmt(salePrice)} · Маржа {cfg.margin}%</div>
       <Lbl>Назва продукту</Lbl>
-      <Input value={saveName} onChange={setSaveName} placeholder={`Каркасний ${W}×${L*cfg.modules}м`}/>
+      <Input value={saveName} onChange={setSaveName} placeholder={"Каркасний "+W+"×"+(L*cfg.modules)+"м"}/>
       <div style={{display:"flex",gap:8,marginTop:14}}>
         <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
-        <Btn onClick={async()=>{
-          if(!saveName.trim())return;
-          await productsH.create({name:saveName,description:`${W}×${L*cfg.modules}м · ${cfg.modules} модулів`,model:`${W}x${L*cfg.modules}`,status:"draft",sale_price:salePrice,cost_price:totalCost,margin_pct:cfg.margin,notes:`Матеріали: ₴${fmt(matCost)}\nПраця: ₴${fmt(labCost)}\nОперац: ₴${fmt(opex)}\nНакладні: ₴${fmt(overhead)}`,version:"1.0",valid_date:today(),sort_order:0});
-          setSaveModal(false);setSavedOk(true);setTimeout(()=>setSavedOk(false),3000);
-        }} color="#10b981" style={{flex:2}}>💾 Зберегти</Btn>
+        <Btn onClick={async()=>{if(!saveName.trim())return;await productsH.create({name:saveName,description:W+"×"+(L*cfg.modules)+"м · "+cfg.modules+" модулів",model:W+"x"+(L*cfg.modules),status:"draft",sale_price:salePrice,cost_price:totalCost,margin_pct:cfg.margin,notes:"Матеріали: ₴"+fmt(matCost)+"\nПраця: ₴"+fmt(labCost)+"\nОперац: ₴"+fmt(opex)+"\nНакладні: ₴"+fmt(overhead),version:"1.0",valid_date:today(),sort_order:0});setSaveModal(false);setSavedOk(true);setTimeout(()=>setSavedOk(false),3000);}} color="#10b981" style={{flex:2}}>💾 Зберегти</Btn>
       </div>
     </Modal>}
-
-    {savedOk&&<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,zIndex:999,boxShadow:"0 4px 20px #00000030"}}>
-      ✅ Продукт збережено в каталог!
-    </div>}
-
+    {savedOk&&<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,zIndex:999,boxShadow:"0 4px 20px #00000030"}}>✅ Продукт збережено!</div>}
     {addSizeModal&&<Modal title="Новий розмір" onClose={()=>setAddSizeModal(false)}>
       <Lbl>Назва</Lbl><Input value={newSize.name} onChange={v=>setNewSize(p=>({...p,name:v}))} placeholder="3.5×7"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -1258,7 +1194,6 @@ function Configurator({sizesH,materialsH,workersH,operationsH,productsH,facadeH,
     </Modal>}
   </div>;
 }
-
 
 
 // ─── COSTING ──────────────────────────────────────────────────────────────────
@@ -1572,7 +1507,7 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
         <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
         <Btn onClick={async()=>{
           if(!saveName.trim())return;
-          await productsH.create({name:saveName,description:`Модель ${model} · ${labourScheme==="fixed"?`Бригада ₴${fmt(labourFixed)}`:"По м²"}`,model,status:"draft",sale_price:price*qty,cost_price:cost*qty,margin_pct:margin,notes:`Матеріали: ₴${fmt(matOpt*qty)}\nПраця: ₴${fmt(laborCost*qty)}\nНакладні: ₴${fmt(overhead6*qty)}${overheadPerUnit>0?`\nОфісні: ₴${fmt(overheadPerUnit*qty)}`:""}`,version:"1.0",valid_date:today()});
+          await productsH.create({name:saveName,description:"Модель "+model+" · "+(labourScheme==="fixed"?"Бригада ₴"+fmt(labourFixed):"По м²"),model,status:"draft",sale_price:price*qty,cost_price:cost*qty,margin_pct:margin,notes:"Матеріали: ₴"+fmt(matOpt*qty)+"\nПраця: ₴"+fmt(laborCost*qty)+"\nНакладні: ₴"+fmt(overhead6*qty)+(overheadPerUnit>0?"\nОфісні: ₴"+fmt(overheadPerUnit*qty):""),version:"1.0",valid_date:today()});
           setSaveModal(false);setSaveName("");
         }} color="#10b981" style={{flex:2}}>💾 Зберегти в каталог</Btn>
       </div>
@@ -1580,7 +1515,84 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
   </div>;
 }
 
+// ─── PRODUCTS CATALOG ─────────────────────────────────────────────────────────
+          const w=window.open("","_blank");
+          w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — МОДУЛЕР ПРО</title><style>body{font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px;color:#1e293b}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:12px}td{padding:8px;border-bottom:1px solid #f9fafb;font-size:13px}.price{font-weight:900;color:#10b981;font-size:22px}</style></head><body>
+          <h1>🏗️ МОДУЛЕР ПРО — Комерційна пропозиція</h1>
+          <p style="color:#64748b;font-size:13px">${new Date().toLocaleDateString("uk-UA")} · Дерев'яний каркас · ${qty} од.</p>
+          <table><tr><th>Стаття</th><th>Сума (₴)</th></tr>
+          <tr><td>Матеріали (оптові ціни)</td><td>₴${fmt(matOpt*qty)}</td></tr>
+          <tr><td>Оплата праці (${totalHours} год)</td><td>₴${fmt(laborCost*qty)}</td></tr>
+          <tr><td>Накладні (6%)</td><td>₴${fmt(overhead*qty)}</td></tr>
+          <tr><td><strong>Собівартість</strong></td><td><strong>₴${fmt(cost*qty)}</strong></td></tr>
+          <tr><td colspan="2" style="text-align:center;padding:16px"><span class="price">Ціна: ₴${fmt(price*qty)}</span></td></tr></table>
+          <h3>Схема оплат</h3><p>10% бронювання · 40% старт · 30% коробка · 20% здача</p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:30px">МОДУЛЕР ПРО · КП дійсне 14 днів · ${new Date().toLocaleDateString("uk-UA")}</p>
+          </body></html>`);
+          w.document.close();w.print();
+        }} color="#6366f1" full>📄 КП для клієнта (PDF)</Btn>
+      </div>
+    </>}
 
+    {tab==="phases"&&<>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:12,color:"#64748b"}}>Праця: <strong style={{color:"#06b6d4"}}>₴{fmt(laborCost)}</strong> · {totalHours}год</div>
+        <Btn onClick={()=>{setOpForm({phase:"",name:"",worker_id:workers[0]?.id||"",hours:0,qty:1,unit:"компл",note:"",sort_order:99});setOpModal("add");}} small color="#06b6d4">+ Операція</Btn>
+      </div>
+      {phases.map(ph=>{
+        const ops=operations.filter(o=>o.phase===ph).sort((a,b)=>a.sort_order-b.sort_order);
+        const phCost=ops.reduce((s,o)=>{const w=workers.find(x=>x.id===o.worker_id);return s+(w?w.rate*o.hours*o.qty:0);},0);
+        const phHours=ops.reduce((s,o)=>s+o.hours*o.qty,0);
+        const isOpen=expandPhase===ph;
+        return <div key={ph} style={{marginBottom:8}}>
+          <button onClick={()=>setExpandPhase(isOpen?null:ph)} style={{width:"100%",background:"#fff",border:"none",borderRadius:12,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px #00000010"}}>
+            <div style={{textAlign:"left"}}><div style={{fontWeight:700,fontSize:13}}>{ph}</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{ops.length} операцій · {phHours}год</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#06b6d4",fontSize:14}}>₴{fmt(phCost)}</div><div style={{fontSize:12,color:"#94a3b8"}}>{isOpen?"▲":"▼"}</div></div>
+          </button>
+          {isOpen&&<div style={{background:"#f8fafc",borderRadius:"0 0 12px 12px",padding:"8px 8px 4px"}}>
+            {ops.map(op=>{
+              const w=workers.find(x=>x.id===op.worker_id);
+              const opCost=w?w.rate*op.hours*op.qty:0;
+              return <div key={op.id} style={{background:"#fff",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",gap:10}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:600}}>{op.name}</div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{w?.name||"—"} · ₴{w?.rate}/год · {op.hours}год × {op.qty}</div>
+                  {op.note&&<div style={{fontSize:10,color:"#64748b",marginTop:2,fontStyle:"italic"}}>💬 {op.note}</div>}
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontWeight:700,color:"#06b6d4",fontSize:12}}>₴{fmt(opCost)}</div>
+                  <div style={{display:"flex",gap:3,marginTop:4}}>
+                    <button onClick={()=>{setOpForm({...op});setOpModal("edit");}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>✏️</button>
+                    <button onClick={()=>operationsH.remove(op.id)} style={{background:"#fef2f2",border:"none",borderRadius:6,padding:"2px 6px",cursor:"pointer",fontSize:10}}>🗑</button>
+                  </div>
+                </div>
+              </div>;
+            })}
+          </div>}
+        </div>;
+      })}
+    </>}
+
+    {tab==="materials"&&<>
+      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>BOM шаблон 3×6 · {bom.length} позицій</div>
+      {bom.map(item=>{
+        const mat=materials.find(m=>m.id===item.material_id);
+        if(!mat)return null;
+        return <Card key={item.id} style={{padding:"8px 12px",margin:"0 0 6px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600}}>{mat.name}</div>
+              <div style={{fontSize:10,color:"#94a3b8"}}>{item.qty} {mat.unit} · {mat.supplier}</div>
+              <div style={{fontSize:10,color:"#64748b"}}>{item.note}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
+              <div style={{fontWeight:700,color:"#10b981",fontSize:12}}>₴{fmt(mat.opt_price*item.qty)}</div>
+              <div style={{fontSize:9,color:"#94a3b8"}}>роздріб ₴{fmt(mat.retail_price*item.qty)}</div>
+            </div>
+          </div>
+        </Card>;
+      })}
+    </>}
 
     {/* Save as product modal */}
     {saveModal&&<Modal title="Зберегти як продукт" onClose={()=>setSaveModal(false)}>
@@ -1594,7 +1606,7 @@ function Costing({workersH,operationsH,materialsH,bomH,productsH,overheadH,suppl
         <Btn onClick={()=>setSaveModal(false)} outline color="#94a3b8" style={{flex:1}}>Скасувати</Btn>
         <Btn onClick={async()=>{
           if(!saveName.trim())return;
-          await productsH.create({name:saveName,description:"",model:"3x6",status:"draft",sale_price:price,cost_price:cost,margin_pct:margin,notes:`Матеріали: ₴${fmt(matOpt)}\nПраця: ₴${fmt(laborCost)}\nНакладні: ₴${fmt(overhead)}\nГодин: ${totalHours}`,version:"1.0",valid_date:today()});
+          await productsH.create({name:saveName,description:"",model:"3x6",status:"draft",sale_price:price,cost_price:cost,margin_pct:margin,notes:"Матеріали: ₴"+fmt(matOpt)+"\nПраця: ₴"+fmt(laborCost)+"\nНакладні: ₴"+fmt(overhead)+"\nГодин: "+totalHours,version:"1.0",valid_date:today()});
           setSaveModal(false);setSaveName("");
         }} color="#10b981" style={{flex:2}}>💾 Зберегти в каталог</Btn>
       </div>
@@ -2140,6 +2152,10 @@ function Procurement({procH,materials,projects}){
 
 // ─── PROJECT DOCUMENTS ────────────────────────────────────────────────────────
 const DOC_TYPES={
+  contract: {l:"📄 Договір",     c:"#6366f1"},
+  kp:       {l:"💰 КП",          c:"#10b981"},
+  schema:   {l:"📐 Схема/КД",    c:"#3b82f6"},
+  photo:    {l:"📷 Фото",        c:"#f59e0b"},
   act:      {l:"✅ Акт",         c:"#22c55e"},
   invoice:  {l:"🧾 Рахунок",     c:"#8b5cf6"},
   other:    {l:"📎 Інше",        c:"#94a3b8"},
@@ -2999,6 +3015,10 @@ function Projects({hook,user,commentsH,tasksH,teamMembers,membersH,bomH,material
     </Modal>}
   </div>;
 }
+  if(loading)return <Spin/>;
+  return <div>
+    <div style={{display:"flex",gap:8,marginBottom:12}}>
+      <Input value={search} onChange={setSearch} placeholder="🔍 Пошук..." style={{flex:1}}/>
       {canEdit&&<Btn onClick={()=>{setForm({...empty});setModal("add");}} small>+ Новий</Btn>}
     </div>
     <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
@@ -3942,6 +3962,10 @@ function Analytics({projects,workers,operations,materials,bom,overhead,statsH}){
 }
 
   // Офісні витрати за поточний місяць
+  const curMonth=new Date().toISOString().slice(0,7);
+  const monthOverhead=overhead.filter(o=>o.month&&o.month.startsWith(curMonth));
+  const totalOverhead=monthOverhead.reduce((s,o)=>s+ +o.amount,0);
+  const activeProjects=projects.filter(p=>p.stage!=="paid"&&p.stage!=="lead");
   const overheadPerProject=activeProjects.length>0?Math.round(totalOverhead/activeProjects.length):0;
 
   const margin=tSale-tSpent;
@@ -4299,6 +4323,8 @@ function Settings({user,onLogout}){
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App(){
+  const workersH   =useTable("workers");
+  const operationsH=useTable("operations","order=sort_order.asc");
   const materialsH =useTable("materials");
   const bomH       =useTable("bom_templates");
   const projectsH  =useTable("projects");
@@ -4320,7 +4346,6 @@ export default function App(){
   const notifsH    =useTable("notifications","order=created_at.desc");
   const lumberH    =useTable("lumber_log","order=date.desc");
   const facadeH    =useTable("facade_materials","order=category.asc,sort_order.asc");
-  const priceHistoryH=useTable("facade_price_history","order=created_at.desc");
   const foldersH   =useTable("product_folders","order=sort_order.asc");
   const commentsH  =useTable("project_comments","order=created_at.desc");
   const tasksH     =useTable("project_tasks","order=created_at.asc");
@@ -4406,7 +4431,7 @@ export default function App(){
     <div style={{padding:"16px 14px 100px"}}>
       {module!=="more"&&<div style={{fontWeight:800,fontSize:17,color:"#1e293b",marginBottom:14}}>{active.icon} {active.label}</div>}
       {module==="dashboard"    && <Dashboard   projects={projectsH.data} workers={workersH.data} operations={operationsH.data} procurement={procH.data} tasks={tasksH.data} projectsH={projectsH} commentsH={commentsH} tasksH={tasksH} user={user} onNav={nav}/>}
-      {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH} facadeH={facadeH} priceHistoryH={priceHistoryH}/>}
+      {module==="configurator" && <Configurator sizesH={sizesH} materialsH={materialsH} workersH={workersH} operationsH={operationsH} productsH={productsH} facadeH={facadeH}/>}
       {module==="products"    && <Products    productsH={productsH} foldersH={foldersH} onNav={nav}/>}
       {module==="costing"     && <Costing     workersH={workersH} operationsH={operationsH} materialsH={materialsH} bomH={bomH} productsH={productsH} overheadH={overheadH} suppliersH={suppliersH} pricesH={pricesH} projectsH={projectsH}/>}
       {module==="procurement" && <Procurement procH={procH} materials={materialsH.data} projects={projectsH.data}/>}
