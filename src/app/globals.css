@@ -129,6 +129,7 @@ input.price-input { width: 100px; }
 .file-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .file-thumb { width: 70px; height: 70px; border-radius: 6px; border: 1px solid var(--border); overflow: hidden; position: relative; background: #faf9f6; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); text-align: center; }
 .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.file-thumb a { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: inherit; text-decoration: none; padding: 4px; overflow: hidden; }
 .file-thumb .icon-x { position: absolute; top: 1px; right: 3px; background: rgba(255,255,255,0.85); border-radius: 50%; }
 .region-collapse summary { font-size: 12px; color: var(--text-secondary); cursor: pointer; }
 .role-pill { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: var(--accent-bg); color: var(--accent); font-weight: 500; }
@@ -144,3 +145,43 @@ input.price-input { width: 100px; }
 .auth-toggle { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-secondary); }
 .auth-toggle button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; font-family: inherit; }
 .full-loader { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px; }
+
+/* SearchCombobox */
+.combobox { position: relative; flex: 1; min-width: 0; }
+.combobox input { width: 100%; }
+.combobox-list { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 40; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+.combobox-item { padding: 7px 10px; font-size: 13px; cursor: pointer; }
+.combobox-item:hover, .combobox-item.active { background: var(--accent-bg); color: var(--accent); }
+.combobox-create { color: var(--accent); font-weight: 500; border-top: 1px solid var(--border); }
+.combobox-clear { color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.combobox-empty { padding: 7px 10px; font-size: 12px; color: var(--text-muted); }
+
+/* Collapsible sections */
+.section-details { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; }
+.section-details > summary { list-style: none; cursor: pointer; padding: 10px 0; font-size: 13px; font-weight: 500; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
+.section-details > summary::-webkit-details-marker { display: none; }
+.section-details > summary::after { content: "▾"; color: var(--text-muted); transition: transform 0.15s; }
+.section-details:not([open]) > summary::after { transform: rotate(-90deg); }
+.section-details .section-body { padding-bottom: 12px; }
+.section-count { font-weight: 400; color: var(--text-muted); font-size: 12px; }
+
+/* BOM row v2 */
+.bom-row-v2 { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.bom-row-line { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.bom-row-line:last-child { margin-bottom: 0; }
+.bom-row-line .qty-input { width: 80px; }
+.bom-row-line .price-input { width: 110px; }
+.bom-row-line select.bom-group-select { width: 140px; }
+.price-hint { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+/* Catalog reorder + filters */
+.reorder-mini { display: flex; flex-direction: column; }
+.reorder-mini button { border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 11px; padding: 0 4px; line-height: 1.4; }
+.reorder-mini button:hover { color: var(--accent); }
+.filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 6px; }
+.filter-field { display: flex; flex-direction: column; gap: 3px; }
+.filter-field label { font-size: 11px; color: var(--text-secondary); }
+.filter-range { display: flex; gap: 4px; align-items: center; }
+.filter-range input { width: 80px; }
+.cover-btn { position: absolute; bottom: 2px; left: 2px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; font-size: 10px; padding: 1px 4px; cursor: pointer; color: var(--text-secondary); }
+.cover-btn.is-cover { color: var(--amber); font-weight: 600; }

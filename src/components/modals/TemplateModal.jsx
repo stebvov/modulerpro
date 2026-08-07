@@ -2,31 +2,49 @@
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import SearchCombobox from "@/components/SearchCombobox";
 
 function emptyBomRow() {
-  return { key: Math.random().toString(36).slice(2), material_id: "", quantity_per_unit: "", group_id: "" };
+  return { key: Math.random().toString(36).slice(2), category_id: "", material_id: "", quantity_per_unit: "", group_id: "", price_override: "" };
 }
 function emptyExtraRow(defaultGroupId) {
   return { key: Math.random().toString(36).slice(2), group_id: defaultGroupId || "", label: "", amount: "" };
 }
 
 export default function TemplateModal({ open, template, onClose, onSaved }) {
-  const { supabase, materials, bomGroups, productCategories, productCategoryLinks, bomItems, extraCosts, templateFiles, reload } =
-    useAppData();
+  const {
+    supabase,
+    materials,
+    materialCategories,
+    supplierPrices,
+    bomGroups,
+    productCategories,
+    productCategoryLinks,
+    bomItems,
+    extraCosts,
+    templateFiles,
+    templates,
+    reload,
+  } = useAppData();
 
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
+  const [moduleCount, setModuleCount] = useState("");
   const [status, setStatus] = useState("draft");
   const [selectedCats, setSelectedCats] = useState([]);
   const [bomRows, setBomRows] = useState([emptyBomRow()]);
   const [extraRows, setExtraRows] = useState([]);
-  const [files, setFiles] = useState([]);
   const [templateId, setTemplateId] = useState(null);
   const [fileNote, setFileNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const laborGroup = bomGroups.find((g) => g.name === "Робота");
+
+  const files = templateId
+    ? templateFiles.filter((f) => f.template_id === templateId).slice().sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const coverPhotoId = files.find((f) => f.kind === "photo")?.id || null;
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +55,7 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     setTemplateId(template ? template.id : null);
     setName(template ? template.name : "");
     setArea(template ? template.area_m2 : "");
+    setModuleCount(template ? template.module_count ?? "" : "");
     setStatus(template ? template.status : "draft");
     setSelectedCats(
       template ? productCategoryLinks.filter((l) => l.template_id === template.id).map((l) => l.category_id) : []
@@ -44,12 +63,18 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     const existingBom = template ? bomItems.filter((b) => b.template_id === template.id).sort((a, b) => a.sort_order - b.sort_order) : [];
     setBomRows(
       existingBom.length
-        ? existingBom.map((b) => ({ key: b.id, material_id: b.material_id, quantity_per_unit: b.quantity_per_unit, group_id: b.group_id || "" }))
+        ? existingBom.map((b) => ({
+            key: b.id,
+            category_id: materials.find((m) => m.id === b.material_id)?.category_id || "",
+            material_id: b.material_id,
+            quantity_per_unit: b.quantity_per_unit,
+            group_id: b.group_id || "",
+            price_override: b.unit_price_override != null ? String(b.unit_price_override) : "",
+          }))
         : [emptyBomRow()]
     );
     const existingExtra = template ? extraCosts.filter((e) => e.template_id === template.id) : [];
     setExtraRows(existingExtra.map((e) => ({ key: e.id, group_id: e.group_id || "", label: e.label, amount: e.amount })));
-    setFiles(template ? templateFiles.filter((f) => f.template_id === template.id) : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template]);
 
@@ -81,6 +106,31 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     setExtraRows((prev) => prev.filter((r) => r.key !== key));
   }
 
+  function bestSupplierPrice(materialId) {
+    const rows = supplierPrices.filter((p) => p.material_id === materialId);
+    if (!rows.length) return null;
+    return Math.min(...rows.map((p) => Number(p.price)));
+  }
+
+  async function createMaterialCategory(rowKey, text) {
+    const { data, error: e } = await supabase.from("material_categories").insert([{ name: text }]).select().single();
+    if (e) { setError(e.message); return null; }
+    await reload(true);
+    return data.id;
+  }
+
+  async function createMaterial(rowKey, text, categoryId) {
+    const unit = (window.prompt(`Одиниця виміру для «${text}» (шт, м², м³, компл...)`, "шт") || "шт").trim() || "шт";
+    const { data, error: e } = await supabase
+      .from("materials")
+      .insert([{ name: text, unit, category_id: categoryId || null }])
+      .select()
+      .single();
+    if (e) { setError(e.message); return null; }
+    await reload(true);
+    return data.id;
+  }
+
   async function handleFileInput(e) {
     const chosen = [...e.target.files];
     if (!templateId) {
@@ -103,7 +153,6 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
       }
       setFileNote("Файли завантажено.");
       await reload(true);
-      setFiles((prev) => [...prev]);
     } catch (err) {
       setFileNote("Помилка завантаження: " + err.message);
     } finally {
@@ -114,7 +163,12 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
   async function handleDeleteFile(fileId) {
     await supabase.from("template_files").delete().eq("id", fileId);
     await reload(true);
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+  }
+
+  async function handleSetCover(fileId) {
+    const minOrder = files.length ? Math.min(...files.map((f) => f.sort_order)) : 0;
+    await supabase.from("template_files").update({ sort_order: minOrder - 1 }).eq("id", fileId);
+    await reload(true);
   }
 
   async function handleSave() {
@@ -126,13 +180,23 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     }
     setSaving(true);
     try {
-      const payload = { name: name.trim(), area_m2: areaNum, status };
+      const payload = {
+        name: name.trim(),
+        area_m2: areaNum,
+        status,
+        module_count: moduleCount === "" ? null : parseInt(moduleCount, 10),
+      };
       let id = templateId;
       if (id) {
         const { error: updErr } = await supabase.from("product_templates").update(payload).eq("id", id);
         if (updErr) throw updErr;
       } else {
-        const { data: created, error: insErr } = await supabase.from("product_templates").insert([payload]).select().single();
+        const nextSortOrder = templates.length ? Math.max(...templates.map((t) => t.sort_order ?? 0)) + 1 : 1;
+        const { data: created, error: insErr } = await supabase
+          .from("product_templates")
+          .insert([{ ...payload, sort_order: nextSortOrder }])
+          .select()
+          .single();
         if (insErr) throw insErr;
         id = created.id;
       }
@@ -151,6 +215,7 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
           unit: materials.find((m) => m.id === r.material_id)?.unit || "шт",
           group_id: r.group_id || null,
           sort_order: idx,
+          unit_price_override: r.price_override.trim() === "" ? null : parseFloat(r.price_override),
         }));
       await supabase.from("template_bom_items").delete().eq("template_id", id);
       if (cleanBom.length) {
@@ -196,6 +261,8 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     }
   }
 
+  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
+
   return (
     <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
@@ -206,14 +273,26 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
           <label>Фото і файли</label>
           <div className="file-list">
             {files.map((f) => (
-              <div className="file-thumb" key={f.id}>
-                {f.kind === "photo" ? <img src={f.url} alt={f.name || ""} /> : f.name || "файл"}
+              <div className="file-thumb" key={f.id} style={{ position: "relative" }}>
+                <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
+                  {f.kind === "photo" ? <img src={f.url} alt={f.name || ""} /> : (f.name || "файл")}
+                </a>
                 <span className="icon-x" onClick={() => handleDeleteFile(f.id)}>×</span>
+                {f.kind === "photo" && (
+                  <button
+                    type="button"
+                    className={`cover-btn${f.id === coverPhotoId ? " is-cover" : ""}`}
+                    title="Зробити головним фото"
+                    onClick={() => handleSetCover(f.id)}
+                  >
+                    {f.id === coverPhotoId ? "★" : "☆"}
+                  </button>
+                )}
               </div>
             ))}
           </div>
           <input type="file" multiple accept="image/*,.pdf,.dwg,.zip" onChange={handleFileInput} />
-          <span className="note">{fileNote}</span>
+          <span className="note">{fileNote || "Клікни на файл, щоб відкрити. ☆ на фото — зробити головним (аватар у каталозі)."}</span>
         </div>
 
         <div className="form-row">
@@ -239,6 +318,11 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
         </div>
 
         <div className="form-row">
+          <label>Кількість модулів</label>
+          <input type="number" step="1" min="1" value={moduleCount} onChange={(e) => setModuleCount(e.target.value)} placeholder="напр. 2" />
+        </div>
+
+        <div className="form-row">
           <label>Статус</label>
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="draft">Чернетка</option>
@@ -247,76 +331,110 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
           </select>
         </div>
 
-        <h4>Матеріали (BOM)</h4>
-        <div>
-          {bomRows.map((r) => (
-            <div className="bom-row" key={r.key}>
-              <div className="reorder">
-                <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
-                <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
-              </div>
-              <select className="bom-group" value={r.group_id} onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}>
-                <option value="">без групи</option>
-                {bomGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-              <select
-                className="bom-material"
-                value={r.material_id}
-                onChange={(e) => updateBomRow(r.key, { material_id: e.target.value })}
-              >
-                <option value="">— оберіть матеріал —</option>
-                {materials.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="к-сть"
-                value={r.quantity_per_unit}
-                onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
-              />
-              <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
-            </div>
-          ))}
-        </div>
-        <button className="btn small" style={{ marginBottom: 14 }} onClick={() => setBomRows((p) => [...p, emptyBomRow()])}>
-          + Додати матеріал
-        </button>
+        <details className="section-details" open>
+          <summary>Матеріали (BOM) <span className="section-count">— {bomRows.filter((r) => r.material_id).length} поз.</span></summary>
+          <div className="section-body">
+            {bomRows.map((r) => {
+              const materialOptions = materials
+                .filter((m) => !r.category_id || m.category_id === r.category_id)
+                .map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }));
+              const live = r.material_id ? bestSupplierPrice(r.material_id) : null;
+              return (
+                <div className="bom-row-v2" key={r.key}>
+                  <div className="bom-row-line">
+                    <div className="reorder">
+                      <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
+                      <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
+                    </div>
+                    <SearchCombobox
+                      value={r.category_id}
+                      options={categoryOptions}
+                      placeholder="Категорія матеріалу..."
+                      onChange={(id) => updateBomRow(r.key, { category_id: id, material_id: "" })}
+                      onCreate={(text) => createMaterialCategory(r.key, text)}
+                    />
+                    <SearchCombobox
+                      value={r.material_id}
+                      options={materialOptions}
+                      placeholder="Матеріал..."
+                      onChange={(id) => updateBomRow(r.key, { material_id: id, category_id: materials.find((m) => m.id === id)?.category_id || r.category_id })}
+                      onCreate={(text) => createMaterial(r.key, text, r.category_id)}
+                    />
+                    <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
+                  </div>
+                  <div className="bom-row-line">
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="qty-input"
+                      placeholder="к-сть"
+                      value={r.quantity_per_unit}
+                      onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="price-input"
+                      placeholder={live != null ? String(live) : "0"}
+                      value={r.price_override}
+                      onChange={(e) => updateBomRow(r.key, { price_override: e.target.value })}
+                    />
+                    <span className="price-hint">
+                      {r.price_override.trim() !== ""
+                        ? "своя ціна"
+                        : live != null
+                          ? `авто: ${live} грн (від постачальника)`
+                          : "немає ціни від постачальників — вкажи свою"}
+                    </span>
+                    <select className="bom-group-select" value={r.group_id} onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}>
+                      <option value="">без групи</option>
+                      {bomGroups.map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
+            <button className="btn small" onClick={() => setBomRows((p) => [...p, emptyBomRow()])}>
+              + Додати матеріал
+            </button>
+          </div>
+        </details>
 
-        <h4>Робота, доставка та інші статті витрат</h4>
-        <div>
-          {extraRows.map((r) => (
-            <div className="extra-row" key={r.key}>
-              <select value={r.group_id} onChange={(e) => updateExtraRow(r.key, { group_id: e.target.value })}>
-                <option value="">без групи</option>
-                {bomGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-              <input
-                className="label-input"
-                type="text"
-                placeholder="напр. Монтаж каркасу"
-                value={r.label}
-                onChange={(e) => updateExtraRow(r.key, { label: e.target.value })}
-              />
-              <input
-                className="amount-input"
-                type="number"
-                placeholder="грн"
-                value={r.amount}
-                onChange={(e) => updateExtraRow(r.key, { amount: e.target.value })}
-              />
-              <span className="icon-x" onClick={() => removeExtraRow(r.key)}>×</span>
-            </div>
-          ))}
-        </div>
-        <button className="btn small" onClick={() => setExtraRows((p) => [...p, emptyExtraRow(laborGroup?.id)])}>
-          + Додати статтю витрат
-        </button>
+        <details className="section-details" open>
+          <summary>Робота, доставка та інші статті витрат <span className="section-count">— {extraRows.length} поз.</span></summary>
+          <div className="section-body">
+            {extraRows.map((r) => (
+              <div className="extra-row" key={r.key}>
+                <select value={r.group_id} onChange={(e) => updateExtraRow(r.key, { group_id: e.target.value })}>
+                  <option value="">без групи</option>
+                  {bomGroups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+                <input
+                  className="label-input"
+                  type="text"
+                  placeholder="напр. Монтаж каркасу"
+                  value={r.label}
+                  onChange={(e) => updateExtraRow(r.key, { label: e.target.value })}
+                />
+                <input
+                  className="amount-input"
+                  type="number"
+                  placeholder="грн"
+                  value={r.amount}
+                  onChange={(e) => updateExtraRow(r.key, { amount: e.target.value })}
+                />
+                <span className="icon-x" onClick={() => removeExtraRow(r.key)}>×</span>
+              </div>
+            ))}
+            <button className="btn small" onClick={() => setExtraRows((p) => [...p, emptyExtraRow(laborGroup?.id)])}>
+              + Додати статтю витрат
+            </button>
+          </div>
+        </details>
 
         <div className="modal-actions">
           {templateId && (

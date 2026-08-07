@@ -56,7 +56,7 @@ export function DataProvider({ children }) {
           supabase.from("materials").select("*").order("name"),
           supabase.from("suppliers").select("*").order("name"),
           supabase.from("supplier_prices").select("*"),
-          supabase.from("product_templates").select("*").order("name"),
+          supabase.from("product_templates").select("*").order("sort_order"),
           supabase.from("template_bom_items").select("*"),
           supabase.from("template_extra_costs").select("*"),
           supabase.from("product_categories").select("*").order("name"),
