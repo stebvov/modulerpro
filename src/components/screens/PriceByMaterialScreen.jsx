@@ -3,18 +3,20 @@
 import { Fragment, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { daysAgo, isStale, fmtCurrency } from "@/lib/format";
+import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
 import { savePrice } from "@/lib/prices";
+import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
 
 export default function PriceByMaterialScreen() {
-  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierContacts, currency, exchangeRates, reload } =
+  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, currency, exchangeRates, reload } =
     useAppData();
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [openContacts, setOpenContacts] = useState({});
+  const [contactsSupplierId, setContactsSupplierId] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
   const [editPrices, setEditPrices] = useState({});
+  const [editNotes, setEditNotes] = useState({});
   const [addForm, setAddForm] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -24,11 +26,11 @@ export default function PriceByMaterialScreen() {
     (m) => (!search || m.name.toLowerCase().includes(search.toLowerCase())) && (!categoryFilter || m.category_id === categoryFilter)
   );
 
-  async function handleSave(supplierId, materialId, priceValue) {
+  async function handleSave(supplierId, materialId, priceValue, noteValue) {
     const price = parseFloat(priceValue);
     if (!price || price <= 0) return;
     setBusy(true);
-    await savePrice(supabase, { supplierId, materialId, price, updatedBy });
+    await savePrice(supabase, { supplierId, materialId, price, updatedBy, note: noteValue });
     await reload(true);
     setBusy(false);
   }
@@ -39,8 +41,8 @@ export default function PriceByMaterialScreen() {
     const price = parseFloat(form.price);
     if (!price || price <= 0) return;
     setBusy(true);
-    await savePrice(supabase, { supplierId: form.supplierId, materialId, price, updatedBy });
-    setAddForm((p) => ({ ...p, [materialId]: { supplierId: "", price: "" } }));
+    await savePrice(supabase, { supplierId: form.supplierId, materialId, price, updatedBy, note: form.note || "" });
+    setAddForm((p) => ({ ...p, [materialId]: { supplierId: "", price: "", note: "" } }));
     await reload(true);
     setBusy(false);
   }
@@ -68,14 +70,13 @@ export default function PriceByMaterialScreen() {
           <div key={m.id} style={{ marginBottom: 18 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.name} <span className="note">({m.unit})</span></h3>
             <table>
-              <thead><tr><th>Постачальник</th><th>Ціна, грн</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
+              <thead><tr><th>Постачальник</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
-                {!rows.length && <tr><td colSpan={5} className="empty">Немає цін</td></tr>}
+                {!rows.length && <tr><td colSpan={6} className="empty">Немає цін</td></tr>}
                 {rows.map((p) => {
                   const s = suppliers.find((x) => x.id === p.supplier_id);
                   const stale = isStale(p.updated_at);
                   const key = `${p.supplier_id}-${p.material_id}`;
-                  const contacts = supplierContacts.filter((c) => c.supplier_id === p.supplier_id);
                   const history = priceHistory
                     .filter((h) => h.supplier_id === p.supplier_id && h.material_id === p.material_id)
                     .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
@@ -84,7 +85,7 @@ export default function PriceByMaterialScreen() {
                       <tr>
                         <td>
                           {s ? s.name : "—"}{" "}
-                          <span className="btn small" onClick={() => setOpenContacts((o) => ({ ...o, [p.supplier_id]: !o[p.supplier_id] }))}>контакти</span>
+                          <span className="btn small" onClick={() => setContactsSupplierId(p.supplier_id)}>контакти</span>
                         </td>
                         <td>
                           <input
@@ -96,22 +97,35 @@ export default function PriceByMaterialScreen() {
                           />{" "}
                           {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates)}</span>}
                         </td>
+                        <td>
+                          {canWriteFinance ? (
+                            <input
+                              type="text"
+                              className="note-link-input"
+                              placeholder="коментар або посилання..."
+                              defaultValue={p.note || ""}
+                              onChange={(e) => setEditNotes((v) => ({ ...v, [key]: e.target.value }))}
+                            />
+                          ) : (
+                            p.note && <div className="note-preview">{linkify(p.note)}</div>
+                          )}
+                        </td>
                         <td className={stale ? "stale" : "fresh"}>{daysAgo(p.updated_at)} дн. тому</td>
                         <td className={stale ? "stale" : "fresh"}>{stale ? "застаріла" : "актуальна"}</td>
                         <td>
                           {canWriteFinance && (
-                            <span className="btn small" onClick={() => handleSave(p.supplier_id, p.material_id, editPrices[key] ?? p.price)}>Зберегти</span>
+                            <span
+                              className="btn small"
+                              onClick={() => handleSave(p.supplier_id, p.material_id, editPrices[key] ?? p.price, editNotes[key] ?? p.note ?? "")}
+                            >
+                              Зберегти
+                            </span>
                           )}{" "}
                           <span className="btn small" onClick={() => setOpenHistory((o) => ({ ...o, [key]: !o[key] }))}>історія</span>
                         </td>
                       </tr>
-                      {openContacts[p.supplier_id] && (
-                        <tr><td colSpan={5}>
-                          {contacts.length ? contacts.map((c) => <div className="contact-line" key={c.id}>{c.label ? c.label + ": " : ""}{c.value}</div>) : <span className="note">Немає контактів</span>}
-                        </td></tr>
-                      )}
                       {openHistory[key] && (
-                        <tr><td colSpan={5}>
+                        <tr><td colSpan={6}>
                           {history.length ? (
                             <table><thead><tr><th>Ціна</th><th>Коли</th><th>Хто</th></tr></thead><tbody>
                               {history.map((h) => (
@@ -143,6 +157,14 @@ export default function PriceByMaterialScreen() {
                     value={addForm[m.id]?.price || ""}
                     onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], price: e.target.value } }))}
                   />
+                  <input
+                    type="text"
+                    className="note-link-input"
+                    style={{ width: 220 }}
+                    placeholder="нотатка / посилання (необов'язково)"
+                    value={addForm[m.id]?.note || ""}
+                    onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], note: e.target.value } }))}
+                  />
                   <button className="btn small" disabled={busy} onClick={() => handleAdd(m.id)}>+ Додати постачальника</button>
                 </div>
               </div>
@@ -150,6 +172,8 @@ export default function PriceByMaterialScreen() {
           </div>
         );
       })}
+
+      <SupplierContactsModal supplierId={contactsSupplierId} onClose={() => setContactsSupplierId(null)} />
     </div>
   );
 }

@@ -11,6 +11,16 @@ export default function CategoriesScreen() {
   const [newMaterialCat, setNewMaterialCat] = useState("");
   const [newMaterialCatParent, setNewMaterialCatParent] = useState("");
   const [error, setError] = useState("");
+  const [collapsed, setCollapsed] = useState(() => new Set());
+
+  function toggleCollapsed(id) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function renameProductCategory(cat, value) {
     const trimmed = value.trim();
@@ -26,8 +36,21 @@ export default function CategoriesScreen() {
   }
   async function addProductCategory() {
     if (!newProductCat.trim()) return;
-    await supabase.from("product_categories").insert([{ name: newProductCat.trim() }]);
+    const nextSortOrder = productCategories.length ? Math.max(...productCategories.map((c) => c.sort_order ?? 0)) + 1 : 1;
+    await supabase.from("product_categories").insert([{ name: newProductCat.trim(), sort_order: nextSortOrder }]);
     setNewProductCat("");
+    await reload(true);
+  }
+  async function moveProductCategory(cat, dir) {
+    const idx = productCategories.findIndex((c) => c.id === cat.id);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= productCategories.length) return;
+    const a = productCategories[idx];
+    const b = productCategories[swapIdx];
+    await Promise.all([
+      supabase.from("product_categories").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("product_categories").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
     await reload(true);
   }
 
@@ -49,16 +72,45 @@ export default function CategoriesScreen() {
   }
   async function addMaterialCategory() {
     if (!newMaterialCat.trim()) return;
-    await supabase.from("material_categories").insert([{ name: newMaterialCat.trim(), parent_id: newMaterialCatParent || null }]);
+    const siblings = materialCategories.filter((c) => (c.parent_id || null) === (newMaterialCatParent || null));
+    const nextSortOrder = siblings.length ? Math.max(...siblings.map((c) => c.sort_order ?? 0)) + 1 : 1;
+    await supabase.from("material_categories").insert([{ name: newMaterialCat.trim(), parent_id: newMaterialCatParent || null, sort_order: nextSortOrder }]);
     setNewMaterialCat("");
     setNewMaterialCatParent("");
     await reload(true);
   }
+  async function moveMaterialCategory(cat, dir) {
+    const siblings = materialCategories.filter((c) => (c.parent_id || null) === (cat.parent_id || null));
+    const idx = siblings.findIndex((c) => c.id === cat.id);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+    const a = siblings[idx];
+    const b = siblings[swapIdx];
+    await Promise.all([
+      supabase.from("material_categories").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("material_categories").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
+    await reload(true);
+  }
 
   function renderMaterialNode(c, depth) {
+    const children = materialCategories.filter((ch) => ch.parent_id === c.id);
+    const hasChildren = children.length > 0;
+    const isCollapsed = collapsed.has(c.id);
     return (
       <div key={c.id}>
         <div className={`cat-item${depth ? " child" : ""}`}>
+          {hasChildren ? (
+            <span className="cat-toggle" onClick={() => toggleCollapsed(c.id)}>{isCollapsed ? "▸" : "▾"}</span>
+          ) : (
+            <span className="cat-toggle" />
+          )}
+          {canWriteCatalog && (
+            <div className="cat-reorder">
+              <button type="button" onClick={() => moveMaterialCategory(c, -1)} title="Вище">▲</button>
+              <button type="button" onClick={() => moveMaterialCategory(c, 1)} title="Нижче">▼</button>
+            </div>
+          )}
           <input
             type="text"
             className="rename-input"
@@ -83,7 +135,7 @@ export default function CategoriesScreen() {
             <span className="icon-x" onClick={() => deleteMaterialCategory(c)}>×</span>
           )}
         </div>
-        {materialCategories.filter((ch) => ch.parent_id === c.id).map((ch) => renderMaterialNode(ch, depth + 1))}
+        {hasChildren && !isCollapsed && children.map((ch) => renderMaterialNode(ch, depth + 1))}
       </div>
     );
   }
@@ -96,6 +148,12 @@ export default function CategoriesScreen() {
           <h3>Категорії товарів (шаблонів)</h3>
           {productCategories.map((c) => (
             <div className="cat-item" key={c.id}>
+              {canWriteCatalog && (
+                <div className="cat-reorder">
+                  <button type="button" onClick={() => moveProductCategory(c, -1)} title="Вище">▲</button>
+                  <button type="button" onClick={() => moveProductCategory(c, 1)} title="Нижче">▼</button>
+                </div>
+              )}
               <input
                 type="text"
                 className="rename-input"
@@ -125,6 +183,7 @@ export default function CategoriesScreen() {
 
         <div className="cat-col">
           <h3>Категорії матеріалів / постачальників</h3>
+          <p className="note" style={{ marginTop: -4 }}>Порядок тут визначає порядок у фільтрах і сортування матеріалів за категорією.</p>
           {materialCategories.filter((c) => !c.parent_id).map((c) => renderMaterialNode(c, 0))}
           {!materialCategories.length && <div className="empty">Немає категорій</div>}
           {canWriteCatalog && (

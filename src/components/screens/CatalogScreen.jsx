@@ -24,18 +24,39 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
   const list = templates.filter((t) => {
     if (statusFilter && t.status !== statusFilter) return false;
     if (categoryFilter && !productCategoryLinks.some((l) => l.template_id === t.id && l.category_id === categoryFilter)) return false;
-    if (moduleMin && !(t.module_count != null && t.module_count >= parseFloat(moduleMin))) return false;
-    if (moduleMax && !(t.module_count != null && t.module_count <= parseFloat(moduleMax))) return false;
-    if (areaMin && !(t.area_m2 >= parseFloat(areaMin))) return false;
-    if (areaMax && !(t.area_m2 <= parseFloat(areaMax))) return false;
+    const moduleCount = t.module_count ?? 0;
+    if (moduleMin && moduleCount < parseFloat(moduleMin)) return false;
+    if (moduleMax && moduleCount > parseFloat(moduleMax)) return false;
+    const area = t.area_m2 ?? 0;
+    if (areaMin && area < parseFloat(areaMin)) return false;
+    if (areaMax && area > parseFloat(areaMax)) return false;
     if (priceMin || priceMax) {
-      const total = templateTotalUah(t);
-      if (total == null) return false;
+      const total = templateTotalUah(t) ?? 0;
       if (priceMin && total < parseFloat(priceMin)) return false;
       if (priceMax && total > parseFloat(priceMax)) return false;
     }
     return true;
   });
+
+  const hasActiveFilters = statusFilter || categoryFilter || moduleMin || moduleMax || areaMin || areaMax || priceMin || priceMax;
+
+  function resetFilters() {
+    setStatusFilter("");
+    setCategoryFilter("");
+    setModuleMin("");
+    setModuleMax("");
+    setAreaMin("");
+    setAreaMax("");
+    setPriceMin("");
+    setPriceMax("");
+  }
+
+  function nonNegative(value) {
+    if (value === "") return "";
+    const n = parseFloat(value);
+    if (Number.isNaN(n)) return "";
+    return String(Math.max(0, n));
+  }
 
   function openModal(t) {
     if (!canWriteCatalog) return;
@@ -89,27 +110,33 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
         <div className="filter-field">
           <label>К-сть модулів</label>
           <div className="filter-range">
-            <input type="number" placeholder="від" value={moduleMin} onChange={(e) => setModuleMin(e.target.value)} />
+            <input type="number" min="0" placeholder="від" value={moduleMin} onChange={(e) => setModuleMin(nonNegative(e.target.value))} />
             <span>–</span>
-            <input type="number" placeholder="до" value={moduleMax} onChange={(e) => setModuleMax(e.target.value)} />
+            <input type="number" min="0" placeholder="до" value={moduleMax} onChange={(e) => setModuleMax(nonNegative(e.target.value))} />
           </div>
         </div>
         <div className="filter-field">
           <label>Площа, м²</label>
           <div className="filter-range">
-            <input type="number" placeholder="від" value={areaMin} onChange={(e) => setAreaMin(e.target.value)} />
+            <input type="number" min="0" placeholder="від" value={areaMin} onChange={(e) => setAreaMin(nonNegative(e.target.value))} />
             <span>–</span>
-            <input type="number" placeholder="до" value={areaMax} onChange={(e) => setAreaMax(e.target.value)} />
+            <input type="number" min="0" placeholder="до" value={areaMax} onChange={(e) => setAreaMax(nonNegative(e.target.value))} />
           </div>
         </div>
         <div className="filter-field">
           <label>Ціна, грн</label>
           <div className="filter-range">
-            <input type="number" placeholder="від" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
+            <input type="number" min="0" placeholder="від" value={priceMin} onChange={(e) => setPriceMin(nonNegative(e.target.value))} />
             <span>–</span>
-            <input type="number" placeholder="до" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+            <input type="number" min="0" placeholder="до" value={priceMax} onChange={(e) => setPriceMax(nonNegative(e.target.value))} />
           </div>
         </div>
+        {hasActiveFilters && (
+          <div className="filter-field">
+            <label>&nbsp;</label>
+            <button className="btn small" onClick={resetFilters}>✕ Скинути фільтри</button>
+          </div>
+        )}
         {canWriteCatalog && (
           <button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => openModal(null)}>+ Новий шаблон</button>
         )}

@@ -4,19 +4,37 @@ import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { contactHref } from "@/lib/format";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import SupplierModal from "@/components/modals/SupplierModal";
+
+const RELIABILITY_OPTIONS = [
+  { id: "0", label: "без оцінки" },
+  { id: "1", label: "★☆☆☆☆" },
+  { id: "2", label: "★★☆☆☆" },
+  { id: "3", label: "★★★☆☆" },
+  { id: "4", label: "★★★★☆" },
+  { id: "5", label: "★★★★★" },
+];
 
 export default function SuppliersScreen() {
   const { suppliers, materialCategories, supplierCategoryLinks, supplierContacts } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState([]);
+  const [reliabilityFilter, setReliabilityFilter] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
+  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
+
   const list = suppliers.filter((s) => {
     const cats = supplierCategoryLinks.filter((l) => l.supplier_id === s.id).map((l) => l.category_id);
-    return (!categoryFilter || cats.includes(categoryFilter)) && (!search || s.name.toLowerCase().includes(search.toLowerCase()));
+    const rel = String(s.reliability_score || 0);
+    return (
+      (!search || s.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!categoryFilter.length || cats.some((c) => categoryFilter.includes(c))) &&
+      (!reliabilityFilter.length || reliabilityFilter.includes(rel))
+    );
   });
 
   function openModal(s) {
@@ -29,19 +47,7 @@ export default function SuppliersScreen() {
     <div>
       <div className="toolbar">
         <div className="toolbar-left">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Пошук за назвою..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">Всі категорії</option>
-            {materialCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <span className="note" style={{ marginTop: 0 }}>Пошук і фільтри — у заголовках таблиці.</span>
         </div>
         {canWriteCatalog && (
           <button className="btn primary" onClick={() => openModal(null)}>+ Новий постачальник</button>
@@ -49,7 +55,32 @@ export default function SuppliersScreen() {
       </div>
       <table>
         <thead>
-          <tr><th>Постачальник</th><th>Категорії</th><th>Контакти</th><th>Надійність</th><th></th></tr>
+          <tr>
+            <th className="th-filter">
+              <div className="th-filter-row">Постачальник</div>
+              <input
+                type="text"
+                className="th-search-input"
+                placeholder="Пошук..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </th>
+            <th className="th-filter">
+              <div className="th-filter-row">
+                Категорії
+                <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
+              </div>
+            </th>
+            <th>Контакти</th>
+            <th className="th-filter">
+              <div className="th-filter-row">
+                Надійність
+                <MultiSelectFilter options={RELIABILITY_OPTIONS} selected={reliabilityFilter} onChange={setReliabilityFilter} label="Всі" />
+              </div>
+            </th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
           {list.map((s) => {

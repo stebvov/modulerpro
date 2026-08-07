@@ -1,4 +1,4 @@
-export async function savePrice(supabase, { supplierId, materialId, price, updatedBy }) {
+export async function savePrice(supabase, { supplierId, materialId, price, updatedBy, note }) {
   return supabase
     .from("supplier_prices")
     .upsert(
@@ -11,6 +11,7 @@ export async function savePrice(supabase, { supplierId, materialId, price, updat
           updated_at: new Date().toISOString(),
           source: "manual",
           updated_by: updatedBy || null,
+          note: note !== undefined ? (note || null) : undefined,
         },
       ],
       { onConflict: "supplier_id,material_id" }

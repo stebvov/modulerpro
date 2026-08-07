@@ -9,6 +9,23 @@ export function isStale(ts) {
   return daysAgo(ts) > 30;
 }
 
+// Renders plain text with any http(s)/www links turned into clickable <a> tags.
+export function linkify(text) {
+  if (!text) return null;
+  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part) || /^www\./.test(part)) {
+      const href = part.startsWith("http") ? part : "https://" + part;
+      return (
+        <a key={i} href={href} target="_blank" rel="noreferrer">
+          {part}
+        </a>
+      );
+    }
+    return part ? <span key={i}>{part}</span> : null;
+  });
+}
+
 export function convert(amountUah, currency, exchangeRates) {
   if (amountUah == null) return null;
   const rate = (exchangeRates.find((r) => r.code === currency) || { rate_to_uah: 1 }).rate_to_uah;
