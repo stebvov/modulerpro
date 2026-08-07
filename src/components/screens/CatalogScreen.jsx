@@ -170,6 +170,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
         template={editingTemplate}
         onClose={() => setModalOpen(false)}
         onSaved={() => setModalOpen(false)}
+        onDuplicated={(newTemplate) => setEditingTemplate(newTemplate)}
       />
     </div>
   );

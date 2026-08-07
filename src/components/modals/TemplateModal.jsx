@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import SearchCombobox from "@/components/SearchCombobox";
+import FileLightbox from "@/components/FileLightbox";
 
 function emptyBomRow() {
   return { key: Math.random().toString(36).slice(2), category_id: "", material_id: "", quantity_per_unit: "", group_id: "", price_override: "" };
@@ -11,7 +12,7 @@ function emptyExtraRow(defaultGroupId) {
   return { key: Math.random().toString(36).slice(2), group_id: defaultGroupId || "", label: "", amount: "" };
 }
 
-export default function TemplateModal({ open, template, onClose, onSaved }) {
+export default function TemplateModal({ open, template, onClose, onSaved, onDuplicated }) {
   const {
     supabase,
     materials,
@@ -38,13 +39,15 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
   const [fileNote, setFileNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const laborGroup = bomGroups.find((g) => g.name === "Робота");
 
   const files = templateId
     ? templateFiles.filter((f) => f.template_id === templateId).slice().sort((a, b) => a.sort_order - b.sort_order)
     : [];
-  const coverPhotoId = files.find((f) => f.kind === "photo")?.id || null;
+  const photoFiles = files.filter((f) => f.kind === "photo");
+  const coverPhotoId = photoFiles[0]?.id || null;
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +55,7 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError("");
     setFileNote("");
+    setLightboxIndex(null);
     setTemplateId(template ? template.id : null);
     setName(template ? template.name : "");
     setArea(template ? template.area_m2 : "");
@@ -171,6 +175,29 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
     await reload(true);
   }
 
+  function buildCleanBom() {
+    return bomRows
+      .filter((r) => r.material_id && parseFloat(r.quantity_per_unit) > 0)
+      .map((r, idx) => ({
+        material_id: r.material_id,
+        quantity_per_unit: parseFloat(r.quantity_per_unit),
+        unit: materials.find((m) => m.id === r.material_id)?.unit || "шт",
+        group_id: r.group_id || null,
+        sort_order: idx,
+        unit_price_override: r.price_override.trim() === "" ? null : parseFloat(r.price_override),
+      }));
+  }
+  function buildCleanExtra() {
+    return extraRows
+      .filter((r) => r.label.trim() && parseFloat(r.amount) >= 0)
+      .map((r, idx) => ({
+        group_id: r.group_id || null,
+        label: r.label.trim(),
+        amount: parseFloat(r.amount),
+        sort_order: idx,
+      }));
+  }
+
   async function handleSave() {
     setError("");
     const areaNum = parseFloat(area);
@@ -206,32 +233,14 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
         await supabase.from("product_category_links").insert(selectedCats.map((cid) => ({ template_id: id, category_id: cid })));
       }
 
-      const cleanBom = bomRows
-        .filter((r) => r.material_id && parseFloat(r.quantity_per_unit) > 0)
-        .map((r, idx) => ({
-          template_id: id,
-          material_id: r.material_id,
-          quantity_per_unit: parseFloat(r.quantity_per_unit),
-          unit: materials.find((m) => m.id === r.material_id)?.unit || "шт",
-          group_id: r.group_id || null,
-          sort_order: idx,
-          unit_price_override: r.price_override.trim() === "" ? null : parseFloat(r.price_override),
-        }));
+      const cleanBom = buildCleanBom().map((r) => ({ ...r, template_id: id }));
       await supabase.from("template_bom_items").delete().eq("template_id", id);
       if (cleanBom.length) {
         const { error: bomErr } = await supabase.from("template_bom_items").insert(cleanBom);
         if (bomErr) throw bomErr;
       }
 
-      const cleanExtra = extraRows
-        .filter((r) => r.label.trim() && parseFloat(r.amount) >= 0)
-        .map((r, idx) => ({
-          template_id: id,
-          group_id: r.group_id || null,
-          label: r.label.trim(),
-          amount: parseFloat(r.amount),
-          sort_order: idx,
-        }));
+      const cleanExtra = buildCleanExtra().map((r) => ({ ...r, template_id: id }));
       await supabase.from("template_extra_costs").delete().eq("template_id", id);
       if (cleanExtra.length) {
         const { error: extraErr } = await supabase.from("template_extra_costs").insert(cleanExtra);
@@ -240,6 +249,48 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
 
       await reload();
       onSaved?.();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!templateId) return;
+    setError("");
+    const areaNum = parseFloat(area);
+    if (!name.trim() || !areaNum || !selectedCats.length) {
+      setError("Заповни назву, площу і хоча б одну категорію перед дублюванням.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const nextSortOrder = templates.length ? Math.max(...templates.map((t) => t.sort_order ?? 0)) + 1 : 1;
+      const { data: created, error: insErr } = await supabase
+        .from("product_templates")
+        .insert([{
+          name: `${name.trim()} (копія)`,
+          area_m2: areaNum,
+          module_count: moduleCount === "" ? null : parseInt(moduleCount, 10),
+          status: "draft",
+          sort_order: nextSortOrder,
+        }])
+        .select()
+        .single();
+      if (insErr) throw insErr;
+      const newId = created.id;
+
+      if (selectedCats.length) {
+        await supabase.from("product_category_links").insert(selectedCats.map((cid) => ({ template_id: newId, category_id: cid })));
+      }
+      const cleanBom = buildCleanBom().map((r) => ({ ...r, template_id: newId }));
+      if (cleanBom.length) await supabase.from("template_bom_items").insert(cleanBom);
+      const cleanExtra = buildCleanExtra().map((r) => ({ ...r, template_id: newId }));
+      if (cleanExtra.length) await supabase.from("template_extra_costs").insert(cleanExtra);
+
+      await reload();
+      onDuplicated?.(created);
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -265,35 +316,9 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
 
   return (
     <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <h2>{templateId ? "Редагувати шаблон" : "Новий шаблон"}</h2>
+      <div className="modal modal-lg">
+        <h2>{templateId ? `Редагувати шаблон${name.trim() ? ": " + name.trim() : ""}` : "Новий шаблон"}</h2>
         {error && <div className="auth-error">{error}</div>}
-
-        <div className="form-row">
-          <label>Фото і файли</label>
-          <div className="file-list">
-            {files.map((f) => (
-              <div className="file-thumb" key={f.id} style={{ position: "relative" }}>
-                <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
-                  {f.kind === "photo" ? <img src={f.url} alt={f.name || ""} /> : (f.name || "файл")}
-                </a>
-                <span className="icon-x" onClick={() => handleDeleteFile(f.id)}>×</span>
-                {f.kind === "photo" && (
-                  <button
-                    type="button"
-                    className={`cover-btn${f.id === coverPhotoId ? " is-cover" : ""}`}
-                    title="Зробити головним фото"
-                    onClick={() => handleSetCover(f.id)}
-                  >
-                    {f.id === coverPhotoId ? "★" : "☆"}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <input type="file" multiple accept="image/*,.pdf,.dwg,.zip" onChange={handleFileInput} />
-          <span className="note">{fileNote || "Клікни на файл, щоб відкрити. ☆ на фото — зробити головним (аватар у каталозі)."}</span>
-        </div>
 
         <div className="form-row">
           <label>Назва</label>
@@ -312,24 +337,66 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="form-row">
-          <label>Площа, м²</label>
-          <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
-        </div>
+        <details className="section-details" open={!templateId}>
+          <summary>Параметри шаблону <span className="section-count">— фото, площа, кількість модулів, статус</span></summary>
+          <div className="section-body">
+            <div className="form-row">
+              <label>Фото і файли</label>
+              <div className="file-list">
+                {files.map((f) => (
+                  <div className="file-thumb" key={f.id} style={{ position: "relative" }}>
+                    {f.kind === "photo" ? (
+                      <button
+                        type="button"
+                        className="file-thumb-btn"
+                        onClick={() => setLightboxIndex(photoFiles.findIndex((p) => p.id === f.id))}
+                        title={f.name || ""}
+                      >
+                        <img src={f.url} alt={f.name || ""} />
+                      </button>
+                    ) : (
+                      <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
+                        {f.name || "файл"}
+                      </a>
+                    )}
+                    <span className="icon-x" onClick={() => handleDeleteFile(f.id)}>×</span>
+                    {f.kind === "photo" && (
+                      <button
+                        type="button"
+                        className={`cover-btn${f.id === coverPhotoId ? " is-cover" : ""}`}
+                        title="Зробити головним фото"
+                        onClick={() => handleSetCover(f.id)}
+                      >
+                        {f.id === coverPhotoId ? "★" : "☆"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <input type="file" multiple accept="image/*,.pdf,.dwg,.zip" onChange={handleFileInput} />
+              <span className="note">{fileNote || "Клікни на фото, щоб відкрити галерею (стрілки / свайп). ☆ — зробити головним."}</span>
+            </div>
 
-        <div className="form-row">
-          <label>Кількість модулів</label>
-          <input type="number" step="1" min="1" value={moduleCount} onChange={(e) => setModuleCount(e.target.value)} placeholder="напр. 2" />
-        </div>
+            <div className="form-row">
+              <label>Площа, м²</label>
+              <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
+            </div>
 
-        <div className="form-row">
-          <label>Статус</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="draft">Чернетка</option>
-            <option value="active">Активний</option>
-            <option value="archived">Архів</option>
-          </select>
-        </div>
+            <div className="form-row">
+              <label>Кількість модулів</label>
+              <input type="number" step="1" min="1" value={moduleCount} onChange={(e) => setModuleCount(e.target.value)} placeholder="напр. 2" />
+            </div>
+
+            <div className="form-row">
+              <label>Статус</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="draft">Чернетка</option>
+                <option value="active">Активний</option>
+                <option value="archived">Архів</option>
+              </select>
+            </div>
+          </div>
+        </details>
 
         <details className="section-details" open>
           <summary>Матеріали (BOM) <span className="section-count">— {bomRows.filter((r) => r.material_id).length} поз.</span></summary>
@@ -339,60 +406,56 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
                 .filter((m) => !r.category_id || m.category_id === r.category_id)
                 .map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }));
               const live = r.material_id ? bestSupplierPrice(r.material_id) : null;
+              const priceTitle =
+                r.price_override.trim() !== ""
+                  ? "Своя ціна (не залежить від постачальників)"
+                  : live != null
+                    ? `Автоматично: ${live} грн (найдешевший постачальник)`
+                    : "Немає ціни від постачальників — вкажи свою";
               return (
-                <div className="bom-row-v2" key={r.key}>
-                  <div className="bom-row-line">
-                    <div className="reorder">
-                      <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
-                      <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
-                    </div>
-                    <SearchCombobox
-                      value={r.category_id}
-                      options={categoryOptions}
-                      placeholder="Категорія матеріалу..."
-                      onChange={(id) => updateBomRow(r.key, { category_id: id, material_id: "" })}
-                      onCreate={(text) => createMaterialCategory(r.key, text)}
-                    />
-                    <SearchCombobox
-                      value={r.material_id}
-                      options={materialOptions}
-                      placeholder="Матеріал..."
-                      onChange={(id) => updateBomRow(r.key, { material_id: id, category_id: materials.find((m) => m.id === id)?.category_id || r.category_id })}
-                      onCreate={(text) => createMaterial(r.key, text, r.category_id)}
-                    />
-                    <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
+                <div className="bom-row-grid" key={r.key}>
+                  <div className="reorder">
+                    <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
+                    <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
                   </div>
-                  <div className="bom-row-line">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="qty-input"
-                      placeholder="к-сть"
-                      value={r.quantity_per_unit}
-                      onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="price-input"
-                      placeholder={live != null ? String(live) : "0"}
-                      value={r.price_override}
-                      onChange={(e) => updateBomRow(r.key, { price_override: e.target.value })}
-                    />
-                    <span className="price-hint">
-                      {r.price_override.trim() !== ""
-                        ? "своя ціна"
-                        : live != null
-                          ? `авто: ${live} грн (від постачальника)`
-                          : "немає ціни від постачальників — вкажи свою"}
-                    </span>
-                    <select className="bom-group-select" value={r.group_id} onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}>
-                      <option value="">без групи</option>
-                      {bomGroups.map((g) => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchCombobox
+                    value={r.category_id}
+                    options={categoryOptions}
+                    placeholder="Категорія..."
+                    onChange={(id) => updateBomRow(r.key, { category_id: id, material_id: "" })}
+                    onCreate={(text) => createMaterialCategory(r.key, text)}
+                  />
+                  <SearchCombobox
+                    value={r.material_id}
+                    options={materialOptions}
+                    placeholder="Матеріал..."
+                    onChange={(id) => updateBomRow(r.key, { material_id: id, category_id: materials.find((m) => m.id === id)?.category_id || r.category_id })}
+                    onCreate={(text) => createMaterial(r.key, text, r.category_id)}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="qty-input"
+                    placeholder="к-сть"
+                    value={r.quantity_per_unit}
+                    onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="price-input"
+                    placeholder={live != null ? String(live) : "0"}
+                    title={priceTitle}
+                    value={r.price_override}
+                    onChange={(e) => updateBomRow(r.key, { price_override: e.target.value })}
+                  />
+                  <select className="bom-group-select" value={r.group_id} onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}>
+                    <option value="">без групи</option>
+                    {bomGroups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                  <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
                 </div>
               );
             })}
@@ -442,12 +505,24 @@ export default function TemplateModal({ open, template, onClose, onSaved }) {
               Видалити
             </button>
           )}
+          {templateId && (
+            <button className="btn" onClick={handleDuplicate} disabled={saving}>
+              Дублювати
+            </button>
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? "Збереження..." : "Зберегти"}
           </button>
         </div>
       </div>
+
+      <FileLightbox
+        photos={photoFiles}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={setLightboxIndex}
+      />
     </div>
   );
 }
