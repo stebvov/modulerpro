@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import { guessMaterialIcon } from "@/lib/materialIcon";
 
 export default function MaterialModal({ open, material, defaultCategoryId, onClose, onSaved }) {
   const { supabase, materialCategories, reload } = useAppData();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [unit, setUnit] = useState("");
+  const [icon, setIcon] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const iconTouched = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -19,9 +22,20 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
     setName(material ? material.name : "");
     setCategoryId(material ? material.category_id : defaultCategoryId || (materialCategories[0]?.id ?? ""));
     setUnit(material ? material.unit : "");
+    setIcon(material ? material.icon || "" : "");
+    iconTouched.current = !!(material && material.icon);
   }, [open, material, defaultCategoryId, materialCategories]);
 
   if (!open) return null;
+
+  function handleNameChange(value) {
+    setName(value);
+    if (!iconTouched.current) setIcon(guessMaterialIcon(value));
+  }
+  function handleIconChange(value) {
+    iconTouched.current = true;
+    setIcon(value);
+  }
 
   async function handleSave() {
     if (!name.trim() || !unit.trim()) {
@@ -31,7 +45,7 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
     setSaving(true);
     setError("");
     try {
-      const payload = { name: name.trim(), category_id: categoryId || null, unit: unit.trim() };
+      const payload = { name: name.trim(), category_id: categoryId || null, unit: unit.trim(), icon: icon || null };
       if (material) {
         const { error: e } = await supabase.from("materials").update(payload).eq("id", material.id);
         if (e) throw e;
@@ -54,16 +68,32 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
         <h2>{material ? "Редагувати матеріал" : "Новий матеріал"}</h2>
         {error && <div className="auth-error">{error}</div>}
         <div className="form-row">
-          <label>Назва</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Дошка 150х40" />
-        </div>
-        <div className="form-row">
           <label>Категорія</label>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             {materialCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+        </div>
+        <div className="form-row form-row-icon">
+          <label>Назва</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              type="text"
+              className="icon-input"
+              value={icon}
+              onChange={(e) => handleIconChange(e.target.value)}
+              placeholder="🔧"
+              title="Іконка (підбирається автоматично, можна змінити)"
+            />
+            <input
+              type="text"
+              style={{ flex: 1 }}
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="напр. Дошка 150х40"
+            />
+          </div>
         </div>
         <div className="form-row">
           <label>Одиниця виміру</label>

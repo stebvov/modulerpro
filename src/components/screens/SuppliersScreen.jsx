@@ -57,14 +57,16 @@ export default function SuppliersScreen() {
         <thead>
           <tr>
             <th className="th-filter">
-              <div className="th-filter-row">Постачальник</div>
-              <input
-                type="text"
-                className="th-search-input"
-                placeholder="Пошук..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <div className="th-filter-row">
+                Назва
+                <input
+                  type="text"
+                  className="th-search-input"
+                  placeholder="Пошук..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </th>
             <th className="th-filter">
               <div className="th-filter-row">

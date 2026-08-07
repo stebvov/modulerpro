@@ -59,14 +59,16 @@ export default function MaterialsScreen() {
               </div>
             </th>
             <th className="th-filter">
-              <div className="th-filter-row">Назва</div>
-              <input
-                type="text"
-                className="th-search-input"
-                placeholder="Пошук..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <div className="th-filter-row">
+                Назва
+                <input
+                  type="text"
+                  className="th-search-input"
+                  placeholder="Пошук..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </th>
             <th className="th-filter">
               <div className="th-filter-row">
@@ -83,7 +85,7 @@ export default function MaterialsScreen() {
             return (
               <tr key={m.id}>
                 <td>{cat ? cat.name : "—"}</td>
-                <td>{m.name}</td>
+                <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
                 <td>{m.unit}</td>
                 <td>
                   {canWriteCatalog && (

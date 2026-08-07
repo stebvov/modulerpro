@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { detectContactType, contactTypeLabels } from "@/lib/format";
+import ChipPicker from "@/components/ChipPicker";
 
-function emptyContact(label, value) {
-  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "" };
+function emptyContact(label, value, comment) {
+  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "", comment: comment || "" };
 }
 
 export default function SupplierModal({ open, supplier, onClose, onSaved }) {
@@ -18,6 +19,8 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
   const [contacts, setContacts] = useState([emptyContact()]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
 
   useEffect(() => {
     if (!open) return;
@@ -32,15 +35,12 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
       supplier ? supplierCategoryLinks.filter((l) => l.supplier_id === supplier.id).map((l) => l.category_id) : []
     );
     const existing = supplier ? supplierContacts.filter((c) => c.supplier_id === supplier.id) : [];
-    setContacts(existing.length ? existing.map((c) => emptyContact(c.label, c.value)) : [emptyContact()]);
+    setContacts(existing.length ? existing.map((c) => emptyContact(c.label, c.value, c.comment)) : [emptyContact()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, supplier]);
 
   if (!open) return null;
 
-  function toggleCategory(id) {
-    setSelectedCats((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
-  }
   function updateContact(key, patch) {
     setContacts((prev) => prev.map((c) => (c.key === key ? { ...c, ...patch } : c)));
   }
@@ -84,6 +84,7 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
           type: detectContactType(c.value),
           value: c.value.trim(),
           label: c.label.trim() || null,
+          comment: c.comment.trim() || null,
           sort_order: idx,
         }));
       await supabase.from("supplier_contacts").delete().eq("supplier_id", supplierId);
@@ -114,14 +115,7 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
 
         <div className="form-row">
           <label>Категорії (може постачати декілька)</label>
-          <div className="tag-checks">
-            {materialCategories.map((c) => (
-              <label className="tag-check" key={c.id}>
-                <input type="checkbox" checked={selectedCats.includes(c.id)} onChange={() => toggleCategory(c.id)} />
-                {c.name}
-              </label>
-            ))}
-          </div>
+          <ChipPicker options={categoryOptions} selected={selectedCats} onChange={setSelectedCats} placeholder="Почни вводити назву категорії..." />
         </div>
 
         <h4>Контакти (ім&apos;я + телефон/telegram/email/сайт/адреса — тип визначається автоматично)</h4>
@@ -129,23 +123,32 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
           {contacts.map((c) => {
             const type = c.value ? detectContactType(c.value) : null;
             return (
-              <div className="contact-row" key={c.key}>
+              <div key={c.key} style={{ marginBottom: 8 }}>
+                <div className="contact-row">
+                  <input
+                    className="label-input"
+                    type="text"
+                    placeholder="Ім'я (напр. Марія)"
+                    value={c.label}
+                    onChange={(e) => updateContact(c.key, { label: e.target.value })}
+                  />
+                  <input
+                    className="value-input"
+                    type="text"
+                    placeholder="телефон, telegram, email, сайт, адреса..."
+                    value={c.value}
+                    onChange={(e) => updateContact(c.key, { value: e.target.value })}
+                  />
+                  <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
+                  <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
+                </div>
                 <input
-                  className="label-input"
                   type="text"
-                  placeholder="Ім'я (напр. Марія)"
-                  value={c.label}
-                  onChange={(e) => updateContact(c.key, { label: e.target.value })}
+                  className="note-link-input"
+                  placeholder="коментар до контакту (необов'язково)"
+                  value={c.comment}
+                  onChange={(e) => updateContact(c.key, { comment: e.target.value })}
                 />
-                <input
-                  className="value-input"
-                  type="text"
-                  placeholder="телефон, telegram, email, сайт, адреса..."
-                  value={c.value}
-                  onChange={(e) => updateContact(c.key, { value: e.target.value })}
-                />
-                <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
-                <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
               </div>
             );
           })}

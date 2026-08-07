@@ -5,11 +5,11 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { detectContactType, contactTypeLabels, contactHref } from "@/lib/format";
 
-function emptyContact(label, value) {
-  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "" };
+function emptyContact(label, value, comment) {
+  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "", comment: comment || "" };
 }
 
-export default function SupplierContactsModal({ supplierId, onClose }) {
+export default function SupplierContactsModal({ supplierId, onClose, onOpenFull }) {
   const { supabase, suppliers, supplierContacts, reload } = useAppData();
   const { canWriteCatalog } = useAuth();
   const supplier = suppliers.find((s) => s.id === supplierId);
@@ -22,7 +22,7 @@ export default function SupplierContactsModal({ supplierId, onClose }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError("");
     const existing = supplierContacts.filter((c) => c.supplier_id === supplierId);
-    setRows(existing.length ? existing.map((c) => emptyContact(c.label, c.value)) : [emptyContact()]);
+    setRows(existing.length ? existing.map((c) => emptyContact(c.label, c.value, c.comment)) : [emptyContact()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supplierId]);
 
@@ -46,6 +46,7 @@ export default function SupplierContactsModal({ supplierId, onClose }) {
           type: detectContactType(r.value),
           value: r.value.trim(),
           label: r.label.trim() || null,
+          comment: r.comment.trim() || null,
           sort_order: idx,
         }));
       await supabase.from("supplier_contacts").delete().eq("supplier_id", supplierId);
@@ -71,30 +72,40 @@ export default function SupplierContactsModal({ supplierId, onClose }) {
           const type = r.value ? detectContactType(r.value) : null;
           const href = type ? contactHref(type, r.value) : null;
           return (
-            <div className="contact-row" key={r.key}>
+            <div key={r.key} style={{ marginBottom: 8 }}>
+              <div className="contact-row">
+                <input
+                  className="label-input"
+                  type="text"
+                  placeholder="Ім'я"
+                  value={r.label}
+                  disabled={!canWriteCatalog}
+                  onChange={(e) => update(r.key, { label: e.target.value })}
+                />
+                <input
+                  className="value-input"
+                  type="text"
+                  placeholder="телефон, email, сайт, telegram..."
+                  value={r.value}
+                  disabled={!canWriteCatalog}
+                  onChange={(e) => update(r.key, { value: e.target.value })}
+                />
+                <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
+                {href && (
+                  <a href={href} target="_blank" rel="noreferrer" className="btn small">Відкрити</a>
+                )}
+                {canWriteCatalog && (
+                  <span className="icon-x" onClick={() => remove(r.key)}>×</span>
+                )}
+              </div>
               <input
-                className="label-input"
                 type="text"
-                placeholder="Ім'я (напр. Марія)"
-                value={r.label}
+                className="note-link-input"
+                placeholder="коментар до контакту (необов'язково)"
+                value={r.comment}
                 disabled={!canWriteCatalog}
-                onChange={(e) => update(r.key, { label: e.target.value })}
+                onChange={(e) => update(r.key, { comment: e.target.value })}
               />
-              <input
-                className="value-input"
-                type="text"
-                placeholder="телефон, telegram, email, сайт, адреса..."
-                value={r.value}
-                disabled={!canWriteCatalog}
-                onChange={(e) => update(r.key, { value: e.target.value })}
-              />
-              <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
-              {href && (
-                <a href={href} target="_blank" rel="noreferrer" className="btn small">Відкрити</a>
-              )}
-              {canWriteCatalog && (
-                <span className="icon-x" onClick={() => remove(r.key)}>×</span>
-              )}
             </div>
           );
         })}
@@ -105,6 +116,11 @@ export default function SupplierContactsModal({ supplierId, onClose }) {
           </button>
         )}
         <div className="modal-actions">
+          {onOpenFull && (
+            <button className="btn" style={{ marginRight: "auto" }} onClick={() => onOpenFull(supplier)} disabled={saving}>
+              Відкрити повну форму
+            </button>
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>{canWriteCatalog ? "Скасувати" : "Закрити"}</button>
           {canWriteCatalog && (
             <button className="btn primary" onClick={handleSave} disabled={saving}>

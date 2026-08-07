@@ -4,16 +4,18 @@ import { Fragment, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
-import { savePrice } from "@/lib/prices";
+import { savePrice, ensureSupplierHasCategory } from "@/lib/prices";
 import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
+import SupplierModal from "@/components/modals/SupplierModal";
 
 export default function PriceByMaterialScreen() {
-  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, currency, exchangeRates, reload } =
+  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
     useAppData();
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [contactsSupplierId, setContactsSupplierId] = useState(null);
+  const [fullSupplier, setFullSupplier] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
   const [editPrices, setEditPrices] = useState({});
   const [editNotes, setEditNotes] = useState({});
@@ -31,6 +33,7 @@ export default function PriceByMaterialScreen() {
     if (!price || price <= 0) return;
     setBusy(true);
     await savePrice(supabase, { supplierId, materialId, price, updatedBy, note: noteValue });
+    await ensureSupplierHasCategory(supabase, { supplierId, materialId, materials, supplierCategoryLinks });
     await reload(true);
     setBusy(false);
   }
@@ -42,9 +45,19 @@ export default function PriceByMaterialScreen() {
     if (!price || price <= 0) return;
     setBusy(true);
     await savePrice(supabase, { supplierId: form.supplierId, materialId, price, updatedBy, note: form.note || "" });
+    await ensureSupplierHasCategory(supabase, { supplierId: form.supplierId, materialId, materials, supplierCategoryLinks });
     setAddForm((p) => ({ ...p, [materialId]: { supplierId: "", price: "", note: "" } }));
     await reload(true);
     setBusy(false);
+  }
+
+  function scrollToMaterial(materialId) {
+    document.getElementById(`mat-${materialId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openFullSupplier(supplier) {
+    setContactsSupplierId(null);
+    setFullSupplier(supplier);
   }
 
   if (!list.length) {
@@ -62,13 +75,41 @@ export default function PriceByMaterialScreen() {
       <p className="note">Список товарів. Обери потрібний або відфільтруй пошуком — побачиш ціни всіх постачальників.</p>
       <Toolbar search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} materialCategories={materialCategories} />
 
+      <details className="section-details">
+        <summary>Огляд цін <span className="section-count">— які товари не мають ціни або конкуренції</span></summary>
+        <div className="section-body">
+          <table>
+            <thead><tr><th>Матеріал</th><th>Категорія</th><th>К-сть постачальників</th><th>Найнижча ціна</th><th></th></tr></thead>
+            <tbody>
+              {list.map((m) => {
+                const rows = supplierPrices.filter((p) => p.material_id === m.id);
+                const cheapest = rows.length ? Math.min(...rows.map((p) => Number(p.price))) : null;
+                const cat = materialCategories.find((c) => c.id === m.category_id);
+                return (
+                  <tr key={m.id} style={{ cursor: "pointer" }} onClick={() => scrollToMaterial(m.id)}>
+                    <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
+                    <td>{cat ? cat.name : "—"}</td>
+                    <td>{rows.length}</td>
+                    <td>{cheapest != null ? fmtCurrency(cheapest, currency, exchangeRates) : "—"}</td>
+                    <td>
+                      {!rows.length && <span className="badge draft" style={{ color: "var(--danger)" }}>немає ціни</span>}
+                      {rows.length === 1 && <span className="badge draft">немає конкуренції</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
       {list.map((m) => {
         const rows = supplierPrices.filter((p) => p.material_id === m.id).sort((a, b) => a.price - b.price);
         const usedSupplierIds = rows.map((r) => r.supplier_id);
         const addOptions = suppliers.filter((s) => !usedSupplierIds.includes(s.id));
         return (
-          <div key={m.id} style={{ marginBottom: 18 }}>
-            <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.name} <span className="note">({m.unit})</span></h3>
+          <div key={m.id} id={`mat-${m.id}`} style={{ marginBottom: 18, scrollMarginTop: 12 }}>
+            <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.icon ? `${m.icon} ` : ""}{m.name} <span className="note">({m.unit})</span></h3>
             <table>
               <thead><tr><th>Постачальник</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
@@ -173,7 +214,12 @@ export default function PriceByMaterialScreen() {
         );
       })}
 
-      <SupplierContactsModal supplierId={contactsSupplierId} onClose={() => setContactsSupplierId(null)} />
+      <SupplierContactsModal
+        supplierId={contactsSupplierId}
+        onClose={() => setContactsSupplierId(null)}
+        onOpenFull={openFullSupplier}
+      />
+      <SupplierModal open={!!fullSupplier} supplier={fullSupplier} onClose={() => setFullSupplier(null)} onSaved={() => setFullSupplier(null)} />
     </div>
   );
 }

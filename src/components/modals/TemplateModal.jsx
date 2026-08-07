@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
-import SearchCombobox from "@/components/SearchCombobox";
+import MaterialTreeCombobox from "@/components/MaterialTreeCombobox";
 import FileLightbox from "@/components/FileLightbox";
 
+const FILE_COLLAPSE_THRESHOLD = 10;
+
 function emptyBomRow() {
-  return { key: Math.random().toString(36).slice(2), category_id: "", material_id: "", quantity_per_unit: "", group_id: "", price_override: "" };
+  return { key: Math.random().toString(36).slice(2), material_id: "", quantity_per_unit: "", group_id: "", price_override: "" };
 }
 function emptyExtraRow(defaultGroupId) {
   return { key: Math.random().toString(36).slice(2), group_id: defaultGroupId || "", label: "", amount: "" };
+}
+function fmtUah(n) {
+  return Number(n || 0).toLocaleString("uk-UA", { maximumFractionDigits: 0 }) + " грн";
 }
 
 export default function TemplateModal({ open, template, onClose, onSaved, onDuplicated }) {
@@ -37,6 +42,9 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   const [extraRows, setExtraRows] = useState([]);
   const [templateId, setTemplateId] = useState(null);
   const [fileNote, setFileNote] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [filesCollapsed, setFilesCollapsed] = useState(false);
+  const [draggedFileId, setDraggedFileId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState(null);
@@ -55,6 +63,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError("");
     setFileNote("");
+    setUploadProgress(null);
     setLightboxIndex(null);
     setTemplateId(template ? template.id : null);
     setName(template ? template.name : "");
@@ -69,7 +78,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       existingBom.length
         ? existingBom.map((b) => ({
             key: b.id,
-            category_id: materials.find((m) => m.id === b.material_id)?.category_id || "",
             material_id: b.material_id,
             quantity_per_unit: b.quantity_per_unit,
             group_id: b.group_id || "",
@@ -79,6 +87,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     );
     const existingExtra = template ? extraCosts.filter((e) => e.template_id === template.id) : [];
     setExtraRows(existingExtra.map((e) => ({ key: e.id, group_id: e.group_id || "", label: e.label, amount: e.amount })));
+    const existingFileCount = template ? templateFiles.filter((f) => f.template_id === template.id).length : 0;
+    setFilesCollapsed(existingFileCount > FILE_COLLAPSE_THRESHOLD);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template]);
 
@@ -116,18 +126,19 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     return Math.min(...rows.map((p) => Number(p.price)));
   }
 
-  async function createMaterialCategory(rowKey, text) {
-    const { data, error: e } = await supabase.from("material_categories").insert([{ name: text }]).select().single();
-    if (e) { setError(e.message); return null; }
-    await reload(true);
-    return data.id;
-  }
+  const bomTotal = bomRows.reduce((sum, r) => {
+    const qty = parseFloat(r.quantity_per_unit);
+    if (!r.material_id || !qty) return sum;
+    const price = r.price_override.trim() !== "" ? parseFloat(r.price_override) : bestSupplierPrice(r.material_id);
+    return sum + qty * (price || 0);
+  }, 0);
+  const extraTotal = extraRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-  async function createMaterial(rowKey, text, categoryId) {
+  async function createMaterial(text) {
     const unit = (window.prompt(`Одиниця виміру для «${text}» (шт, м², м³, компл...)`, "шт") || "шт").trim() || "шт";
     const { data, error: e } = await supabase
       .from("materials")
-      .insert([{ name: text, unit, category_id: categoryId || null }])
+      .insert([{ name: text, unit }])
       .select()
       .single();
     if (e) { setError(e.message); return null; }
@@ -142,8 +153,9 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       e.target.value = "";
       return;
     }
-    setFileNote("Завантаження...");
+    setUploadProgress({ done: 0, total: chosen.length });
     try {
+      let done = 0;
       for (const file of chosen) {
         const path = `${templateId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const { error: upErr } = await supabase.storage.from("template-files").upload(path, file);
@@ -154,12 +166,15 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
           .from("template_files")
           .insert([{ template_id: templateId, url: pub.publicUrl, name: file.name, kind }]);
         if (insErr) throw insErr;
+        done += 1;
+        setUploadProgress({ done, total: chosen.length });
       }
       setFileNote("Файли завантажено.");
       await reload(true);
     } catch (err) {
       setFileNote("Помилка завантаження: " + err.message);
     } finally {
+      setUploadProgress(null);
       e.target.value = "";
     }
   }
@@ -172,6 +187,20 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   async function handleSetCover(fileId) {
     const minOrder = files.length ? Math.min(...files.map((f) => f.sort_order)) : 0;
     await supabase.from("template_files").update({ sort_order: minOrder - 1 }).eq("id", fileId);
+    await reload(true);
+  }
+
+  async function handleFileReorder(targetId) {
+    if (!draggedFileId || draggedFileId === targetId) { setDraggedFileId(null); return; }
+    const ids = files.map((f) => f.id);
+    const from = ids.indexOf(draggedFileId);
+    const to = ids.indexOf(targetId);
+    setDraggedFileId(null);
+    if (from === -1 || to === -1) return;
+    const reordered = [...ids];
+    reordered.splice(from, 1);
+    reordered.splice(to, 0, draggedFileId);
+    await Promise.all(reordered.map((id, idx) => supabase.from("template_files").update({ sort_order: idx }).eq("id", id)));
     await reload(true);
   }
 
@@ -312,8 +341,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     }
   }
 
-  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
-
   return (
     <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg">
@@ -325,56 +352,80 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Компакт-модуль 14.11" />
         </div>
 
-        <div className="form-row">
-          <label>Категорії (можна декілька — напр. Дача + Кемпінг)</label>
-          <div className="tag-checks">
-            {productCategories.map((c) => (
-              <label className="tag-check" key={c.id}>
-                <input type="checkbox" checked={selectedCats.includes(c.id)} onChange={() => toggleCategory(c.id)} />
-                {c.name}
-              </label>
-            ))}
-          </div>
-        </div>
-
         <details className="section-details" open={!templateId}>
-          <summary>Параметри шаблону <span className="section-count">— фото, площа, кількість модулів, статус</span></summary>
+          <summary>Параметри шаблону <span className="section-count">— категорії, фото, площа, кількість модулів, статус</span></summary>
           <div className="section-body">
             <div className="form-row">
-              <label>Фото і файли</label>
-              <div className="file-list">
-                {files.map((f) => (
-                  <div className="file-thumb" key={f.id} style={{ position: "relative" }}>
-                    {f.kind === "photo" ? (
-                      <button
-                        type="button"
-                        className="file-thumb-btn"
-                        onClick={() => setLightboxIndex(photoFiles.findIndex((p) => p.id === f.id))}
-                        title={f.name || ""}
-                      >
-                        <img src={f.url} alt={f.name || ""} />
-                      </button>
-                    ) : (
-                      <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
-                        {f.name || "файл"}
-                      </a>
-                    )}
-                    <span className="icon-x" onClick={() => handleDeleteFile(f.id)}>×</span>
-                    {f.kind === "photo" && (
-                      <button
-                        type="button"
-                        className={`cover-btn${f.id === coverPhotoId ? " is-cover" : ""}`}
-                        title="Зробити головним фото"
-                        onClick={() => handleSetCover(f.id)}
-                      >
-                        {f.id === coverPhotoId ? "★" : "☆"}
-                      </button>
-                    )}
-                  </div>
+              <label>Категорії (можна декілька — напр. Дача + Кемпінг)</label>
+              <div className="tag-checks">
+                {productCategories.map((c) => (
+                  <label className="tag-check" key={c.id}>
+                    <input type="checkbox" checked={selectedCats.includes(c.id)} onChange={() => toggleCategory(c.id)} />
+                    {c.name}
+                  </label>
                 ))}
               </div>
-              <input type="file" multiple accept="image/*,.pdf,.dwg,.zip" onChange={handleFileInput} />
-              <span className="note">{fileNote || "Клікни на фото, щоб відкрити галерею (стрілки / свайп). ☆ — зробити головним."}</span>
+            </div>
+
+            <div className="form-row">
+              <label>Фото і файли</label>
+              <details
+                className="section-details"
+                open={!filesCollapsed}
+                onToggle={(e) => setFilesCollapsed(!e.target.open)}
+              >
+                <summary>{files.length} файл(ів) <span className="section-count">— клік: галерея / перетягни: змінити порядок</span></summary>
+                <div className="section-body">
+                  <div className="file-list">
+                    {files.map((f) => (
+                      <div
+                        className={`file-thumb${draggedFileId === f.id ? " dragging" : ""}`}
+                        key={f.id}
+                        style={{ position: "relative" }}
+                        draggable
+                        onDragStart={() => setDraggedFileId(f.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); handleFileReorder(f.id); }}
+                      >
+                        {f.kind === "photo" ? (
+                          <button
+                            type="button"
+                            className="file-thumb-btn"
+                            onClick={() => setLightboxIndex(photoFiles.findIndex((p) => p.id === f.id))}
+                            title={f.name || ""}
+                          >
+                            <img src={f.url} alt={f.name || ""} />
+                          </button>
+                        ) : (
+                          <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
+                            {f.name || "файл"}
+                          </a>
+                        )}
+                        <span className="icon-x" onClick={() => handleDeleteFile(f.id)}>×</span>
+                        {f.kind === "photo" && (
+                          <button
+                            type="button"
+                            className={`cover-btn${f.id === coverPhotoId ? " is-cover" : ""}`}
+                            title="Зробити головним фото"
+                            onClick={() => handleSetCover(f.id)}
+                          >
+                            {f.id === coverPhotoId ? "★" : "☆"}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <input type="file" multiple accept="image/*,.pdf,.dwg,.zip" onChange={handleFileInput} />
+                  {uploadProgress && (
+                    <span className="note upload-progress">
+                      <span className="spinner" /> Завантаження... {uploadProgress.done}/{uploadProgress.total}
+                    </span>
+                  )}
+                  {!uploadProgress && (
+                    <span className="note">{fileNote || "Клікни на фото — галерея (стрілки/свайп). Перетягни, щоб змінити порядок. ☆ — зробити головним."}</span>
+                  )}
+                </div>
+              </details>
             </div>
 
             <div className="form-row">
@@ -399,12 +450,12 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         </details>
 
         <details className="section-details" open>
-          <summary>Матеріали (BOM) <span className="section-count">— {bomRows.filter((r) => r.material_id).length} поз.</span></summary>
+          <summary>
+            Матеріали (BOM)
+            <span className="section-count"> — {bomRows.filter((r) => r.material_id).length} поз., {fmtUah(bomTotal)}</span>
+          </summary>
           <div className="section-body">
             {bomRows.map((r) => {
-              const materialOptions = materials
-                .filter((m) => !r.category_id || m.category_id === r.category_id)
-                .map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }));
               const live = r.material_id ? bestSupplierPrice(r.material_id) : null;
               const priceTitle =
                 r.price_override.trim() !== ""
@@ -418,19 +469,13 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
                     <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
                     <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
                   </div>
-                  <SearchCombobox
-                    value={r.category_id}
-                    options={categoryOptions}
-                    placeholder="Категорія..."
-                    onChange={(id) => updateBomRow(r.key, { category_id: id, material_id: "" })}
-                    onCreate={(text) => createMaterialCategory(r.key, text)}
-                  />
-                  <SearchCombobox
+                  <MaterialTreeCombobox
                     value={r.material_id}
-                    options={materialOptions}
-                    placeholder="Матеріал..."
-                    onChange={(id) => updateBomRow(r.key, { material_id: id, category_id: materials.find((m) => m.id === id)?.category_id || r.category_id })}
-                    onCreate={(text) => createMaterial(r.key, text, r.category_id)}
+                    materials={materials}
+                    materialCategories={materialCategories}
+                    placeholder="Матеріал... (пошук або перегляд за категорією)"
+                    onChange={(id) => updateBomRow(r.key, { material_id: id })}
+                    onCreate={(text) => createMaterial(text)}
                   />
                   <input
                     type="number"
@@ -465,8 +510,11 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
           </div>
         </details>
 
-        <details className="section-details" open>
-          <summary>Робота, доставка та інші статті витрат <span className="section-count">— {extraRows.length} поз.</span></summary>
+        <details className="section-details">
+          <summary>
+            Робота, доставка та інші статті витрат
+            <span className="section-count"> — {extraRows.length} поз., {fmtUah(extraTotal)}</span>
+          </summary>
           <div className="section-body">
             {extraRows.map((r) => (
               <div className="extra-row" key={r.key}>

@@ -4,8 +4,9 @@ import { Fragment, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
-import { savePrice } from "@/lib/prices";
+import { savePrice, ensureSupplierHasCategory } from "@/lib/prices";
 import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
+import SupplierModal from "@/components/modals/SupplierModal";
 
 export default function PriceBySupplierScreen() {
   const { supabase, suppliers, materials, materialCategories, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
@@ -14,6 +15,7 @@ export default function PriceBySupplierScreen() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [contactsSupplierId, setContactsSupplierId] = useState(null);
+  const [fullSupplier, setFullSupplier] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
   const [editPrices, setEditPrices] = useState({});
   const [editNotes, setEditNotes] = useState({});
@@ -35,6 +37,7 @@ export default function PriceBySupplierScreen() {
       const price = parseFloat(priceRaw);
       if (price > 0) {
         await savePrice(supabase, { supplierId, materialId: p.material_id, price, updatedBy, note: editNotes[key] ?? p.note ?? "" });
+        await ensureSupplierHasCategory(supabase, { supplierId, materialId: p.material_id, materials, supplierCategoryLinks });
       }
     }
     await reload(true);
@@ -48,9 +51,15 @@ export default function PriceBySupplierScreen() {
     if (!price || price <= 0) return;
     setBusy(true);
     await savePrice(supabase, { supplierId, materialId: form.materialId, price, updatedBy, note: form.note || "" });
+    await ensureSupplierHasCategory(supabase, { supplierId, materialId: form.materialId, materials, supplierCategoryLinks });
     setAddForm((p) => ({ ...p, [supplierId]: { materialId: "", price: "", note: "" } }));
     await reload(true);
     setBusy(false);
+  }
+
+  function openFullSupplier(supplier) {
+    setContactsSupplierId(null);
+    setFullSupplier(supplier);
   }
 
   if (!list.length) {
@@ -175,7 +184,12 @@ export default function PriceBySupplierScreen() {
         );
       })}
 
-      <SupplierContactsModal supplierId={contactsSupplierId} onClose={() => setContactsSupplierId(null)} />
+      <SupplierContactsModal
+        supplierId={contactsSupplierId}
+        onClose={() => setContactsSupplierId(null)}
+        onOpenFull={openFullSupplier}
+      />
+      <SupplierModal open={!!fullSupplier} supplier={fullSupplier} onClose={() => setFullSupplier(null)} onSaved={() => setFullSupplier(null)} />
     </div>
   );
 }
