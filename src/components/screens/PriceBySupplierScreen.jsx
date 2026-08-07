@@ -5,8 +5,11 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
 import { savePrice, ensureSupplierHasCategory } from "@/lib/prices";
+import { getCategoryAndDescendantIds } from "@/lib/categoryOrder";
 import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
 import SupplierModal from "@/components/modals/SupplierModal";
+import CategoryTreeSelect from "@/components/CategoryTreeSelect";
+import SearchCombobox from "@/components/SearchCombobox";
 
 export default function PriceBySupplierScreen() {
   const { supabase, suppliers, materials, materialCategories, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
@@ -24,9 +27,13 @@ export default function PriceBySupplierScreen() {
 
   const updatedBy = profile?.full_name || user?.email || null;
 
+  const allowedCategoryIds = categoryFilter ? getCategoryAndDescendantIds(categoryFilter, materialCategories) : null;
   const list = suppliers.filter((s) => {
     const cats = supplierCategoryLinks.filter((l) => l.supplier_id === s.id).map((l) => l.category_id);
-    return (!search || s.name.toLowerCase().includes(search.toLowerCase())) && (!categoryFilter || cats.includes(categoryFilter));
+    return (
+      (!search || s.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!allowedCategoryIds || cats.some((id) => allowedCategoryIds.includes(id)))
+    );
   });
 
   async function handleSaveAll(supplierId, rows) {
@@ -80,7 +87,7 @@ export default function PriceBySupplierScreen() {
       {list.map((s) => {
         const rows = supplierPrices.filter((p) => p.supplier_id === s.id);
         const usedMaterialIds = rows.map((r) => r.material_id);
-        const addOptions = materials.filter((m) => !usedMaterialIds.includes(m.id));
+        const addOptions = materials.filter((m) => !usedMaterialIds.includes(m.id)).map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }));
         return (
           <div key={s.id} style={{ marginBottom: 18 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 4px" }}>
@@ -150,13 +157,12 @@ export default function PriceBySupplierScreen() {
               <div className="toolbar-left">
                 {canWriteFinance && addOptions.length > 0 && (
                   <>
-                    <select
+                    <SearchCombobox
                       value={addForm[s.id]?.materialId || ""}
-                      onChange={(e) => setAddForm((p) => ({ ...p, [s.id]: { ...p[s.id], materialId: e.target.value } }))}
-                    >
-                      <option value="">— матеріал —</option>
-                      {addOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
+                      options={addOptions}
+                      placeholder="+ матеріал..."
+                      onChange={(id) => setAddForm((p) => ({ ...p, [s.id]: { ...p[s.id], materialId: id } }))}
+                    />
                     <input
                       type="number"
                       className="price-input"

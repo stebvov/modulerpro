@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Single combobox for picking a material: search flattens to matching
 // materials, otherwise the dropdown shows materials grouped under
@@ -11,10 +11,16 @@ export default function MaterialTreeCombobox({ value, materials, materialCategor
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
   const blurTimer = useRef(null);
 
   const selectedMaterial = materials.find((m) => m.id === value) || null;
   const displayValue = open ? query : selectedMaterial ? `${selectedMaterial.name} (${selectedMaterial.unit})` : "";
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHighlight(-1);
+  }, [query, open]);
 
   function toggleExpand(id) {
     setExpanded((prev) => {
@@ -52,6 +58,35 @@ export default function MaterialTreeCombobox({ value, materials, materialCategor
     ? materials.filter((m) => m.name.toLowerCase().includes(q))
     : [];
   const exactMatch = materials.some((m) => m.name.toLowerCase() === q);
+  const showCreate = searching && !!onCreate && q && !exactMatch;
+
+  // Keyboard navigation only applies while searching (flat results) — the
+  // tree-browsing mode isn't linear enough to step through with arrow keys.
+  const navRows = searching ? [...matches.map((m) => ({ type: "material", material: m })), ...(showCreate ? [{ type: "create" }] : [])] : [];
+
+  function handleKeyDown(e) {
+    if (!open) {
+      if (e.key === "ArrowDown") setOpen(true);
+      return;
+    }
+    if (!navRows.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, navRows.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      if (highlight >= 0 && navRows[highlight]) {
+        e.preventDefault();
+        const row = navRows[highlight];
+        if (row.type === "material") selectMaterial(row.material);
+        else handleCreate();
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
 
   function renderCategoryNode(cat, depth) {
     const children = materialCategories.filter((c) => c.parent_id === cat.id);
@@ -101,26 +136,32 @@ export default function MaterialTreeCombobox({ value, materials, materialCategor
         value={displayValue}
         onFocus={(e) => { setOpen(true); setQuery(""); e.target.select(); }}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onKeyDown={handleKeyDown}
       />
       {open && (
         <div className="combobox-list tree-combobox-list">
           {searching ? (
             <>
-              {matches.map((m) => {
+              {matches.map((m, idx) => {
                 const cat = materialCategories.find((c) => c.id === m.category_id);
                 return (
                   <div
                     key={m.id}
-                    className={`combobox-item${m.id === value ? " active" : ""}`}
+                    className={`combobox-item${m.id === value ? " active" : ""}${idx === highlight ? " highlighted" : ""}`}
                     onMouseDown={(e) => { e.preventDefault(); selectMaterial(m); }}
+                    onMouseEnter={() => setHighlight(idx)}
                   >
                     {m.icon ? `${m.icon} ` : ""}{m.name} <span className="tree-unit">({m.unit}{cat ? `, ${cat.name}` : ""})</span>
                   </div>
                 );
               })}
               {!matches.length && <div className="combobox-empty">Нічого не знайдено</div>}
-              {onCreate && q && !exactMatch && (
-                <div className="combobox-item combobox-create" onMouseDown={(e) => { e.preventDefault(); handleCreate(); }}>
+              {showCreate && (
+                <div
+                  className={`combobox-item combobox-create${matches.length === highlight ? " highlighted" : ""}`}
+                  onMouseDown={(e) => { e.preventDefault(); handleCreate(); }}
+                  onMouseEnter={() => setHighlight(matches.length)}
+                >
                   {busy ? "Створення..." : `+ Створити «${query.trim()}»`}
                 </div>
               )}

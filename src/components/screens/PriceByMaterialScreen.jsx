@@ -5,8 +5,11 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
 import { savePrice, ensureSupplierHasCategory } from "@/lib/prices";
+import { getCategoryAndDescendantIds } from "@/lib/categoryOrder";
 import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
 import SupplierModal from "@/components/modals/SupplierModal";
+import CategoryTreeSelect from "@/components/CategoryTreeSelect";
+import SearchCombobox from "@/components/SearchCombobox";
 
 export default function PriceByMaterialScreen() {
   const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
@@ -14,6 +17,7 @@ export default function PriceByMaterialScreen() {
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [showAudit, setShowAudit] = useState(false);
   const [contactsSupplierId, setContactsSupplierId] = useState(null);
   const [fullSupplier, setFullSupplier] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
@@ -24,8 +28,11 @@ export default function PriceByMaterialScreen() {
 
   const updatedBy = profile?.full_name || user?.email || null;
 
+  const allowedCategoryIds = categoryFilter ? getCategoryAndDescendantIds(categoryFilter, materialCategories) : null;
   const list = materials.filter(
-    (m) => (!search || m.name.toLowerCase().includes(search.toLowerCase())) && (!categoryFilter || m.category_id === categoryFilter)
+    (m) =>
+      (!search || m.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!allowedCategoryIds || allowedCategoryIds.includes(m.category_id))
   );
 
   async function handleSave(supplierId, materialId, priceValue, noteValue) {
@@ -60,11 +67,23 @@ export default function PriceByMaterialScreen() {
     setFullSupplier(supplier);
   }
 
+  const toolbar = (
+    <div className="toolbar">
+      <div className="toolbar-left">
+        <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
+        <input type="text" className="search-input" placeholder="Пошук товару..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+      <button className="btn small" onClick={() => setShowAudit((v) => !v)}>
+        Огляд цін {showAudit ? "▾" : "▸"}
+      </button>
+    </div>
+  );
+
   if (!list.length) {
     return (
       <div>
         <p className="note">Список товарів. Обери потрібний або відфільтруй пошуком — побачиш ціни всіх постачальників.</p>
-        <Toolbar search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} materialCategories={materialCategories} />
+        {toolbar}
         <div className="empty">Нічого не знайдено</div>
       </div>
     );
@@ -73,11 +92,10 @@ export default function PriceByMaterialScreen() {
   return (
     <div>
       <p className="note">Список товарів. Обери потрібний або відфільтруй пошуком — побачиш ціни всіх постачальників.</p>
-      <Toolbar search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} materialCategories={materialCategories} />
+      {toolbar}
 
-      <details className="section-details">
-        <summary>Огляд цін <span className="section-count">— які товари не мають ціни або конкуренції</span></summary>
-        <div className="section-body">
+      {showAudit && (
+        <div className="section-body" style={{ marginBottom: 14 }}>
           <table>
             <thead><tr><th>Матеріал</th><th>Категорія</th><th>К-сть постачальників</th><th>Найнижча ціна</th><th></th></tr></thead>
             <tbody>
@@ -101,12 +119,12 @@ export default function PriceByMaterialScreen() {
             </tbody>
           </table>
         </div>
-      </details>
+      )}
 
       {list.map((m) => {
         const rows = supplierPrices.filter((p) => p.material_id === m.id).sort((a, b) => a.price - b.price);
         const usedSupplierIds = rows.map((r) => r.supplier_id);
-        const addOptions = suppliers.filter((s) => !usedSupplierIds.includes(s.id));
+        const addOptions = suppliers.filter((s) => !usedSupplierIds.includes(s.id)).map((s) => ({ id: s.id, label: s.name }));
         return (
           <div key={m.id} id={`mat-${m.id}`} style={{ marginBottom: 18, scrollMarginTop: 12 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.icon ? `${m.icon} ` : ""}{m.name} <span className="note">({m.unit})</span></h3>
@@ -179,37 +197,42 @@ export default function PriceByMaterialScreen() {
                     </Fragment>
                   );
                 })}
+                {canWriteFinance && addOptions.length > 0 && (
+                  <tr>
+                    <td>
+                      <SearchCombobox
+                        value={addForm[m.id]?.supplierId || ""}
+                        options={addOptions}
+                        placeholder="+ постачальник..."
+                        onChange={(id) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], supplierId: id } }))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="price-input"
+                        placeholder="ціна"
+                        value={addForm[m.id]?.price || ""}
+                        onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], price: e.target.value } }))}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="note-link-input"
+                        placeholder="нотатка / посилання..."
+                        value={addForm[m.id]?.note || ""}
+                        onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], note: e.target.value } }))}
+                      />
+                    </td>
+                    <td colSpan={2} />
+                    <td>
+                      <button className="btn small" disabled={busy} onClick={() => handleAdd(m.id)}>+ Додати</button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-            {canWriteFinance && addOptions.length > 0 && (
-              <div className="toolbar" style={{ marginTop: 8 }}>
-                <div className="toolbar-left">
-                  <select
-                    value={addForm[m.id]?.supplierId || ""}
-                    onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], supplierId: e.target.value } }))}
-                  >
-                    <option value="">— постачальник —</option>
-                    {addOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <input
-                    type="number"
-                    className="price-input"
-                    placeholder="ціна"
-                    value={addForm[m.id]?.price || ""}
-                    onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], price: e.target.value } }))}
-                  />
-                  <input
-                    type="text"
-                    className="note-link-input"
-                    style={{ width: 220 }}
-                    placeholder="нотатка / посилання (необов'язково)"
-                    value={addForm[m.id]?.note || ""}
-                    onChange={(e) => setAddForm((p) => ({ ...p, [m.id]: { ...p[m.id], note: e.target.value } }))}
-                  />
-                  <button className="btn small" disabled={busy} onClick={() => handleAdd(m.id)}>+ Додати постачальника</button>
-                </div>
-              </div>
-            )}
           </div>
         );
       })}
@@ -220,20 +243,6 @@ export default function PriceByMaterialScreen() {
         onOpenFull={openFullSupplier}
       />
       <SupplierModal open={!!fullSupplier} supplier={fullSupplier} onClose={() => setFullSupplier(null)} onSaved={() => setFullSupplier(null)} />
-    </div>
-  );
-}
-
-function Toolbar({ search, setSearch, categoryFilter, setCategoryFilter, materialCategories }) {
-  return (
-    <div className="toolbar">
-      <div className="toolbar-left">
-        <input type="text" className="search-input" placeholder="Пошук товару..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="">Всі категорії</option>
-          {materialCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
     </div>
   );
 }

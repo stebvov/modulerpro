@@ -162,7 +162,7 @@ input.price-input { width: 100px; }
 .combobox input { width: 100%; }
 .combobox-list { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 40; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
 .combobox-item { padding: 7px 10px; font-size: 13px; cursor: pointer; }
-.combobox-item:hover, .combobox-item.active { background: var(--accent-bg); color: var(--accent); }
+.combobox-item:hover, .combobox-item.active, .combobox-item.highlighted { background: var(--accent-bg); color: var(--accent); }
 .combobox-create { color: var(--accent); font-weight: 500; border-top: 1px solid var(--border); }
 .combobox-clear { color: var(--text-muted); border-bottom: 1px solid var(--border); }
 .combobox-empty { padding: 7px 10px; font-size: 12px; color: var(--text-muted); }
@@ -222,6 +222,7 @@ input.price-input { width: 100px; }
 .ms-filter-item input { margin: 0; }
 .ms-filter-search { width: calc(100% - 16px); margin: 4px 8px 6px; padding: 4px 6px; font-size: 12px; }
 .icon-input { width: 44px; text-align: center; font-size: 16px; padding: 6px 4px; flex-shrink: 0; }
+.mini-label { font-size: 10px; color: var(--text-muted); }
 
 /* ChipPicker */
 .chip-picker { position: relative; }

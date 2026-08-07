@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { guessMaterialIcon } from "@/lib/materialIcon";
+import SearchCombobox from "@/components/SearchCombobox";
 
 export default function MaterialModal({ open, material, defaultCategoryId, onClose, onSaved }) {
-  const { supabase, materialCategories, reload } = useAppData();
+  const { supabase, materials, materialCategories, reload } = useAppData();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [unit, setUnit] = useState("");
@@ -13,6 +14,8 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const iconTouched = useRef(false);
+
+  const unitOptions = [...new Set(materials.map((m) => m.unit).filter(Boolean))].sort().map((u) => ({ id: u, label: u }));
 
   useEffect(() => {
     if (!open) return;
@@ -75,20 +78,24 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
             ))}
           </select>
         </div>
-        <div className="form-row form-row-icon">
+        <div className="form-row">
           <label>Назва</label>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span className="mini-label">іконка</span>
+              <input
+                type="text"
+                className="icon-input"
+                style={{ width: 44, flexShrink: 0 }}
+                value={icon}
+                onChange={(e) => handleIconChange(e.target.value)}
+                placeholder="🔧"
+                title="Іконка (підбирається автоматично, можна змінити)"
+              />
+            </div>
             <input
               type="text"
-              className="icon-input"
-              value={icon}
-              onChange={(e) => handleIconChange(e.target.value)}
-              placeholder="🔧"
-              title="Іконка (підбирається автоматично, можна змінити)"
-            />
-            <input
-              type="text"
-              style={{ flex: 1 }}
+              style={{ flex: "1 1 auto", width: "auto", minWidth: 0 }}
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="напр. Дошка 150х40"
@@ -97,7 +104,13 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
         </div>
         <div className="form-row">
           <label>Одиниця виміру</label>
-          <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="м³, м², шт, компл" />
+          <SearchCombobox
+            value={unit}
+            options={unitOptions}
+            onChange={setUnit}
+            onCreate={async (text) => text}
+            placeholder="м³, м², шт, компл..."
+          />
         </div>
         <div className="modal-actions">
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
