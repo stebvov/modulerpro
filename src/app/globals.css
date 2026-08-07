@@ -295,3 +295,10 @@ th.th-filter { vertical-align: top; }
 .kanban-col-head { border-top: 3px solid var(--accent); padding-top: 10px; margin-bottom: 12px; }
 .kanban-empty { font-size: 12px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 8px; padding: 14px 10px; text-align: center; }
 .kanban-card { cursor: default; display: flex; flex-direction: column; }
+
+/* CRM: deal services — one row on desktop, wraps on narrow screens */
+.service-row-grid { display: grid; grid-template-columns: minmax(160px,1.3fr) 168px 80px 100px 20px; gap: 6px; align-items: center; margin-bottom: 6px; }
+@media (max-width: 820px) {
+  .service-row-grid { display: flex; flex-wrap: wrap; }
+}
+.form-row > .btn.self-left { align-self: flex-start; }

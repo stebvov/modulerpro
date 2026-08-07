@@ -15,6 +15,7 @@ const EMPTY = {
   dealAttachments: [],
   leads: [],
   leadContacts: [],
+  leadCategoryLinks: [],
   serviceRateCards: [],
   teamMembers: [],
   productCategories: [],
@@ -41,6 +42,7 @@ export function CrmDataProvider({ children }) {
           dealAttachments,
           leads,
           leadContacts,
+          leadCategoryLinks,
           serviceRateCards,
           teamMembers,
           productCategories,
@@ -55,6 +57,7 @@ export function CrmDataProvider({ children }) {
           supabase.from("deal_attachments").select("*").order("created_at", { ascending: false }),
           supabase.from("leads").select("*"),
           supabase.from("lead_contacts").select("*"),
+          supabase.from("lead_category_links").select("*"),
           supabase.from("service_rate_cards").select("*").eq("active", true),
           supabase.from("team_members").select("*").order("name"),
           supabase.from("product_categories").select("*").order("sort_order"),
@@ -63,7 +66,7 @@ export function CrmDataProvider({ children }) {
 
         const firstError = [
           pipelines, pipelineStages, dealsKanban, deals, dealServices, dealActivities,
-          dealAttachments, leads, leadContacts, serviceRateCards, teamMembers, productCategories, templates,
+          dealAttachments, leads, leadContacts, leadCategoryLinks, serviceRateCards, teamMembers, productCategories, templates,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -77,6 +80,7 @@ export function CrmDataProvider({ children }) {
           dealAttachments: dealAttachments.data || [],
           leads: leads.data || [],
           leadContacts: leadContacts.data || [],
+          leadCategoryLinks: leadCategoryLinks.data || [],
           serviceRateCards: serviceRateCards.data || [],
           teamMembers: teamMembers.data || [],
           productCategories: productCategories.data || [],

@@ -50,7 +50,7 @@ function AttentionReport({ rows, onOpenDeal, onClose }) {
 }
 
 export default function CrmScreen() {
-  const { loading, error, pipelines, pipelineStages, dealsKanban, dealServices, productCategories, supabase, reload } = useCrmData();
+  const { loading, error, pipelines, pipelineStages, dealsKanban, dealServices, leadCategoryLinks, productCategories, supabase, reload } = useCrmData();
   const { canWriteCatalog } = useAuth();
   const [pipelineId, setPipelineId] = useState(null);
   const [search, setSearch] = useState("");
@@ -64,11 +64,15 @@ export default function CrmScreen() {
     [pipeline, pipelineStages]
   );
 
+  function categoriesOfLead(leadId) {
+    return leadCategoryLinks.filter((l) => l.lead_id === leadId).map((l) => productCategories.find((c) => c.id === l.category_id)).filter(Boolean);
+  }
+
   const pipelineDeals = pipeline ? dealsKanban.filter((d) => d.pipeline_id === pipeline.id) : [];
   const filtered = pipelineDeals.filter((d) => {
     const q = search.trim().toLowerCase();
     const matchesQuery = !q || (d.lead_name || "").toLowerCase().includes(q) || (d.lead_region || "").toLowerCase().includes(q);
-    const matchesCategory = !categoryFilter || d.desired_category_id === categoryFilter;
+    const matchesCategory = !categoryFilter || categoriesOfLead(d.lead_id).some((c) => c.id === categoryFilter);
     return matchesQuery && matchesCategory;
   });
 
@@ -78,10 +82,10 @@ export default function CrmScreen() {
   const grandTotal = filtered.reduce((s, d) => s + Number(d.total_price || 0), 0);
   const overdueCount = dealsKanban.filter((d) => d.next_action_at && new Date(d.next_action_at) < new Date()).length;
 
-  async function advanceStage(deal) {
+  async function moveStage(deal, dir) {
     const idx = stages.findIndex((s) => s.id === deal.stage_id);
-    const next = stages[Math.min(idx + 1, stages.length - 1)];
-    if (!next || next.id === deal.stage_id) return;
+    const next = stages[idx + dir];
+    if (!next) return;
     await supabase.from("deals").update({ stage_id: next.id }).eq("id", deal.deal_id);
     await reload(true);
   }
@@ -164,11 +168,11 @@ export default function CrmScreen() {
                           ? d.is_custom
                             ? <>Кастом · {d.custom_area_m2 || "?"} м²</>
                             : <>{d.template_name || "без шаблону"}{d.area_m2 ? <> · {d.area_m2} м²</> : null}</>
-                          : <>{d.desired_category_name || "—"}</>}
+                          : <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "—"}</>}
                         {d.quantity > 1 && <> · ×{d.quantity}</>}
                       </div>
                       <div className="note" style={{ marginTop: 2 }}>{d.lead_region}</div>
-                      {(d.lead_phone || d.lead_contact) && <div className="note" style={{ marginTop: 2 }}>{d.lead_phone}{d.lead_contact ? ` · ${d.lead_contact}` : ""}</div>}
+                      {d.lead_phone && <div className="note" style={{ marginTop: 2 }}>{d.lead_phone}</div>}
                       {services.length > 0 && (
                         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
                           {services.map((s) => (
@@ -197,10 +201,17 @@ export default function CrmScreen() {
                         </span>
                         {d.next_action_at && <span style={{ fontSize: 11, color: overdue ? "var(--danger)" : "var(--accent)" }}>🔔 {fmtDate(d.next_action_at)}</span>}
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, gap: 6 }}>
                         <span className="note">{d.owner_name || "—"}</span>
-                        {canWriteCatalog && idx < stages.length - 1 && (
-                          <button className="btn small" style={{ background: color, color: "#fff", borderColor: color }} onClick={() => advanceStage(d)}>Далі →</button>
+                        {canWriteCatalog && (
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {idx > 0 && (
+                              <button className="btn small" onClick={() => moveStage(d, -1)} title="Повернути на попередній етап">← Назад</button>
+                            )}
+                            {idx < stages.length - 1 && (
+                              <button className="btn small" style={{ background: color, color: "#fff", borderColor: color }} onClick={() => moveStage(d, 1)}>Далі →</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

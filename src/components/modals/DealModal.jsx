@@ -73,43 +73,41 @@ function ServiceRow({ service, rateCards, defaultQuantity, onChange, onRemove })
     set({ quantity_units: e.target.value, price: rateCard ? rateCard.rate * qty : service.price });
   }
   return (
-    <div className="section-details" style={{ padding: 10 }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <select style={{ flex: 1 }} value={service.service_type} onChange={(e) => setType(e.target.value)}>
-          {SERVICE_TYPES.map((t) => (
-            <option key={t} value={t}>{t.replace("_", " ")}</option>
-          ))}
-        </select>
-        <button type="button" className="btn small" onClick={onRemove}>×</button>
-      </div>
-      {service.service_type === "фундамент" && (
-        <div className="form-row">
-          <label>Тип фундаменту</label>
-          <select value={service.variant || ""} onChange={(e) => setVariant(e.target.value)}>
-            {variants.map((v) => <option key={v} value={v}>{v}</option>)}
+    <div>
+      <div className="service-row-grid">
+        <div style={{ display: "flex", gap: 4 }}>
+          <select value={service.service_type} onChange={(e) => setType(e.target.value)}>
+            {SERVICE_TYPES.map((t) => (
+              <option key={t} value={t}>{t.replace("_", " ")}</option>
+            ))}
           </select>
+          {service.service_type === "фундамент" && (
+            <select value={service.variant || ""} onChange={(e) => setVariant(e.target.value)}>
+              {variants.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
         </div>
-      )}
-      <div className="seg-row" style={{ marginBottom: 8 }}>
-        <button type="button" className={`seg-btn${service.calc_method === "за_тарифом" ? " active" : ""}`} disabled={!rateCard} onClick={() => setMethod("за_тарифом")}>За тарифом</button>
-        <button type="button" className={`seg-btn${service.calc_method === "середнє" ? " active" : ""}`} onClick={() => setMethod("середнє")}>Середнє</button>
-        <button type="button" className={`seg-btn${service.calc_method === "вручну" ? " active" : ""}`} onClick={() => setMethod("вручну")}>Вручну</button>
+        <div className="seg-row">
+          <button type="button" className={`seg-btn${service.calc_method === "за_тарифом" ? " active" : ""}`} disabled={!rateCard} onClick={() => setMethod("за_тарифом")} title="За тарифом">Тариф</button>
+          <button type="button" className={`seg-btn${service.calc_method === "середнє" ? " active" : ""}`} onClick={() => setMethod("середнє")} title="Середня оцінка">≈</button>
+          <button type="button" className={`seg-btn${service.calc_method === "вручну" ? " active" : ""}`} onClick={() => setMethod("вручну")} title="Вручну">Ручна</button>
+        </div>
+        {service.calc_method === "за_тарифом" && rateCard ? (
+          <input type="number" step="0.1" value={service.quantity_units} onChange={setQty} title={`Кількість · тариф ${curr(rateCard.rate)} грн/од.`} />
+        ) : (
+          <div />
+        )}
+        {service.calc_method === "вручну" ? (
+          <input type="number" value={service.price} onChange={(e) => set({ price: Number(e.target.value) || 0 })} title="Сума, грн" />
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", whiteSpace: "nowrap" }}>
+            {service.calc_method === "середнє" && "≈ "}{curr(service.price)}
+          </div>
+        )}
+        <span className="icon-x" onClick={onRemove}>×</span>
       </div>
       {service.calc_method === "за_тарифом" && rateCard && (
-        <div className="form-row">
-          <label>Кількість одиниць · тариф {curr(rateCard.rate)} грн/од.</label>
-          <input type="number" step="0.1" value={service.quantity_units} onChange={setQty} />
-        </div>
-      )}
-      {service.calc_method === "вручну" ? (
-        <div className="form-row">
-          <label>Сума, грн</label>
-          <input type="number" value={service.price} onChange={(e) => set({ price: Number(e.target.value) || 0 })} />
-        </div>
-      ) : (
-        <div className="note" style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
-          {service.calc_method === "середнє" && "≈ "}{curr(service.price)} грн
-        </div>
+        <div className="note" style={{ marginTop: -2, marginBottom: 6 }}>тариф {curr(rateCard.rate)} грн/од.</div>
       )}
     </div>
   );
@@ -203,7 +201,7 @@ function ActivityLog({ deal, activities, onReload }) {
 }
 
 export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) {
-  const { supabase, leads, leadContacts, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, reload } = useCrmData();
+  const { supabase, leads, leadContacts, leadCategoryLinks, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, reload } = useCrmData();
   const { canWriteCatalog } = useAuth();
 
   const dealRow = dealId ? deals.find((d) => d.id === dealId) : null;
@@ -222,19 +220,19 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     setError("");
     if (dealId && dealRow && existingLead) {
       const contacts = leadContacts.filter((c) => c.lead_id === existingLead.id && !(c.is_primary && c.type === "телефон"));
+      const categoryIds = leadCategoryLinks.filter((l) => l.lead_id === existingLead.id).map((l) => l.category_id);
       const services = dealServices
         .filter((s) => s.deal_id === dealId)
         .map((s) => emptyService({ service_type: s.service_type, variant: s.variant, calc_method: s.calc_method, quantity_units: s.quantity_units ?? "", price: s.price, rate_card_id: s.rate_card_id }));
       setForm({
         lead_name: existingLead.name || "",
         lead_phone: existingLead.phone || "",
-        lead_contact: existingLead.contact || "",
         lead_region: existingLead.region || "",
         lead_source: existingLead.source || "сайт",
         lead_status: existingLead.status || "новий",
         lead_budget_range: existingLead.budget_range || "",
         lead_notes: existingLead.notes || "",
-        category_id: existingLead.category_id || "",
+        category_ids: categoryIds,
         contacts: contacts.length ? contacts.map((c) => emptyContact(c.type, c.value)) : [emptyContact()],
         is_custom: dealRow.is_custom || false,
         template_id: dealRow.template_id || "",
@@ -246,9 +244,9 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       });
     } else {
       setForm({
-        lead_name: "", lead_phone: "", lead_contact: "", lead_region: "",
+        lead_name: "", lead_phone: "", lead_region: "",
         lead_source: "сайт", lead_status: "новий", lead_budget_range: "", lead_notes: "",
-        category_id: "",
+        category_ids: [],
         contacts: [emptyContact()],
         is_custom: false, template_id: "", custom_area_m2: "", custom_notes: "",
         quantity: 1, owner_id: "", services: [],
@@ -270,6 +268,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   }
   function removeContact(key) {
     setForm((f) => ({ ...f, contacts: f.contacts.filter((c) => c.key !== key) }));
+  }
+  function toggleCategory(id) {
+    setForm((f) => ({
+      ...f,
+      category_ids: f.category_ids.includes(id) ? f.category_ids.filter((c) => c !== id) : [...f.category_ids, id],
+    }));
   }
 
   function defaultQuantity(service_type) {
@@ -314,9 +318,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       const leadPayload = {
         name: form.lead_name.trim(),
         phone: form.lead_phone.trim() || null,
-        contact: form.lead_contact.trim() || null,
         region: form.lead_region.trim() || null,
-        category_id: form.category_id || null,
         source: form.lead_source,
         status: form.lead_status,
         budget_range: form.lead_budget_range.trim() || null,
@@ -336,6 +338,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       const cleanContacts = form.contacts.filter((c) => c.value.trim()).map((c) => ({ lead_id: leadId, type: c.type, value: c.value.trim(), is_primary: false }));
       if (cleanContacts.length) {
         const { error: e } = await supabase.from("lead_contacts").insert(cleanContacts);
+        if (e) throw e;
+      }
+
+      await supabase.from("lead_category_links").delete().eq("lead_id", leadId);
+      if (form.category_ids.length) {
+        const { error: e } = await supabase.from("lead_category_links").insert(form.category_ids.map((cid) => ({ lead_id: leadId, category_id: cid })));
         if (e) throw e;
       }
 
@@ -428,11 +436,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <input value={form.lead_phone} onChange={update("lead_phone")} placeholder="+380 ..." />
             </div>
             <div className="form-row">
-              <label>Додатковий контакт (необов&apos;язково)</label>
-              <input value={form.lead_contact} onChange={update("lead_contact")} placeholder="напр. дружина Оксана, +380..." />
-            </div>
-            <div className="form-row">
-              <label>Інші контакти</label>
+              <label>Контакти</label>
               {form.contacts.map((c) => (
                 <div className="contact-row" key={c.key}>
                   <select style={{ flex: "0 0 110px" }} value={c.type} onChange={(e) => updateContact(c.key, { type: e.target.value })}>
@@ -442,18 +446,22 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                   <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
                 </div>
               ))}
-              <button type="button" className="btn small" onClick={() => setForm((f) => ({ ...f, contacts: [...f.contacts, emptyContact()] }))}>+ Додати контакт</button>
+              <button type="button" className="btn small self-left" onClick={() => setForm((f) => ({ ...f, contacts: [...f.contacts, emptyContact()] }))}>+ Контакт</button>
             </div>
             <div className="form-row">
               <label>Регіон</label>
               <input value={form.lead_region} onChange={update("lead_region")} />
             </div>
             <div className="form-row">
-              <label>Категорія</label>
-              <select value={form.category_id} onChange={update("category_id")}>
-                <option value="">— не вказано —</option>
-                {productCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <label>Категорії (можна декілька)</label>
+              <div className="tag-checks">
+                {productCategories.map((c) => (
+                  <label className="tag-check" key={c.id}>
+                    <input type="checkbox" checked={form.category_ids.includes(c.id)} onChange={() => toggleCategory(c.id)} />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="form-row">
               <label>Джерело ліда</label>
@@ -510,13 +518,18 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               </>
             )}
 
-            <div className="form-row">
-              <label>Послуги ({form.services.length})</label>
-              {form.services.map((s, i) => (
-                <ServiceRow key={s.key} service={s} rateCards={serviceRateCards} defaultQuantity={defaultQuantity} onChange={(next) => updateService(i, next)} onRemove={() => removeService(i)} />
-              ))}
-              <button type="button" className="btn small" onClick={addService}>+ Додати послугу</button>
-            </div>
+            <details className="section-details" open={form.services.length > 0}>
+              <summary>
+                Замовлення клієнта (послуги)
+                <span className="section-count"> — {form.services.length} поз., {curr(previewServicesSum)} грн</span>
+              </summary>
+              <div className="section-body">
+                {form.services.map((s, i) => (
+                  <ServiceRow key={s.key} service={s} rateCards={serviceRateCards} defaultQuantity={defaultQuantity} onChange={(next) => updateService(i, next)} onRemove={() => removeService(i)} />
+                ))}
+                <button type="button" className="btn small self-left" onClick={addService}>+ Додати послугу</button>
+              </div>
+            </details>
 
             <div className="form-row">
               <label>Відповідальний</label>
