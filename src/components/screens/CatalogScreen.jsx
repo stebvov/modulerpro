@@ -154,7 +154,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
             return (
               <div className="card" key={t.id} onClick={() => openModal(t)}>
                 <div className="card-photo">
-                  {photo ? <img src={photo.url} alt={t.name} /> : "фото модуля"}
+                  {photo ? <img src={photo.url} alt={t.name} loading="lazy" decoding="async" /> : "фото модуля"}
                 </div>
                 <h3>{t.name}</h3>
                 <div className="row">

@@ -5,8 +5,8 @@ import { useAppData } from "@/context/DataContext";
 import { detectContactType, contactTypeLabels } from "@/lib/format";
 import ChipPicker from "@/components/ChipPicker";
 
-function emptyContact(label, value, comment) {
-  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "", comment: comment || "" };
+function emptyContact(label, value) {
+  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "" };
 }
 
 export default function SupplierModal({ open, supplier, onClose, onSaved }) {
@@ -35,7 +35,7 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
       supplier ? supplierCategoryLinks.filter((l) => l.supplier_id === supplier.id).map((l) => l.category_id) : []
     );
     const existing = supplier ? supplierContacts.filter((c) => c.supplier_id === supplier.id) : [];
-    setContacts(existing.length ? existing.map((c) => emptyContact(c.label, c.value, c.comment)) : [emptyContact()]);
+    setContacts(existing.length ? existing.map((c) => emptyContact(c.label, c.value)) : [emptyContact()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, supplier]);
 
@@ -84,7 +84,6 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
           type: detectContactType(c.value),
           value: c.value.trim(),
           label: c.label.trim() || null,
-          comment: c.comment.trim() || null,
           sort_order: idx,
         }));
       await supabase.from("supplier_contacts").delete().eq("supplier_id", supplierId);
@@ -123,32 +122,23 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
           {contacts.map((c) => {
             const type = c.value ? detectContactType(c.value) : null;
             return (
-              <div key={c.key} style={{ marginBottom: 8 }}>
-                <div className="contact-row">
-                  <input
-                    className="label-input"
-                    type="text"
-                    placeholder="Ім'я (напр. Марія)"
-                    value={c.label}
-                    onChange={(e) => updateContact(c.key, { label: e.target.value })}
-                  />
-                  <input
-                    className="value-input"
-                    type="text"
-                    placeholder="телефон, telegram, email, сайт, адреса..."
-                    value={c.value}
-                    onChange={(e) => updateContact(c.key, { value: e.target.value })}
-                  />
-                  <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
-                  <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
-                </div>
+              <div className="contact-row" key={c.key}>
                 <input
+                  className="label-input"
                   type="text"
-                  className="note-link-input"
-                  placeholder="коментар до контакту (необов'язково)"
-                  value={c.comment}
-                  onChange={(e) => updateContact(c.key, { comment: e.target.value })}
+                  placeholder="Ім'я (напр. Марія)"
+                  value={c.label}
+                  onChange={(e) => updateContact(c.key, { label: e.target.value })}
                 />
+                <input
+                  className="value-input"
+                  type="text"
+                  placeholder="телефон, telegram, email, сайт, адреса..."
+                  value={c.value}
+                  onChange={(e) => updateContact(c.key, { value: e.target.value })}
+                />
+                <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
+                <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
               </div>
             );
           })}

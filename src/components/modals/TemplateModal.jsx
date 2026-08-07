@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import MaterialTreeCombobox from "@/components/MaterialTreeCombobox";
 import FileLightbox from "@/components/FileLightbox";
+import PdfPreviewModal from "@/components/PdfPreviewModal";
 
 const FILE_COLLAPSE_THRESHOLD = 10;
+const NO_GROUP = "__none";
+
+function isPdf(f) {
+  return (f.name || "").toLowerCase().endsWith(".pdf");
+}
 
 function emptyBomRow() {
   return { key: Math.random().toString(36).slice(2), material_id: "", quantity_per_unit: "", group_id: "", price_override: "" };
@@ -48,6 +54,9 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [pdfPreview, setPdfPreview] = useState(null);
+  const [groupCollapsed, setGroupCollapsed] = useState(() => new Set());
+  const [newGroupName, setNewGroupName] = useState("");
 
   const laborGroup = bomGroups.find((g) => g.name === "Робота");
 
@@ -124,6 +133,34 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     const rows = supplierPrices.filter((p) => p.material_id === materialId);
     if (!rows.length) return null;
     return Math.min(...rows.map((p) => Number(p.price)));
+  }
+
+  function addBomRowToGroup(groupId) {
+    setBomRows((prev) => [...prev, { ...emptyBomRow(), group_id: groupId === NO_GROUP ? "" : groupId }]);
+  }
+  async function renameGroup(group, value) {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === group.name) return;
+    await supabase.from("bom_groups").update({ name: trimmed }).eq("id", group.id);
+    await reload(true);
+  }
+  async function addGroup() {
+    if (!newGroupName.trim()) return;
+    const nextSortOrder = bomGroups.length ? Math.max(...bomGroups.map((g) => g.sort_order ?? 0)) + 1 : 1;
+    await supabase.from("bom_groups").insert([{ name: newGroupName.trim(), sort_order: nextSortOrder }]);
+    setNewGroupName("");
+    await reload(true);
+  }
+  async function deleteGroup(group) {
+    if (!confirm(`Видалити групу «${group.name}»? Це вплине на всі шаблони, де вона використовується.`)) return;
+    const { error: e } = await supabase.from("bom_groups").delete().eq("id", group.id);
+    if (e) {
+      setError("Не вдалося видалити: групу ще використовують матеріали або статті витрат (тут або в інших шаблонах).");
+      return;
+    }
+    setBomRows((prev) => prev.map((r) => (r.group_id === group.id ? { ...r, group_id: "" } : r)));
+    setExtraRows((prev) => prev.map((r) => (r.group_id === group.id ? { ...r, group_id: "" } : r)));
+    await reload(true);
   }
 
   const bomTotal = bomRows.reduce((sum, r) => {
@@ -394,7 +431,16 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
                             onClick={() => setLightboxIndex(photoFiles.findIndex((p) => p.id === f.id))}
                             title={f.name || ""}
                           >
-                            <img src={f.url} alt={f.name || ""} />
+                            <img src={f.url} alt={f.name || ""} loading="lazy" decoding="async" />
+                          </button>
+                        ) : isPdf(f) ? (
+                          <button
+                            type="button"
+                            className="file-thumb-btn"
+                            onClick={() => setPdfPreview(f)}
+                            title={f.name || ""}
+                          >
+                            📄 {f.name || "PDF"}
                           </button>
                         ) : (
                           <a href={f.url} target="_blank" rel="noreferrer" title={f.name || ""}>
@@ -455,58 +501,130 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
             <span className="section-count"> — {bomRows.filter((r) => r.material_id).length} поз., {fmtUah(bomTotal)}</span>
           </summary>
           <div className="section-body">
-            {bomRows.map((r) => {
-              const live = r.material_id ? bestSupplierPrice(r.material_id) : null;
-              const priceTitle =
-                r.price_override.trim() !== ""
-                  ? "Своя ціна (не залежить від постачальників)"
-                  : live != null
-                    ? `Автоматично: ${live} грн (найдешевший постачальник)`
-                    : "Немає ціни від постачальників — вкажи свою";
+            {[...bomGroups, { id: NO_GROUP, name: "Без групи" }].map((group) => {
+              const groupRows = bomRows.filter((r) => (r.group_id || NO_GROUP) === group.id);
+              const groupTotal = groupRows.reduce((sum, r) => {
+                const qty = parseFloat(r.quantity_per_unit);
+                if (!r.material_id || !qty) return sum;
+                const price = r.price_override.trim() !== "" ? parseFloat(r.price_override) : bestSupplierPrice(r.material_id);
+                return sum + qty * (price || 0);
+              }, 0);
+              const isReal = group.id !== NO_GROUP;
+              const isCollapsed = groupCollapsed.has(group.id);
               return (
-                <div className="bom-row-grid" key={r.key}>
-                  <div className="reorder">
-                    <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
-                    <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
+                <details
+                  key={group.id}
+                  className="section-details bom-group-block"
+                  open={!isCollapsed}
+                  onToggle={(e) => {
+                    const nowOpen = e.target.open;
+                    setGroupCollapsed((prev) => {
+                      const next = new Set(prev);
+                      if (nowOpen) next.delete(group.id);
+                      else next.add(group.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <summary>
+                    <span className="bom-group-summary-row">
+                      {isReal ? (
+                        <input
+                          type="text"
+                          className="rename-input bom-group-name"
+                          defaultValue={group.name}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onBlur={(e) => renameGroup(group, e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+                        />
+                      ) : (
+                        <span className="bom-group-name">{group.name}</span>
+                      )}
+                      <span className="section-count">— {groupRows.filter((r) => r.material_id).length} поз., {fmtUah(groupTotal)}</span>
+                      {isReal && (
+                        <span
+                          className="icon-x"
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); deleteGroup(group); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          title="Видалити групу"
+                        >
+                          ×
+                        </span>
+                      )}
+                    </span>
+                  </summary>
+                  <div className="section-body">
+                    {groupRows.map((r) => {
+                      const live = r.material_id ? bestSupplierPrice(r.material_id) : null;
+                      const priceTitle =
+                        r.price_override.trim() !== ""
+                          ? "Своя ціна (не залежить від постачальників)"
+                          : live != null
+                            ? `Автоматично: ${live} грн (найдешевший постачальник)`
+                            : "Немає ціни від постачальників — вкажи свою";
+                      return (
+                        <div className="bom-row-grid" key={r.key}>
+                          <div className="reorder">
+                            <span onClick={() => moveBomRow(r.key, -1)}>▲</span>
+                            <span onClick={() => moveBomRow(r.key, 1)}>▼</span>
+                          </div>
+                          <MaterialTreeCombobox
+                            value={r.material_id}
+                            materials={materials}
+                            materialCategories={materialCategories}
+                            placeholder="Матеріал... (пошук або перегляд за категорією)"
+                            onChange={(id) => updateBomRow(r.key, { material_id: id })}
+                            onCreate={(text) => createMaterial(text)}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="qty-input"
+                            placeholder="к-сть"
+                            value={r.quantity_per_unit}
+                            onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="price-input"
+                            placeholder={live != null ? String(live) : "0"}
+                            title={priceTitle}
+                            value={r.price_override}
+                            onChange={(e) => updateBomRow(r.key, { price_override: e.target.value })}
+                          />
+                          <select
+                            className="bom-group-select"
+                            value={r.group_id}
+                            title="Перемістити в іншу групу"
+                            onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}
+                          >
+                            <option value="">без групи</option>
+                            {bomGroups.map((g) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                          </select>
+                          <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
+                        </div>
+                      );
+                    })}
+                    <button className="btn small" onClick={() => addBomRowToGroup(group.id)}>
+                      + Додати матеріал сюди
+                    </button>
                   </div>
-                  <MaterialTreeCombobox
-                    value={r.material_id}
-                    materials={materials}
-                    materialCategories={materialCategories}
-                    placeholder="Матеріал... (пошук або перегляд за категорією)"
-                    onChange={(id) => updateBomRow(r.key, { material_id: id })}
-                    onCreate={(text) => createMaterial(text)}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="qty-input"
-                    placeholder="к-сть"
-                    value={r.quantity_per_unit}
-                    onChange={(e) => updateBomRow(r.key, { quantity_per_unit: e.target.value })}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="price-input"
-                    placeholder={live != null ? String(live) : "0"}
-                    title={priceTitle}
-                    value={r.price_override}
-                    onChange={(e) => updateBomRow(r.key, { price_override: e.target.value })}
-                  />
-                  <select className="bom-group-select" value={r.group_id} onChange={(e) => updateBomRow(r.key, { group_id: e.target.value })}>
-                    <option value="">без групи</option>
-                    {bomGroups.map((g) => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </select>
-                  <span className="icon-x" onClick={() => removeBomRow(r.key)}>×</span>
-                </div>
+                </details>
               );
             })}
-            <button className="btn small" onClick={() => setBomRows((p) => [...p, emptyBomRow()])}>
-              + Додати матеріал
-            </button>
+            <div className="cat-add" style={{ marginTop: 10 }}>
+              <input
+                type="text"
+                placeholder="Нова група (напр. Покрівля)"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+              />
+              <button className="btn small" onClick={addGroup}>+ Нова група</button>
+            </div>
           </div>
         </details>
 
@@ -571,6 +689,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         onClose={() => setLightboxIndex(null)}
         onNavigate={setLightboxIndex}
       />
+      <PdfPreviewModal file={pdfPreview} onClose={() => setPdfPreview(null)} />
     </div>
   );
 }

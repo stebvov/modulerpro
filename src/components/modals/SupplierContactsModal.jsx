@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { detectContactType, contactTypeLabels, contactHref } from "@/lib/format";
+import { detectContactType, contactTypeLabels, contactHref, linkify } from "@/lib/format";
 
-function emptyContact(label, value, comment) {
-  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "", comment: comment || "" };
+function emptyContact(label, value) {
+  return { key: Math.random().toString(36).slice(2), label: label || "", value: value || "" };
 }
 
 export default function SupplierContactsModal({ supplierId, onClose, onOpenFull }) {
@@ -14,6 +14,7 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
   const { canWriteCatalog } = useAuth();
   const supplier = suppliers.find((s) => s.id === supplierId);
   const [rows, setRows] = useState([]);
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,7 +23,8 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError("");
     const existing = supplierContacts.filter((c) => c.supplier_id === supplierId);
-    setRows(existing.length ? existing.map((c) => emptyContact(c.label, c.value, c.comment)) : [emptyContact()]);
+    setRows(existing.length ? existing.map((c) => emptyContact(c.label, c.value)) : [emptyContact()]);
+    setNotes(suppliers.find((s) => s.id === supplierId)?.notes || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supplierId]);
 
@@ -46,7 +48,6 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
           type: detectContactType(r.value),
           value: r.value.trim(),
           label: r.label.trim() || null,
-          comment: r.comment.trim() || null,
           sort_order: idx,
         }));
       await supabase.from("supplier_contacts").delete().eq("supplier_id", supplierId);
@@ -54,6 +55,8 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
         const { error: e } = await supabase.from("supplier_contacts").insert(clean);
         if (e) throw e;
       }
+      const { error: e2 } = await supabase.from("suppliers").update({ notes: notes.trim() || null }).eq("id", supplierId);
+      if (e2) throw e2;
       await reload(true);
       onClose();
     } catch (err) {
@@ -72,40 +75,30 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
           const type = r.value ? detectContactType(r.value) : null;
           const href = type ? contactHref(type, r.value) : null;
           return (
-            <div key={r.key} style={{ marginBottom: 8 }}>
-              <div className="contact-row">
-                <input
-                  className="label-input"
-                  type="text"
-                  placeholder="Ім'я"
-                  value={r.label}
-                  disabled={!canWriteCatalog}
-                  onChange={(e) => update(r.key, { label: e.target.value })}
-                />
-                <input
-                  className="value-input"
-                  type="text"
-                  placeholder="телефон, email, сайт, telegram..."
-                  value={r.value}
-                  disabled={!canWriteCatalog}
-                  onChange={(e) => update(r.key, { value: e.target.value })}
-                />
-                <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
-                {href && (
-                  <a href={href} target="_blank" rel="noreferrer" className="btn small">Відкрити</a>
-                )}
-                {canWriteCatalog && (
-                  <span className="icon-x" onClick={() => remove(r.key)}>×</span>
-                )}
-              </div>
+            <div className="contact-row" key={r.key}>
               <input
+                className="label-input"
                 type="text"
-                className="note-link-input"
-                placeholder="коментар до контакту (необов'язково)"
-                value={r.comment}
+                placeholder="Ім'я"
+                value={r.label}
                 disabled={!canWriteCatalog}
-                onChange={(e) => update(r.key, { comment: e.target.value })}
+                onChange={(e) => update(r.key, { label: e.target.value })}
               />
+              <input
+                className="value-input"
+                type="text"
+                placeholder="телефон, email, сайт, telegram..."
+                value={r.value}
+                disabled={!canWriteCatalog}
+                onChange={(e) => update(r.key, { value: e.target.value })}
+              />
+              <span className="contact-type-badge">{type ? contactTypeLabels[type] : "—"}</span>
+              {href && (
+                <a href={href} target="_blank" rel="noreferrer" className="btn small">Відкрити</a>
+              )}
+              {canWriteCatalog && (
+                <span className="icon-x" onClick={() => remove(r.key)}>×</span>
+              )}
             </div>
           );
         })}
@@ -115,6 +108,21 @@ export default function SupplierContactsModal({ supplierId, onClose, onOpenFull 
             + Додати контакт
           </button>
         )}
+
+        <div className="form-row">
+          <label>Коментар про постачальника</label>
+          {canWriteCatalog ? (
+            <textarea
+              rows={2}
+              placeholder="Нотатка, посилання..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          ) : (
+            notes ? <div className="note-preview">{linkify(notes)}</div> : <span className="note">Немає коментаря</span>
+          )}
+        </div>
+
         <div className="modal-actions">
           {onOpenFull && (
             <button className="btn" style={{ marginRight: "auto" }} onClick={() => onOpenFull(supplier)} disabled={saving}>
