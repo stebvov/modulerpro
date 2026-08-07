@@ -278,3 +278,20 @@ th.th-filter { vertical-align: top; }
 @media (max-width: 820px) {
   .bom-row-grid { display: flex; flex-wrap: wrap; }
 }
+
+/* CRM: segmented toggle buttons (tabs, calc-method switches, pipeline switch) */
+.seg-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg-btn { border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text-secondary); font-family: inherit; }
+.seg-btn:hover { background: #f1efe8; }
+.seg-btn:disabled { opacity: .4; cursor: not-allowed; }
+.seg-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* CRM: notification badge on the "attention report" button */
+.notif-badge { position: absolute; top: -6px; right: -6px; background: #C1652F; color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+
+/* CRM: kanban board */
+.kanban-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 10px; }
+.kanban-col { min-width: 272px; flex: 0 0 272px; }
+.kanban-col-head { border-top: 3px solid var(--accent); padding-top: 10px; margin-bottom: 12px; }
+.kanban-empty { font-size: 12px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 8px; padding: 14px 10px; text-align: center; }
+.kanban-card { cursor: default; display: flex; flex-direction: column; }

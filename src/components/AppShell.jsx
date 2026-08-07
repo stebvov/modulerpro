@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { roleLabels } from "@/lib/format";
+import { CrmDataProvider } from "@/context/CrmDataContext";
+import CrmScreen from "@/components/screens/CrmScreen";
 import CatalogScreen from "@/components/screens/CatalogScreen";
 import CompareScreen from "@/components/screens/CompareScreen";
 import MaterialsScreen from "@/components/screens/MaterialsScreen";
@@ -14,6 +16,7 @@ import PriceBySupplierScreen from "@/components/screens/PriceBySupplierScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
 
 const BASE_TABS = [
+  { id: "crm", label: "CRM" },
   { id: "catalog", label: "Каталог шаблонів" },
   { id: "compare", label: "Порівняння" },
   { id: "materials", label: "Матеріали" },
@@ -66,6 +69,13 @@ export default function AppShell() {
         ))}
       </div>
 
+      <div className={`screen${activeTab === "crm" ? " active" : ""}`}>
+        {activeTab === "crm" && (
+          <CrmDataProvider>
+            <CrmScreen />
+          </CrmDataProvider>
+        )}
+      </div>
       <div className={`screen${activeTab === "catalog" ? " active" : ""}`}>
         {activeTab === "catalog" && <CatalogScreen compareSelection={compareSelection} setCompareSelection={setCompareSelection} />}
       </div>
