@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { flattenCategoryOrder } from "@/lib/categoryOrder";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import MaterialModal from "@/components/modals/MaterialModal";
+import MaterialCategoriesModal from "@/components/modals/MaterialCategoriesModal";
+import UnitsModal from "@/components/modals/UnitsModal";
 
 export default function MaterialsScreen() {
   const { materials, materialCategories } = useAppData();
@@ -15,6 +17,8 @@ export default function MaterialsScreen() {
   const [unitFilter, setUnitFilter] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [unitsModalOpen, setUnitsModalOpen] = useState(false);
 
   const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
   const unitOptions = [...new Set(materials.map((m) => m.unit))].sort().map((u) => ({ id: u, label: u }));
@@ -57,6 +61,9 @@ export default function MaterialsScreen() {
               <div className="th-filter-row">
                 Категорія
                 <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
+                {canWriteCatalog && (
+                  <button className="btn small" title="Налаштування категорій" onClick={() => setCatModalOpen(true)}>⚙</button>
+                )}
               </div>
             </th>
             <th className="th-filter">
@@ -75,6 +82,9 @@ export default function MaterialsScreen() {
               <div className="th-filter-row">
                 Одиниця
                 <MultiSelectFilter options={unitOptions} selected={unitFilter} onChange={setUnitFilter} label="Всі" />
+                {canWriteCatalog && (
+                  <button className="btn small" title="Налаштування одиниць" onClick={() => setUnitsModalOpen(true)}>⚙</button>
+                )}
               </div>
             </th>
             <th></th>
@@ -110,6 +120,8 @@ export default function MaterialsScreen() {
         onClose={() => setModalOpen(false)}
         onSaved={() => setModalOpen(false)}
       />
+      <MaterialCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} />
+      <UnitsModal open={unitsModalOpen} onClose={() => setUnitsModalOpen(false)} />
     </div>
   );
 }

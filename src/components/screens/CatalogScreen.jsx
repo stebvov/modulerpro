@@ -5,6 +5,7 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import TemplateModal from "@/components/modals/TemplateModal";
+import ProductCategoriesModal from "@/components/modals/ProductCategoriesModal";
 
 export default function CatalogScreen({ compareSelection, setCompareSelection }) {
   const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
@@ -20,6 +21,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
   const [priceMax, setPriceMax] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [catModalOpen, setCatModalOpen] = useState(false);
 
   const list = templates.filter((t) => {
     if (statusFilter && t.status !== statusFilter) return false;
@@ -100,12 +102,17 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
         </div>
         <div className="filter-field">
           <label>Категорія (ціль)</label>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">Всі категорії</option>
-            {productCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <div style={{ display: "flex", gap: 4 }}>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="">Всі категорії</option>
+              {productCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {canWriteCatalog && (
+              <button className="btn small" title="Налаштування категорій" onClick={() => setCatModalOpen(true)}>⚙</button>
+            )}
+          </div>
         </div>
         <div className="filter-field">
           <label>К-сть модулів</label>
@@ -199,6 +206,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
         onSaved={() => setModalOpen(false)}
         onDuplicated={(newTemplate) => setEditingTemplate(newTemplate)}
       />
+      <ProductCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} />
     </div>
   );
 }
