@@ -11,6 +11,7 @@ const EMPTY = {
   stages: [],
   houseDeals: [],
   templates: [],
+  capacityHistory: [],
 };
 
 export function ProductionDataProvider({ children }) {
@@ -23,7 +24,7 @@ export function ProductionDataProvider({ children }) {
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const [sites, slots, stages, houseDeals, templates] = await Promise.all([
+        const [sites, slots, stages, houseDeals, templates, capacityHistory] = await Promise.all([
           supabase.from("production_sites").select("*").order("sort_order"),
           supabase.from("production_slots").select("*").order("start_date"),
           supabase.from("production_stages").select("*"),
@@ -32,8 +33,12 @@ export function ProductionDataProvider({ children }) {
             .select("id, is_custom, custom_area_m2, template_id, quantity, leads(name), pipelines!inner(slug)")
             .eq("pipelines.slug", "houses"),
           supabase.from("product_templates").select("id,name,area_m2"),
+          supabase
+            .from("production_site_capacity_history")
+            .select("*, profiles(full_name)")
+            .order("changed_at", { ascending: false }),
         ]);
-        const firstError = [sites, slots, stages, houseDeals, templates].find((r) => r.error);
+        const firstError = [sites, slots, stages, houseDeals, templates, capacityHistory].find((r) => r.error);
         if (firstError) throw firstError.error;
 
         setData({
@@ -42,6 +47,7 @@ export function ProductionDataProvider({ children }) {
           stages: stages.data || [],
           houseDeals: (houseDeals.data || []).map((d) => ({ ...d, lead_name: d.leads?.name || null })),
           templates: templates.data || [],
+          capacityHistory: capacityHistory.data || [],
         });
         setError(null);
       } catch (e) {

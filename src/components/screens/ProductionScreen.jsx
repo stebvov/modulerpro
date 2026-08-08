@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useProductionData } from "@/context/ProductionDataContext";
 import ProductionLoadWidget from "@/components/ProductionLoadWidget";
 import SlotModal from "@/components/modals/SlotModal";
+import ProductionSettingsModal from "@/components/modals/ProductionSettingsModal";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { addWeeks, fmtWeekLabel, overlaps, rangeToPercent, startOfWeek, statusStyles } from "@/lib/production";
 
 const WEEKS_VISIBLE = 8;
@@ -23,25 +25,21 @@ function layoutBars(siteSlots) {
 }
 
 export default function ProductionScreen() {
-  const { loading, error, sites, slots, houseDeals, supabase, reload } = useProductionData();
+  const { loading, error, sites, slots, houseDeals } = useProductionData();
   const { canWriteCatalog } = useAuth();
   const [windowStart, setWindowStart] = useState(() => startOfWeek(new Date()));
   const [modal, setModal] = useState(null);
-  const [savingCell, setSavingCell] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [siteFilter, setSiteFilter] = useState([]);
 
   const windowEnd = useMemo(() => addWeeks(windowStart, WEEKS_VISIBLE), [windowStart]);
   const weeks = useMemo(() => Array.from({ length: WEEKS_VISIBLE }, (_, i) => addWeeks(windowStart, i)), [windowStart]);
+  const siteOptions = useMemo(() => sites.map((s) => ({ id: s.id, label: s.name })), [sites]);
+  const visibleSites = siteFilter.length ? sites.filter((s) => siteFilter.includes(s.id)) : sites;
 
   function dealLabelFor(dealId) {
     const d = houseDeals.find((x) => x.id === dealId);
     return d ? d.lead_name || "угода" : null;
-  }
-
-  async function saveSiteField(site, field, value) {
-    setSavingCell(site.id + field);
-    await supabase.from("production_sites").update({ [field]: value }).eq("id", site.id);
-    await reload(true);
-    setSavingCell(null);
   }
 
   if (loading) return <div className="empty">Завантаження виробництва...</div>;
@@ -53,12 +51,18 @@ export default function ProductionScreen() {
 
       <ProductionLoadWidget />
 
-      <div className="section-label">Календар майданчиків</div>
+      <div className="section-label">
+        Календар майданчиків
+        {canWriteCatalog && (
+          <button className="btn small" onClick={() => setSettingsOpen(true)} title="Налаштування">⚙</button>
+        )}
+      </div>
       <div className="gantt-nav">
-        <div className="seg-row">
+        <div className="seg-row" style={{ alignItems: "center" }}>
           <button className="seg-btn" onClick={() => setWindowStart(addWeeks(windowStart, -WEEKS_VISIBLE))}>← {WEEKS_VISIBLE} тижнів</button>
           <button className="seg-btn" onClick={() => setWindowStart(startOfWeek(new Date()))}>Сьогодні</button>
           <button className="seg-btn" onClick={() => setWindowStart(addWeeks(windowStart, WEEKS_VISIBLE))}>{WEEKS_VISIBLE} тижнів →</button>
+          <MultiSelectFilter options={siteOptions} selected={siteFilter} onChange={setSiteFilter} label="Майданчики" />
         </div>
         <div className="note">
           {fmtWeekLabel(windowStart)} — {fmtWeekLabel(addWeeks(windowEnd, -1))}
@@ -73,7 +77,7 @@ export default function ProductionScreen() {
             {weeks.map((w, i) => <div key={i} className="gantt-week-label">{fmtWeekLabel(w)}</div>)}
           </div>
         </div>
-        {sites.map((site) => {
+        {visibleSites.map((site) => {
           const siteSlots = slots.filter((s) => s.site_id === site.id && overlaps(s.start_date, s.deadline, windowStart, windowEnd));
           const bars = layoutBars(siteSlots);
           return (
@@ -81,27 +85,7 @@ export default function ProductionScreen() {
               <div className="gantt-row-label">
                 <div className="site-name">{site.name}</div>
                 <div className="site-meta">
-                  {canWriteCatalog ? (
-                    <>
-                      <input
-                        style={{ width: "100%", fontSize: 11, marginBottom: 4, padding: "2px 4px" }}
-                        placeholder="відповідальний"
-                        defaultValue={site.responsible_person || ""}
-                        disabled={savingCell === site.id + "responsible_person"}
-                        onBlur={(e) => e.target.value !== (site.responsible_person || "") && saveSiteField(site, "responsible_person", e.target.value || null)}
-                      />
-                      <input
-                        type="number"
-                        style={{ width: "100%", fontSize: 11, padding: "2px 4px" }}
-                        placeholder="юнітів/міс"
-                        defaultValue={site.capacity_units_per_month ?? ""}
-                        disabled={savingCell === site.id + "capacity_units_per_month"}
-                        onBlur={(e) => Number(e.target.value || 0) !== (site.capacity_units_per_month || 0) && saveSiteField(site, "capacity_units_per_month", e.target.value ? Number(e.target.value) : null)}
-                      />
-                    </>
-                  ) : (
-                    <>{site.responsible_person || "—"}{site.capacity_units_per_month ? ` · ${site.capacity_units_per_month}/міс` : ""}</>
-                  )}
+                  {site.responsible_person || "—"}{site.capacity_units_per_month ? ` · ${site.capacity_units_per_month}/міс` : ""}
                 </div>
                 {canWriteCatalog && (
                   <button className="btn small" style={{ marginTop: 6 }} onClick={() => setModal({ slot: null, defaultSiteId: site.id })}>+ Слот</button>
@@ -130,7 +114,7 @@ export default function ProductionScreen() {
             </div>
           );
         })}
-        {!sites.length && <div className="empty">Немає жодного майданчика.</div>}
+        {!visibleSites.length && <div className="empty">{sites.length ? "Немає майданчиків за фільтром." : "Немає жодного майданчика."}</div>}
         </div>
       </div>
 
@@ -143,6 +127,7 @@ export default function ProductionScreen() {
           onSaved={() => setModal(null)}
         />
       )}
+      <ProductionSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

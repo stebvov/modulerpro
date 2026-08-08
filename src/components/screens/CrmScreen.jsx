@@ -102,7 +102,7 @@ export default function CrmScreen() {
   return (
     <div>
       <div className="toolbar" style={{ alignItems: "flex-start" }}>
-        <div className="toolbar-left" style={{ flexWrap: "wrap", gap: 8 }}>
+        <div className="toolbar-left" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           {pipelines.map((p) => {
             const count = dealsKanban.filter((d) => d.pipeline_id === p.id).length;
             return (
@@ -111,6 +111,7 @@ export default function CrmScreen() {
               </button>
             );
           })}
+          <button className="btn small" title="Налаштування" onClick={() => setModal({ mode: "settings" })}>⚙</button>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ textAlign: "right" }}>
@@ -121,7 +122,6 @@ export default function CrmScreen() {
             📋
             {overdueCount > 0 && <span className="notif-badge">{overdueCount}</span>}
           </button>
-          <button className="btn" title="Налаштування" onClick={() => setModal({ mode: "settings" })}>⚙</button>
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => setModal({ mode: "add" })}>+ Новий лід</button>
           )}
