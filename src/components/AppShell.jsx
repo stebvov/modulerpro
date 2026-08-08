@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { roleLabels } from "@/lib/format";
 import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
+import { ProductionDataProvider } from "@/context/ProductionDataContext";
+import ProductionScreen from "@/components/screens/ProductionScreen";
 import CatalogScreen from "@/components/screens/CatalogScreen";
 import CompareScreen from "@/components/screens/CompareScreen";
 import MaterialsScreen from "@/components/screens/MaterialsScreen";
@@ -17,6 +19,7 @@ import UsersScreen from "@/components/screens/UsersScreen";
 
 const BASE_TABS = [
   { id: "crm", label: "CRM" },
+  { id: "production", label: "Виробництво" },
   { id: "catalog", label: "Каталог шаблонів" },
   { id: "compare", label: "Порівняння" },
   { id: "materials", label: "Матеріали" },
@@ -74,6 +77,13 @@ export default function AppShell() {
           <CrmDataProvider>
             <CrmScreen />
           </CrmDataProvider>
+        )}
+      </div>
+      <div className={`screen${activeTab === "production" ? " active" : ""}`}>
+        {activeTab === "production" && (
+          <ProductionDataProvider>
+            <ProductionScreen />
+          </ProductionDataProvider>
         )}
       </div>
       <div className={`screen${activeTab === "catalog" ? " active" : ""}`}>

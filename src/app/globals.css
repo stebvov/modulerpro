@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 :root {
   --bg: #f5f4f0;
   --card: #ffffff;
@@ -302,3 +304,81 @@ th.th-filter { vertical-align: top; }
   .service-row-grid { display: flex; flex-wrap: wrap; }
 }
 .form-row > .btn.self-left { align-self: flex-start; }
+
+/* ===== Layer 3+ "Виробництво/Фінанси" dark ops theme =====
+   Scoped to .ops-theme by redefining the same custom properties that
+   .card/.btn/.modal/table/.section-details/.seg-btn etc. already read
+   from — so those shared components re-theme for free inside this
+   subtree, without any Catalog/CRM screen being affected. */
+.ops-theme {
+  --bg: #12161B;
+  --card: #181D24;
+  --border: #2A323C;
+  --border-strong: #3A4552;
+  --text: #E9E4D8;
+  --text-secondary: #8B93A0;
+  --text-muted: #6B7280;
+  --accent: #D98E3B;
+  --accent-bg: rgba(217, 142, 59, 0.14);
+  --danger: #C1543C;
+  --danger-bg: rgba(193, 84, 60, 0.16);
+  --success: #7FA96B;
+  --success-bg: rgba(127, 169, 107, 0.16);
+  --amber: #D98E3B;
+  --amber-bg: rgba(217, 142, 59, 0.14);
+  --radius: 3px;
+  --ops-cyan: #4FA3A0;
+
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px;
+  border-radius: 6px;
+}
+.ops-theme h1, .ops-theme h2, .ops-theme h3 { font-family: 'Space Grotesk', sans-serif; }
+.ops-theme .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+.ops-theme table { background: var(--card); }
+.ops-theme th { background: var(--border); color: var(--text-secondary); }
+.ops-theme .section-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); display: flex; align-items: center; gap: 10px; margin: 28px 0 14px;
+}
+.ops-theme .section-label:first-child { margin-top: 0; }
+.ops-theme .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* KPI cards */
+.ops-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 20px; }
+.ops-kpi { background: var(--card); padding: 16px; }
+.ops-kpi .k-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-secondary); margin-bottom: 8px; }
+.ops-kpi .k-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; color: var(--text); }
+.ops-kpi .k-bar { height: 4px; background: var(--border); margin-top: 10px; overflow: hidden; }
+.ops-kpi .k-bar-fill { height: 100%; background: var(--accent); }
+.ops-kpi .k-bar-fill.over { background: var(--danger); }
+
+/* Gantt calendar */
+.gantt-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.gantt-header { display: grid; grid-template-columns: 160px 1fr; margin-bottom: 4px; }
+.gantt-weeks { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.gantt-week-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-secondary); text-align: center; padding: 4px 0; border-left: 1px solid var(--border); }
+.gantt-row { display: grid; grid-template-columns: 160px 1fr; border-top: 1px solid var(--border); min-height: 56px; }
+.gantt-row-label { padding: 10px 10px 10px 0; }
+.gantt-row-label .site-name { font-weight: 600; font-size: 13px; }
+.gantt-row-label .site-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.gantt-track { position: relative; background: var(--card); border-left: 1px solid var(--border); }
+.gantt-track-grid { position: absolute; inset: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; pointer-events: none; }
+.gantt-track-grid span { border-left: 1px solid var(--border); }
+.gantt-bar {
+  position: absolute; top: 8px; height: 22px; border-radius: 2px; cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #12161B; font-weight: 600;
+  display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+.gantt-bar.row2 { top: 34px; }
+
+/* Stage checklist (unit card) */
+.stage-checklist { display: flex; flex-direction: column; gap: 6px; }
+.stage-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+.stage-item.done { border-color: var(--success); }
+.stage-item .stage-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+.stage-item.done .stage-check { background: var(--success); border-color: var(--success); color: #12161B; }
+.stage-item .stage-name { flex: 1; font-size: 13px; }
+.stage-item .stage-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-secondary); }
