@@ -6,7 +6,7 @@ import { guessMaterialIcon } from "@/lib/materialIcon";
 import SearchCombobox from "@/components/SearchCombobox";
 
 export default function MaterialModal({ open, material, defaultCategoryId, onClose, onSaved }) {
-  const { supabase, materials, materialCategories, reload } = useAppData();
+  const { supabase, materialCategories, materialUnits, reload } = useAppData();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [unit, setUnit] = useState("");
@@ -15,7 +15,15 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
   const [saving, setSaving] = useState(false);
   const iconTouched = useRef(false);
 
-  const unitOptions = [...new Set(materials.map((m) => m.unit).filter(Boolean))].sort().map((u) => ({ id: u, label: u }));
+  const unitOptions = materialUnits.map((u) => ({ id: u.name, label: u.name }));
+
+  async function createUnit(text) {
+    const maxOrder = materialUnits.length ? Math.max(...materialUnits.map((u) => u.sort_order)) : 0;
+    const { error: e } = await supabase.from("material_units").insert([{ name: text, sort_order: maxOrder + 1 }]);
+    if (e) { setError(e.message); return null; }
+    await reload(true);
+    return text;
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -108,7 +116,7 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
             value={unit}
             options={unitOptions}
             onChange={setUnit}
-            onCreate={async (text) => text}
+            onCreate={createUnit}
             placeholder="м³, м², шт, компл..."
           />
         </div>

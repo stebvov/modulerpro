@@ -6,22 +6,22 @@ import { useAuth } from "@/context/AuthContext";
 import { flattenCategoryOrder } from "@/lib/categoryOrder";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import MaterialModal from "@/components/modals/MaterialModal";
-import MaterialCategoriesModal from "@/components/modals/MaterialCategoriesModal";
-import UnitsModal from "@/components/modals/UnitsModal";
+import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
+import UnitsPanel from "@/components/panels/UnitsPanel";
+import SettingsPageHeader from "@/components/SettingsPageHeader";
 
 export default function MaterialsScreen() {
-  const { materials, materialCategories } = useAppData();
+  const { materials, materialCategories, materialUnits } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState([]);
   const [unitFilter, setUnitFilter] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [catModalOpen, setCatModalOpen] = useState(false);
-  const [unitsModalOpen, setUnitsModalOpen] = useState(false);
+  const [page, setPage] = useState(null); // null | "categories" | "units"
 
   const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
-  const unitOptions = [...new Set(materials.map((m) => m.unit))].sort().map((u) => ({ id: u, label: u }));
+  const unitOptions = materialUnits.map((u) => ({ id: u.name, label: u.name }));
   const catOrder = flattenCategoryOrder(materialCategories);
 
   const list = materials
@@ -43,6 +43,23 @@ export default function MaterialsScreen() {
     setModalOpen(true);
   }
 
+  if (page === "categories") {
+    return (
+      <div>
+        <SettingsPageHeader title="Категорії матеріалів / постачальників" onBack={() => setPage(null)} />
+        <MaterialCategoriesPanel />
+      </div>
+    );
+  }
+  if (page === "units") {
+    return (
+      <div>
+        <SettingsPageHeader title="Одиниці виміру" onBack={() => setPage(null)} />
+        <UnitsPanel />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="toolbar">
@@ -62,7 +79,7 @@ export default function MaterialsScreen() {
                 Категорія
                 <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
                 {canWriteCatalog && (
-                  <button className="btn small" title="Налаштування категорій" onClick={() => setCatModalOpen(true)}>⚙</button>
+                  <button className="btn small" title="Налаштування категорій" onClick={() => setPage("categories")}>⚙</button>
                 )}
               </div>
             </th>
@@ -83,7 +100,7 @@ export default function MaterialsScreen() {
                 Одиниця
                 <MultiSelectFilter options={unitOptions} selected={unitFilter} onChange={setUnitFilter} label="Всі" />
                 {canWriteCatalog && (
-                  <button className="btn small" title="Налаштування одиниць" onClick={() => setUnitsModalOpen(true)}>⚙</button>
+                  <button className="btn small" title="Налаштування одиниць" onClick={() => setPage("units")}>⚙</button>
                 )}
               </div>
             </th>
@@ -120,8 +137,6 @@ export default function MaterialsScreen() {
         onClose={() => setModalOpen(false)}
         onSaved={() => setModalOpen(false)}
       />
-      <MaterialCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} />
-      <UnitsModal open={unitsModalOpen} onClose={() => setUnitsModalOpen(false)} />
     </div>
   );
 }

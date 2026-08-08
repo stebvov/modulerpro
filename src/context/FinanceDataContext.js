@@ -11,6 +11,9 @@ const EMPTY = {
   deals: [],
   sites: [],
   overheadTransactions: [],
+  transactionCategories: [],
+  allTransactions: [],
+  transactionAttachments: [],
 };
 
 export function FinanceDataProvider({ children }) {
@@ -23,18 +26,28 @@ export function FinanceDataProvider({ children }) {
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const [monthlyPnl, cumulativePnl, deals, sites, overheadTransactions] = await Promise.all([
-          supabase.from("v_monthly_pnl").select("*").order("month"),
-          supabase.from("v_cumulative_net_profit").select("*").order("month"),
-          supabase.from("deals").select("id, created_at, leads(name)").order("created_at", { ascending: false }).limit(200),
-          supabase.from("production_sites").select("id, name").order("sort_order"),
-          supabase
-            .from("transactions")
-            .select("id, date, amount, category, note, site_id, production_sites(name)")
-            .eq("type", "витрата-офіс")
-            .order("date", { ascending: false }),
-        ]);
-        const firstError = [monthlyPnl, cumulativePnl, deals, sites, overheadTransactions].find((r) => r.error);
+        const [monthlyPnl, cumulativePnl, deals, sites, overheadTransactions, transactionCategories, allTransactions, transactionAttachments] =
+          await Promise.all([
+            supabase.from("v_monthly_pnl").select("*").order("month"),
+            supabase.from("v_cumulative_net_profit").select("*").order("month"),
+            supabase.from("deals").select("id, created_at, leads(name)").order("created_at", { ascending: false }).limit(200),
+            supabase.from("production_sites").select("id, name").order("sort_order"),
+            supabase
+              .from("transactions")
+              .select("id, date, amount, category, note, site_id, production_sites(name)")
+              .eq("type", "витрата-офіс")
+              .order("date", { ascending: false }),
+            supabase.from("transaction_categories").select("*").order("sort_order"),
+            supabase
+              .from("transactions")
+              .select("id, type, amount, currency, date, category, note, deal_id, site_id, deals(leads(name)), production_sites(name)")
+              .order("date", { ascending: false })
+              .limit(500),
+            supabase.from("transaction_attachments").select("*").order("created_at", { ascending: false }),
+          ]);
+        const firstError = [
+          monthlyPnl, cumulativePnl, deals, sites, overheadTransactions, transactionCategories, allTransactions, transactionAttachments,
+        ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
         setData({
@@ -43,6 +56,13 @@ export function FinanceDataProvider({ children }) {
           deals: (deals.data || []).map((d) => ({ id: d.id, leadName: d.leads?.name || null })),
           sites: sites.data || [],
           overheadTransactions: (overheadTransactions.data || []).map((t) => ({ ...t, siteName: t.production_sites?.name || null })),
+          transactionCategories: transactionCategories.data || [],
+          allTransactions: (allTransactions.data || []).map((t) => ({
+            ...t,
+            dealLeadName: t.deals?.leads?.name || null,
+            siteName: t.production_sites?.name || null,
+          })),
+          transactionAttachments: transactionAttachments.data || [],
         });
         setError(null);
       } catch (e) {

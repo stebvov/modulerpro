@@ -6,7 +6,7 @@ import SearchCombobox from "@/components/SearchCombobox";
 import { TRANSACTION_TYPES, todayInput } from "@/lib/finance";
 
 export default function TransactionModal({ open, onClose, onSaved }) {
-  const { supabase, deals, sites, reload } = useFinanceData();
+  const { supabase, deals, sites, transactionCategories, reload } = useFinanceData();
   const [type, setType] = useState(TRANSACTION_TYPES[0]);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayInput());
@@ -21,6 +21,15 @@ export default function TransactionModal({ open, onClose, onSaved }) {
 
   const isOffice = type === "витрата-офіс";
   const dealOptions = deals.map((d) => ({ id: d.id, label: d.leadName || d.id.slice(0, 8) }));
+  const categoryOptions = transactionCategories.map((c) => ({ id: c.name, label: c.name }));
+
+  async function createCategory(text) {
+    const maxOrder = transactionCategories.length ? Math.max(...transactionCategories.map((c) => c.sort_order)) : 0;
+    const { error: e } = await supabase.from("transaction_categories").insert([{ name: text, sort_order: maxOrder + 1 }]);
+    if (e) { setError(e.message); return null; }
+    await reload(true);
+    return text;
+  }
 
   function resetAndClose() {
     setType(TRANSACTION_TYPES[0]);
@@ -108,7 +117,7 @@ export default function TransactionModal({ open, onClose, onSaved }) {
 
         <div className="form-row">
           <label>Категорія (необов&apos;язково)</label>
-          <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="напр. оренда, зп, реклама" />
+          <SearchCombobox value={category} options={categoryOptions} onChange={setCategory} onCreate={createCategory} placeholder="напр. оренда, зп, реклама" />
         </div>
         <div className="form-row">
           <label>Коментар (необов&apos;язково)</label>

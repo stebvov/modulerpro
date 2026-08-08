@@ -5,7 +5,8 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import TemplateModal from "@/components/modals/TemplateModal";
-import ProductCategoriesModal from "@/components/modals/ProductCategoriesModal";
+import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
+import SettingsPageHeader from "@/components/SettingsPageHeader";
 
 export default function CatalogScreen({ compareSelection, setCompareSelection }) {
   const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
@@ -21,7 +22,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
   const [priceMax, setPriceMax] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
-  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [showCategoriesPage, setShowCategoriesPage] = useState(false);
 
   const list = templates.filter((t) => {
     if (statusFilter && t.status !== statusFilter) return false;
@@ -88,6 +89,15 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
     await reload(true);
   }
 
+  if (showCategoriesPage) {
+    return (
+      <div>
+        <SettingsPageHeader title="Категорії товарів" onBack={() => setShowCategoriesPage(false)} />
+        <ProductCategoriesPanel />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="filters-row">
@@ -110,7 +120,7 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
               ))}
             </select>
             {canWriteCatalog && (
-              <button className="btn small" title="Налаштування категорій" onClick={() => setCatModalOpen(true)}>⚙</button>
+              <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)}>⚙</button>
             )}
           </div>
         </div>
@@ -206,7 +216,6 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
         onSaved={() => setModalOpen(false)}
         onDuplicated={(newTemplate) => setEditingTemplate(newTemplate)}
       />
-      <ProductCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} />
     </div>
   );
 }

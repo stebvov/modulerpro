@@ -22,6 +22,7 @@ const EMPTY = {
   productCategoryLinks: [],
   priceHistory: [],
   profiles: [],
+  materialUnits: [],
 };
 
 export function DataProvider({ children }) {
@@ -53,6 +54,7 @@ export function DataProvider({ children }) {
           productCategoryLinks,
           priceHistory,
           profiles,
+          materialUnits,
         ] = await Promise.all([
           supabase.from("materials").select("*").order("name"),
           supabase.from("suppliers").select("*").order("name"),
@@ -70,13 +72,14 @@ export function DataProvider({ children }) {
           supabase.from("product_category_links").select("*"),
           supabase.from("supplier_price_history").select("*").order("changed_at", { ascending: false }),
           supabase.from("profiles").select("*").order("created_at"),
+          supabase.from("material_units").select("*").order("sort_order"),
         ]);
 
         const firstError = [
           materials, suppliers, supplierPrices, templates, bomItems, extraCosts,
           productCategories, materialCategories, bomGroups, exchangeRates,
           supplierCategoryLinks, supplierContacts, templateFiles, productCategoryLinks,
-          priceHistory, profiles,
+          priceHistory, profiles, materialUnits,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -97,6 +100,7 @@ export function DataProvider({ children }) {
           productCategoryLinks: productCategoryLinks.data || [],
           priceHistory: priceHistory.data || [],
           profiles: profiles.data || [],
+          materialUnits: materialUnits.data || [],
         });
         setError(null);
       } catch (e) {
