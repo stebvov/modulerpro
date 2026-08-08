@@ -314,14 +314,12 @@ admin/manager/accountant) через `current_user_role()`, як і в усіх 
   посилання/email/тимчасовий пароль/роль і передає користувачу вручну.
   Доданий self-service "Змінити пароль" (біля "Вийти"), щоб запрошений
   користувач міг замінити тимчасовий пароль сам.
-  **Потребує ручної дії власника:** додати змінну середовища
-  `SUPABASE_SERVICE_ROLE_KEY` у Vercel (Project Settings → Environment
-  Variables) — значення з Supabase Dashboard → Project Settings → API →
-  "service_role" secret key. Без цього маршрут запрошення поверне зрозумілу
-  помилку 500 замість тихого збою. Рекомендовано також вимкнути "Allow new
-  users to sign up" у Supabase Dashboard → Authentication → Sign In
-  Providers — це закриє пряму реєстрацію через API Supabase в обхід
-  застосунку (інструменту для цього в MCP немає, робиться вручну).
+  **Виконано власником (2026-08-08):** `SUPABASE_SERVICE_ROLE_KEY` додано у
+  Vercel — перевірено: тестове запрошення успішно створило акаунт (`profiles`
+  отримав новий рядок з очікуваною роллю). "Allow new users to sign up"
+  вимкнено в Supabase Dashboard → Authentication — пряма реєстрація через
+  API Supabase більше не працює в обхід застосунку. Обидва пункти audit-звіту
+  щодо відкритої реєстрації закрито.
 - **Відкрите питання:** ролі в базі (`user_role`: admin/manager/accountant) не
   відповідають повній таксономії ролей із Шару 7 цього документа (Власник/
   Продажі/Виробництво/Закупівля/Маркетинг/Монтаж/Логістика — останні дві
