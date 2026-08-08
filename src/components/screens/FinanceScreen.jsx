@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import { useAuth } from "@/context/AuthContext";
 import { useFinanceData } from "@/context/FinanceDataContext";
 import MonthlyMarginChart from "@/components/MonthlyMarginChart";
 import CumulativeTrendChart from "@/components/CumulativeTrendChart";
 import GoalProgressBar from "@/components/GoalProgressBar";
+import TransactionModal from "@/components/modals/TransactionModal";
 import { convert, fmtCurrency } from "@/lib/format";
 import { marginProduction, marginServices, marginPct, fmtMonthLong } from "@/lib/finance";
 
 export default function FinanceScreen() {
   const { exchangeRates } = useAppData();
+  const { canWriteFinance } = useAuth();
   const { loading, error, monthlyPnl, cumulativePnl, deals, supabase } = useFinanceData();
   const [dealId, setDealId] = useState("");
   const [dealPnl, setDealPnl] = useState(null);
   const [dealPnlLoading, setDealPnlLoading] = useState(false);
+  const [txModalOpen, setTxModalOpen] = useState(false);
 
   async function handleSelectDeal(id) {
     setDealId(id);
@@ -35,7 +39,12 @@ export default function FinanceScreen() {
 
   return (
     <div>
-      <p className="note">Дохід і маржа виробництва та послуг рахуються окремо, в реальному часі — на основі транзакцій.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <p className="note">Дохід і маржа виробництва та послуг рахуються окремо, в реальному часі — на основі транзакцій.</p>
+        {canWriteFinance && (
+          <button className="btn primary small" onClick={() => setTxModalOpen(true)}>+ Транзакція</button>
+        )}
+      </div>
 
       <div className="section-label">01 — Дашборд власника</div>
       {!lastMonth ? (
@@ -125,10 +134,25 @@ export default function FinanceScreen() {
                 {fmtCurrency(dealPnl.revenue_services - dealPnl.cost_services, "UAH", exchangeRates)}
               </td>
             </tr>
+            <tr>
+              <td className="note">Розподілені адмін./майданчикові витрати</td>
+              <td style={{ textAlign: "right", color: "var(--danger)" }}>−{fmtCurrency(dealPnl.cost_overhead, "UAH", exchangeRates)}</td>
+            </tr>
             <tr style={{ fontWeight: 600 }}><td>Чистий прибуток по угоді</td><td style={{ textAlign: "right" }}>{fmtCurrency(dealPnl.net_profit, "UAH", exchangeRates)}</td></tr>
           </tbody>
         </table>
       )}
+      {dealId && !dealPnlLoading && dealPnl && Number(dealPnl.cost_overhead) > 0 && (
+        <p className="note" style={{ marginTop: 6 }}>
+          Загальні витрати (оренда офісу, зарплати, реклама тощо) та витрати конкретного майданчика розподіляються між будинками пропорційно до їх площі та кількості днів у виробництві за відповідний місяць.
+        </p>
+      )}
+
+      <TransactionModal
+        open={txModalOpen}
+        onClose={() => setTxModalOpen(false)}
+        onSaved={() => dealId && handleSelectDeal(dealId)}
+      />
     </div>
   );
 }

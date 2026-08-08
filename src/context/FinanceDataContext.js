@@ -9,6 +9,7 @@ const EMPTY = {
   monthlyPnl: [],
   cumulativePnl: [],
   deals: [],
+  sites: [],
 };
 
 export function FinanceDataProvider({ children }) {
@@ -21,18 +22,20 @@ export function FinanceDataProvider({ children }) {
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const [monthlyPnl, cumulativePnl, deals] = await Promise.all([
+        const [monthlyPnl, cumulativePnl, deals, sites] = await Promise.all([
           supabase.from("v_monthly_pnl").select("*").order("month"),
           supabase.from("v_cumulative_net_profit").select("*").order("month"),
           supabase.from("deals").select("id, created_at, leads(name)").order("created_at", { ascending: false }).limit(200),
+          supabase.from("production_sites").select("id, name").order("sort_order"),
         ]);
-        const firstError = [monthlyPnl, cumulativePnl, deals].find((r) => r.error);
+        const firstError = [monthlyPnl, cumulativePnl, deals, sites].find((r) => r.error);
         if (firstError) throw firstError.error;
 
         setData({
           monthlyPnl: monthlyPnl.data || [],
           cumulativePnl: cumulativePnl.data || [],
           deals: (deals.data || []).map((d) => ({ id: d.id, leadName: d.leads?.name || null })),
+          sites: sites.data || [],
         });
         setError(null);
       } catch (e) {

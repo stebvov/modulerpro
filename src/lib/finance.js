@@ -1,5 +1,18 @@
 export const GOAL_NET_PROFIT_USD = 1_000_000;
 
+export const TRANSACTION_TYPES = [
+  "дохід-виробництво",
+  "дохід-послуга",
+  "витрата-матеріали",
+  "витрата-зп",
+  "витрата-послуга",
+  "витрата-офіс",
+];
+
+export function todayInput() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function marginProduction(row) {
   return Number(row.revenue_production || 0) - Number(row.cost_materials || 0) - Number(row.cost_labor || 0);
 }
