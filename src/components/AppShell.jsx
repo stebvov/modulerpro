@@ -24,6 +24,7 @@ import PriceBySupplierScreen from "@/components/screens/PriceBySupplierScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
+import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 
 const TAB_GROUPS = [
   { label: "Продажі", tabs: [{ id: "crm", label: "CRM" }] },
@@ -50,6 +51,7 @@ export default function AppShell() {
   const [activeTab, setActiveTab] = useState("catalog");
   const [compareSelection, setCompareSelection] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   let groups = TAB_GROUPS;
   if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
@@ -129,6 +131,7 @@ export default function AppShell() {
                 {profile?.full_name || user?.email}
                 <span className={`role-pill ${role}`}>{roleLabels[role] || role}</span>
               </div>
+              <button className="btn small" onClick={() => setPasswordModalOpen(true)}>Змінити пароль</button>
               <button className="btn small" onClick={signOut}>Вийти</button>
               <div className="currency-switch">
                 {["UAH", "USD", "EUR"].map((c) => (
@@ -212,6 +215,8 @@ export default function AppShell() {
           )}
         </div>
       </div>
+
+      <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </div>
   );
 }
