@@ -88,27 +88,19 @@ Supabase Dashboard; проєкт не використовує CLI-міграц�
 
 ## Деплой
 
-### Vercel (рекомендовано)
+### Vercel
 
-Next.js визначається автоматично — конфігурація не потрібна.
+Продакшн живе тут: https://modulerpro.vercel.app/ — Next.js визначається
+автоматично, конфігурація не потрібна, push у `main` деплоїть одразу.
 
 1. Імпортуй репозиторій на [vercel.com/new](https://vercel.com/new).
 2. Додай змінні середовища `NEXT_PUBLIC_SUPABASE_URL` і
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` у Project Settings → Environment Variables.
 3. Deploy.
 
-### Netlify
-
-У репозиторії є `netlify.toml` з плагіном `@netlify/plugin-nextjs`.
-
-1. New site from Git → обери репозиторій (build command і publish дір вже
-   прописані в `netlify.toml`).
-2. Додай ті самі змінні середовища в Site settings → Environment variables.
-3. Deploy.
-
 ### GitHub Actions
 
 `.github/workflows/build.yml` лише перевіряє лінт і збірку на push/PR — це
-CI-перевірка, не деплой (деплой веде Vercel/Netlify через власну git-інтеграцію).
+CI-перевірка, не деплой (деплой веде Vercel через власну git-інтеграцію).
 Щоб CI мав доступ до Supabase-змінних, додай ті самі два секрети в
 Settings → Secrets and variables → Actions.

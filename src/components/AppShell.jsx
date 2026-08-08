@@ -8,6 +8,8 @@ import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
 import { ProductionDataProvider } from "@/context/ProductionDataContext";
 import ProductionScreen from "@/components/screens/ProductionScreen";
+import { FinanceDataProvider } from "@/context/FinanceDataContext";
+import FinanceScreen from "@/components/screens/FinanceScreen";
 import CatalogScreen from "@/components/screens/CatalogScreen";
 import CompareScreen from "@/components/screens/CompareScreen";
 import MaterialsScreen from "@/components/screens/MaterialsScreen";
@@ -36,12 +38,14 @@ const TAB_GROUPS = [
 
 export default function AppShell() {
   const { loading, error, currency, setCurrency } = useAppData();
-  const { profile, user, role, isAdmin, signOut } = useAuth();
+  const { profile, user, role, isAdmin, canWriteFinance, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [compareSelection, setCompareSelection] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const groups = isAdmin ? [...TAB_GROUPS, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }] }] : TAB_GROUPS;
+  let groups = TAB_GROUPS;
+  if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
+  if (isAdmin) groups = [...groups, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }] }];
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
 
   function selectGroup(g) {
@@ -140,6 +144,13 @@ export default function AppShell() {
               <ProductionDataProvider>
                 <ProductionScreen />
               </ProductionDataProvider>
+            )}
+          </div>
+          <div className={`screen${activeTab === "finance" ? " active" : ""}`}>
+            {activeTab === "finance" && canWriteFinance && (
+              <FinanceDataProvider>
+                <FinanceScreen />
+              </FinanceDataProvider>
             )}
           </div>
           <div className={`screen${activeTab === "catalog" ? " active" : ""}`}>
