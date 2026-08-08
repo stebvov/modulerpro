@@ -22,6 +22,8 @@ import CategoriesScreen from "@/components/screens/CategoriesScreen";
 import PriceByMaterialScreen from "@/components/screens/PriceByMaterialScreen";
 import PriceBySupplierScreen from "@/components/screens/PriceBySupplierScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
+import { TeamDataProvider } from "@/context/TeamDataContext";
+import TeamScreen from "@/components/screens/TeamScreen";
 
 const TAB_GROUPS = [
   { label: "Продажі", tabs: [{ id: "crm", label: "CRM" }] },
@@ -51,7 +53,7 @@ export default function AppShell() {
 
   let groups = TAB_GROUPS;
   if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
-  if (isAdmin) groups = [...groups, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }] }];
+  if (isAdmin) groups = [...groups, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }] }];
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
 
   function selectGroup(g) {
@@ -197,6 +199,15 @@ export default function AppShell() {
           {isAdmin && (
             <div className={`screen${activeTab === "users" ? " active" : ""}`}>
               {activeTab === "users" && <UsersScreen />}
+            </div>
+          )}
+          {isAdmin && (
+            <div className={`screen${activeTab === "team" ? " active" : ""}`}>
+              {activeTab === "team" && (
+                <TeamDataProvider>
+                  <TeamScreen />
+                </TeamDataProvider>
+              )}
             </div>
           )}
         </div>
