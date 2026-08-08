@@ -27,7 +27,7 @@ import TeamScreen from "@/components/screens/TeamScreen";
 import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 
 const TAB_GROUPS = [
-  { label: "Продажі", tabs: [{ id: "crm", label: "CRM" }] },
+  { label: "CRM", tabs: [{ id: "crm", label: "CRM" }] },
   { label: "Виробництво", tabs: [{ id: "production", label: "Виробництво" }] },
   { label: "Послуги", tabs: [{ id: "services", label: "Послуги" }] },
   { label: "Маркетинг", tabs: [{ id: "marketing", label: "Маркетинг" }] },
@@ -52,6 +52,8 @@ export default function AppShell() {
   const [compareSelection, setCompareSelection] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
   let groups = TAB_GROUPS;
   if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
@@ -63,23 +65,33 @@ export default function AppShell() {
     setMobileMenuOpen(false);
   }
 
+  function toggleGroupExpanded(label) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }
+
   return (
     <div className="app">
       <div className="mobile-topbar">
         <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Меню">☰</button>
         <span className="mobile-group-title">{activeGroup.label}</span>
       </div>
-      <div className="mobile-subtabs">
-        {activeGroup.tabs.map((t) => (
-          <button
-            key={t.id}
-            className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
-            onClick={() => setActiveTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {activeGroup.tabs.length > 1 && (
+        <div className="mobile-subtabs">
+          {activeGroup.tabs.map((t) => (
+            <button
+              key={t.id}
+              className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
       {mobileMenuOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
@@ -98,29 +110,61 @@ export default function AppShell() {
       )}
 
       <div className="shell">
-        <div className="sidebar">
-          <div className="sidebar-brand">Moduler Pro</div>
-          <div className="sidebar-groups">
-            {groups.map((g) => (
-              <div className="sidebar-group" key={g.label}>
-                <div className="sidebar-group-label">{g.label}</div>
-                {g.tabs.map((t) => (
-                  <button
-                    key={t.id}
-                    className={`sidebar-link${activeTab === t.id ? " active" : ""}`}
-                    onClick={() => setActiveTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            ))}
+        {!sidebarCollapsed && (
+          <div className="sidebar">
+            <div className="sidebar-brand-row">
+              <div className="sidebar-brand">Moduler Pro</div>
+              <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(true)} title="Сховати меню" aria-label="Сховати меню">⟨</button>
+            </div>
+            <div className="sidebar-groups">
+              {groups.map((g) => {
+                const [mainTab, ...restTabs] = g.tabs;
+                const isExpanded = expandedGroups.has(g.label) || restTabs.some((t) => t.id === activeTab);
+                return (
+                  <div className="sidebar-group" key={g.label}>
+                    <div className="sidebar-group-row">
+                      <button
+                        className={`sidebar-link${activeTab === mainTab.id ? " active" : ""}`}
+                        onClick={() => setActiveTab(mainTab.id)}
+                      >
+                        {g.label}
+                      </button>
+                      {restTabs.length > 0 && (
+                        <button
+                          className="sidebar-expand-btn"
+                          onClick={() => toggleGroupExpanded(g.label)}
+                          aria-label={isExpanded ? "Згорнути" : "Розгорнути"}
+                        >
+                          {isExpanded ? "▾" : "▸"}
+                        </button>
+                      )}
+                    </div>
+                    {restTabs.length > 0 && isExpanded && (
+                      <div className="sidebar-subgroup">
+                        {restTabs.map((t) => (
+                          <button
+                            key={t.id}
+                            className={`sidebar-link sub${activeTab === t.id ? " active" : ""}`}
+                            onClick={() => setActiveTab(t.id)}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="main-content">
           <div className="top-bar">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {sidebarCollapsed && (
+                <button className="btn small" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
+              )}
               <div className={`live-badge${error ? " error" : ""}`}>
                 <span className="live-dot" />
                 <span>{loading ? "Підключення..." : error ? "Помилка підключення: " + error : "Підключено до Supabase"}</span>

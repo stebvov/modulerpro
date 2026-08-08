@@ -40,12 +40,20 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 /* Shell: left sidebar (grouped by layer) + main content */
 .shell { display: flex; gap: 28px; align-items: flex-start; }
 .sidebar { width: 210px; flex-shrink: 0; position: sticky; top: 20px; }
-.sidebar-brand { font-size: 17px; font-weight: 600; margin-bottom: 20px; }
-.sidebar-groups { display: flex; flex-direction: column; gap: 18px; }
-.sidebar-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); padding: 0 10px; margin-bottom: 6px; }
-.sidebar-link { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; border: none; background: none; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: inherit; margin-bottom: 2px; }
+.sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.sidebar-brand { font-size: 17px; font-weight: 600; }
+.sidebar-collapse-btn { border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; width: 24px; height: 24px; font-size: 13px; line-height: 1; cursor: pointer; color: var(--text-secondary); flex-shrink: 0; }
+.sidebar-collapse-btn:hover { color: var(--accent); border-color: var(--accent); }
+.sidebar-groups { display: flex; flex-direction: column; gap: 4px; }
+.sidebar-group-row { display: flex; align-items: center; gap: 2px; }
+.sidebar-link { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; border: none; background: none; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: inherit; }
 .sidebar-link:hover { background: var(--accent-bg); color: var(--accent); }
 .sidebar-link.active { background: var(--accent); color: #fff; font-weight: 500; }
+.sidebar-group-row .sidebar-link { flex: 1; min-width: 0; }
+.sidebar-expand-btn { flex-shrink: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; color: var(--text-muted); border-radius: 4px; font-size: 10px; }
+.sidebar-expand-btn:hover { color: var(--accent); background: var(--accent-bg); }
+.sidebar-subgroup { display: flex; flex-direction: column; margin: 2px 0 4px; }
+.sidebar-link.sub { padding-left: 22px; font-size: 12.5px; }
 .main-content { flex: 1; min-width: 0; }
 /* Mobile nav: hamburger -> drawer of layers (groups), + a one-row strip
    of the current group's sub-tabs. Hidden on desktop, where the left
