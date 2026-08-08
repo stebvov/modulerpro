@@ -75,23 +75,6 @@ export default function AppShell() {
 
   return (
     <div className="app">
-      <div className="mobile-topbar">
-        <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Меню">☰</button>
-        <span className="mobile-group-title">{activeGroup.label}</span>
-      </div>
-      {activeGroup.tabs.length > 1 && (
-        <div className="mobile-subtabs">
-          {activeGroup.tabs.map((t) => (
-            <button
-              key={t.id}
-              className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
-              onClick={() => setActiveTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
       {mobileMenuOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
@@ -161,17 +144,32 @@ export default function AppShell() {
 
         <div className="main-content">
           <div className="top-bar">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="top-bar-left">
+              <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Меню">☰</button>
               {sidebarCollapsed && (
-                <button className="btn small" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
+                <button className="btn small sidebar-reopen-btn" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
               )}
               <h1 className="page-title">{activeTabInfo?.label}</h1>
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="top-bar-right">
               <CurrencyMenu currency={currency} onChange={setCurrency} />
               <ProfileMenu />
             </div>
           </div>
+
+          {activeGroup.tabs.length > 1 && (
+            <div className="mobile-subtabs">
+              {activeGroup.tabs.map((t) => (
+                <button
+                  key={t.id}
+                  className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => setActiveTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className={`screen${activeTab === "crm" ? " active" : ""}`}>
             {activeTab === "crm" && (

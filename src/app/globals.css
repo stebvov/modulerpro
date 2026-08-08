@@ -29,11 +29,14 @@ a { color: inherit; }
 h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 6px; }
 .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+.top-bar-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.top-bar-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex-shrink: 0; }
 .live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--success); }
 .live-badge.error { color: var(--danger); }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
 .live-badge.error .live-dot { background: var(--danger); }
-.page-title { font-size: 17px; font-weight: 600; margin: 0; }
+.page-title { font-size: 17px; font-weight: 600; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hamburger-btn { display: none; border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text); flex-shrink: 0; }
 
 /* Currency menu: single button showing flag+code, opens a dropdown */
 .currency-menu { position: relative; }
@@ -92,18 +95,17 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .sidebar-link.sub { padding-left: 22px; font-size: 12.5px; }
 .main-content { flex: 1; min-width: 0; }
 /* Mobile nav: hamburger -> drawer of layers (groups), + a one-row strip
-   of the current group's sub-tabs. Hidden on desktop, where the left
-   sidebar (above) is used instead. */
-.mobile-topbar { display: none; }
+   of the current group's sub-tabs. The hamburger and drawer are hidden on
+   desktop via .hamburger-btn's base display:none and .mobile-subtabs/
+   .mobile-drawer-overlay below; the left sidebar (above) is used instead. */
 .mobile-subtabs { display: none; }
 .mobile-drawer-overlay { display: none; }
 
 @media (max-width: 900px) {
   .sidebar { display: none; }
-
-  .mobile-topbar { display: flex; align-items: center; gap: 10px; padding: 4px 0 10px; }
-  .hamburger-btn { border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text); flex-shrink: 0; }
-  .mobile-group-title { font-weight: 600; font-size: 15px; }
+  .sidebar-reopen-btn { display: none; }
+  .hamburger-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .page-title { font-size: 15px; }
 
   .mobile-subtabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
   .mobile-subtab { flex-shrink: 0; padding: 6px 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--card); font-size: 12px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-family: inherit; }
@@ -114,6 +116,13 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
   .mobile-drawer-brand { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
   .mobile-drawer-link { text-align: left; padding: 10px 12px; border-radius: 6px; border: none; background: none; font-size: 14px; color: var(--text-secondary); cursor: pointer; font-family: inherit; }
   .mobile-drawer-link.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+}
+
+@media (max-width: 480px) {
+  .top-bar-right { gap: 6px; }
+  .currency-menu-btn { padding: 5px 7px; }
+  .currency-menu-list { min-width: 0; width: min(240px, 92vw); }
+  .profile-menu-panel { width: min(270px, 92vw); }
 }
 .screen { display: none; }
 .screen.active { display: block; }
