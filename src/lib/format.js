@@ -1,6 +1,12 @@
 export const statusLabels = { active: "Активний", draft: "Чернетка", archived: "Архів" };
 export const currencySymbols = { UAH: "грн", USD: "$", EUR: "€" };
 
+export const CURRENCIES = [
+  { code: "UAH", flag: "🇺🇦", name: "Гривня", symbol: "грн" },
+  { code: "USD", flag: "🇺🇸", name: "Долар США", symbol: "$" },
+  { code: "EUR", flag: "🇪🇺", name: "Євро", symbol: "€" },
+];
+
 export function daysAgo(ts) {
   return Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
 }

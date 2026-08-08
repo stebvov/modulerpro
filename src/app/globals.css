@@ -17,6 +17,7 @@
   --radius: 10px;
 }
 * { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
 html, body { margin: 0; padding: 0; }
 body {
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -32,10 +33,39 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .live-badge.error { color: var(--danger); }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
 .live-badge.error .live-dot { background: var(--danger); }
-.currency-switch { display: flex; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
-.currency-switch span { padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--text-secondary); }
-.currency-switch span.active { background: var(--accent); color: white; }
-.role-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; }
+.page-title { font-size: 17px; font-weight: 600; margin: 0; }
+
+/* Currency menu: single button showing flag+code, opens a dropdown */
+.currency-menu { position: relative; }
+.currency-menu-btn { display: flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: var(--text-secondary); font-family: inherit; }
+.currency-menu-btn:hover { border-color: var(--accent); color: var(--accent); }
+.currency-menu-list { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 170px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 4px; }
+.currency-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border: none; background: none; border-radius: 6px; font-size: 12.5px; cursor: pointer; color: var(--text-secondary); font-family: inherit; text-align: left; }
+.currency-menu-item:hover { background: var(--accent-bg); color: var(--accent); }
+.currency-menu-item.active { background: var(--accent); color: #fff; }
+.currency-menu-name { flex: 1; }
+.currency-menu-code { font-size: 11px; opacity: .8; }
+
+/* Profile menu: avatar button + dropdown (profile info, avatars, password, sign out) */
+.profile-menu { position: relative; }
+.profile-menu-btn { border: none; background: none; padding: 0; cursor: pointer; border-radius: 50%; line-height: 0; }
+.profile-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: block; }
+.profile-avatar.lg { width: 44px; height: 44px; }
+.profile-avatar-fallback { display: flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; }
+.profile-avatar.lg.profile-avatar-fallback { font-size: 17px; }
+.profile-menu-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; background: var(--card); border: 1px solid var(--border-strong); border-radius: 10px; width: 270px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+.profile-menu-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.profile-menu-name { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+.profile-avatar-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-avatar-thumb { position: relative; width: 36px; height: 36px; }
+.profile-avatar-thumb > button:first-child { padding: 0; border: none; background: none; cursor: pointer; display: block; width: 36px; height: 36px; }
+.profile-avatar-thumb img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid transparent; display: block; }
+.profile-avatar-thumb.primary img { border-color: var(--accent); }
+.profile-avatar-thumb-x { position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; padding: 0; border: none; border-radius: 50%; background: var(--danger); color: #fff; font-size: 10px; line-height: 15px; text-align: center; cursor: pointer; }
+.profile-avatar-add { width: 36px; height: 36px; border-radius: 50%; border: 1px dashed var(--border-strong); background: none; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+.profile-avatar-add:hover { border-color: var(--accent); color: var(--accent); }
+.profile-menu-actions { display: flex; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.profile-menu-actions .btn { flex: 1; }
 
 /* Shell: left sidebar (grouped by layer) + main content */
 .shell { display: flex; gap: 28px; align-items: flex-start; }

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { roleLabels } from "@/lib/format";
+import ProfileMenu from "@/components/ProfileMenu";
+import CurrencyMenu from "@/components/CurrencyMenu";
 import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
 import { ProductionDataProvider } from "@/context/ProductionDataContext";
@@ -24,7 +25,6 @@ import PriceBySupplierScreen from "@/components/screens/PriceBySupplierScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
-import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 
 const TAB_GROUPS = [
   { label: "CRM", tabs: [{ id: "crm", label: "CRM" }] },
@@ -46,12 +46,11 @@ const TAB_GROUPS = [
 ];
 
 export default function AppShell() {
-  const { loading, error, currency, setCurrency } = useAppData();
-  const { profile, user, role, isAdmin, canWriteFinance, signOut } = useAuth();
+  const { currency, setCurrency } = useAppData();
+  const { isAdmin, canWriteFinance } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [compareSelection, setCompareSelection] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
@@ -59,6 +58,7 @@ export default function AppShell() {
   if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
   if (isAdmin) groups = [...groups, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }] }];
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
+  const activeTabInfo = activeGroup.tabs.find((t) => t.id === activeTab) || activeGroup.tabs[0];
 
   function selectGroup(g) {
     setActiveTab(g.tabs[0].id);
@@ -165,25 +165,11 @@ export default function AppShell() {
               {sidebarCollapsed && (
                 <button className="btn small" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
               )}
-              <div className={`live-badge${error ? " error" : ""}`}>
-                <span className="live-dot" />
-                <span>{loading ? "Підключення..." : error ? "Помилка підключення: " + error : "Підключено до Supabase"}</span>
-              </div>
+              <h1 className="page-title">{activeTabInfo?.label}</h1>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <div className="role-badge">
-                {profile?.full_name || user?.email}
-                <span className={`role-pill ${role}`}>{roleLabels[role] || role}</span>
-              </div>
-              <button className="btn small" onClick={() => setPasswordModalOpen(true)}>Змінити пароль</button>
-              <button className="btn small" onClick={signOut}>Вийти</button>
-              <div className="currency-switch">
-                {["UAH", "USD", "EUR"].map((c) => (
-                  <span key={c} className={currency === c ? "active" : ""} onClick={() => setCurrency(c)}>
-                    {{ UAH: "грн", USD: "$", EUR: "€" }[c]}
-                  </span>
-                ))}
-              </div>
+              <CurrencyMenu currency={currency} onChange={setCurrency} />
+              <ProfileMenu />
             </div>
           </div>
 
@@ -259,8 +245,6 @@ export default function AppShell() {
           )}
         </div>
       </div>
-
-      <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </div>
   );
 }

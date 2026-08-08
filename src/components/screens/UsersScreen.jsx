@@ -8,7 +8,7 @@ import { roleLabels } from "@/lib/format";
 const ROLES = ["admin", "manager", "accountant"];
 
 export default function UsersScreen() {
-  const { supabase, profiles, reload } = useAppData();
+  const { supabase, profiles, reload, loading: dataLoading, error: dataError } = useAppData();
   const { user, refreshProfile } = useAuth();
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
@@ -85,6 +85,11 @@ export default function UsersScreen() {
         запрошення нижче.
       </p>
       {error && <div className="auth-error">{error}</div>}
+
+      <div className={`live-badge${dataError ? " error" : ""}`} style={{ marginBottom: 16 }}>
+        <span className="live-dot" />
+        <span>{dataLoading ? "Підключення..." : dataError ? "Помилка підключення: " + dataError : "Підключено до Supabase"}</span>
+      </div>
 
       <div className="toolbar">
         <div className="toolbar-left" />
