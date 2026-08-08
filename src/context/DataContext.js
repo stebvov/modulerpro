@@ -30,6 +30,7 @@ export function DataProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currency, setCurrency] = useState("UAH");
+  const [showDecimals, setShowDecimals] = useState(true);
 
   const reload = useCallback(
     async (silent = false) => {
@@ -113,7 +114,7 @@ export function DataProvider({ children }) {
     reload();
   }, [reload]);
 
-  const value = { ...data, loading, error, reload, currency, setCurrency, supabase };
+  const value = { ...data, loading, error, reload, currency, setCurrency, showDecimals, setShowDecimals, supabase };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

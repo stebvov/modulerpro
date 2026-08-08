@@ -38,11 +38,12 @@ export function convert(amountUah, currency, exchangeRates) {
   return Number(amountUah) / Number(rate);
 }
 
-export function fmtCurrency(amountUah, currency, exchangeRates) {
+export function fmtCurrency(amountUah, currency, exchangeRates, showDecimals = true) {
   const v = convert(amountUah, currency, exchangeRates);
   if (v == null) return "—";
+  const maxDigits = showDecimals && currency !== "UAH" ? 2 : 0;
   return (
-    Number(v).toLocaleString("uk-UA", { maximumFractionDigits: currency === "UAH" ? 0 : 2 }) +
+    Number(v).toLocaleString("uk-UA", { maximumFractionDigits: maxDigits }) +
     " " +
     currencySymbols[currency]
   );

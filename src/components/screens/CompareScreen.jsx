@@ -4,7 +4,7 @@ import { useAppData } from "@/context/DataContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 
 export default function CompareScreen({ compareSelection }) {
-  const { templates, bomItems, extraCosts, productCategoryLinks, productCategories, materials, bomGroups, currency, exchangeRates } =
+  const { templates, bomItems, extraCosts, productCategoryLinks, productCategories, materials, bomGroups, currency, exchangeRates, showDecimals } =
     useAppData();
 
   if (!compareSelection.length) {
@@ -48,8 +48,8 @@ export default function CompareScreen({ compareSelection }) {
               <div className="row"><span>Статус</span><span>{statusLabels[t.status] || t.status}</span></div>
               {totalUah != null ? (
                 <div className="cost-block">
-                  <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates)}</div>
-                  <div className="cost-sub">{fmtCurrency(t.base_cost_per_m2, currency, exchangeRates)}/м²</div>
+                  <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates, showDecimals)}</div>
+                  <div className="cost-sub">{fmtCurrency(t.base_cost_per_m2, currency, exchangeRates, showDecimals)}/м²</div>
                 </div>
               ) : (
                 <div className="cost-block cost-missing">—</div>
@@ -65,7 +65,7 @@ export default function CompareScreen({ compareSelection }) {
                         type === "extra" ? (
                           <div className="line" key={"e" + idx}>
                             <span>{item.label}</span>
-                            <span>{fmtCurrency(item.amount, currency, exchangeRates)}</span>
+                            <span>{fmtCurrency(item.amount, currency, exchangeRates, showDecimals)}</span>
                           </div>
                         ) : (
                           (() => {

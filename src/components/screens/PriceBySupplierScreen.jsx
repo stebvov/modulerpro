@@ -12,7 +12,7 @@ import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import SearchCombobox from "@/components/SearchCombobox";
 
 export default function PriceBySupplierScreen() {
-  const { supabase, suppliers, materials, materialCategories, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
+  const { supabase, suppliers, materials, materialCategories, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
@@ -116,7 +116,7 @@ export default function PriceBySupplierScreen() {
                             disabled={!canWriteFinance}
                             onChange={(e) => setEditPrices((v) => ({ ...v, [key]: e.target.value }))}
                           />{" "}
-                          {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates)}</span>}
+                          {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates, showDecimals)}</span>}
                         </td>
                         <td>
                           {canWriteFinance ? (

@@ -39,12 +39,18 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .currency-menu { position: relative; }
 .currency-menu-btn { display: flex; align-items: center; gap: 5px; border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: var(--text-secondary); font-family: inherit; }
 .currency-menu-btn:hover { border-color: var(--accent); color: var(--accent); }
-.currency-menu-list { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 170px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 4px; }
-.currency-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border: none; background: none; border-radius: 6px; font-size: 12.5px; cursor: pointer; color: var(--text-secondary); font-family: inherit; text-align: left; }
+.currency-menu-list { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 240px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 4px; }
+.currency-menu-item { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 8px; border: none; background: none; border-radius: 6px; font-size: 12.5px; cursor: pointer; color: var(--text-secondary); font-family: inherit; text-align: left; }
 .currency-menu-item:hover { background: var(--accent-bg); color: var(--accent); }
 .currency-menu-item.active { background: var(--accent); color: #fff; }
+.currency-menu-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.currency-menu-item-top { display: flex; justify-content: space-between; gap: 8px; }
 .currency-menu-name { flex: 1; }
 .currency-menu-code { font-size: 11px; opacity: .8; }
+.currency-menu-rate { font-size: 11px; opacity: .75; }
+.currency-menu-source { opacity: .85; }
+.currency-menu-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; margin-top: 2px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.currency-menu-toggle input { margin: 0; }
 
 /* Profile menu: avatar button + dropdown (profile info, avatars, password, sign out) */
 .profile-menu { position: relative; }

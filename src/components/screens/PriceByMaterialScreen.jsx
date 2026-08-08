@@ -12,7 +12,7 @@ import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import SearchCombobox from "@/components/SearchCombobox";
 
 export default function PriceByMaterialScreen() {
-  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, reload } =
+  const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
@@ -108,7 +108,7 @@ export default function PriceByMaterialScreen() {
                     <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
                     <td>{cat ? cat.name : "—"}</td>
                     <td>{rows.length}</td>
-                    <td>{cheapest != null ? fmtCurrency(cheapest, currency, exchangeRates) : "—"}</td>
+                    <td>{cheapest != null ? fmtCurrency(cheapest, currency, exchangeRates, showDecimals) : "—"}</td>
                     <td>
                       {!rows.length && <span className="badge draft" style={{ color: "var(--danger)" }}>немає ціни</span>}
                       {rows.length === 1 && <span className="badge draft">немає конкуренції</span>}
@@ -154,7 +154,7 @@ export default function PriceByMaterialScreen() {
                             disabled={!canWriteFinance}
                             onChange={(e) => setEditPrices((v) => ({ ...v, [key]: e.target.value }))}
                           />{" "}
-                          {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates)}</span>}
+                          {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates, showDecimals)}</span>}
                         </td>
                         <td>
                           {canWriteFinance ? (

@@ -7,7 +7,7 @@ import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import TemplateModal from "@/components/modals/TemplateModal";
 
 export default function CatalogScreen({ compareSelection, setCompareSelection }) {
-  const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, reload } =
+  const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteCatalog } = useAuth();
   const [statusFilter, setStatusFilter] = useState("");
@@ -164,8 +164,8 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
                 <div className="row"><span>Площа</span><span>{t.area_m2} м²{t.module_count ? ` · ${t.module_count} модулі` : ""}</span></div>
                 {totalUah != null ? (
                   <div className="cost-block">
-                    <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates)}</div>
-                    <div className="cost-sub">{fmtCurrency(t.base_cost_per_m2, currency, exchangeRates)}/м²</div>
+                    <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates, showDecimals)}</div>
+                    <div className="cost-sub">{fmtCurrency(t.base_cost_per_m2, currency, exchangeRates, showDecimals)}/м²</div>
                   </div>
                 ) : (
                   <div className="cost-block cost-missing">{bom.length ? "ціна неповна" : "BOM не заповнено"}</div>
