@@ -8,6 +8,8 @@ import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
 import { ProductionDataProvider } from "@/context/ProductionDataContext";
 import ProductionScreen from "@/components/screens/ProductionScreen";
+import { ServicesDataProvider } from "@/context/ServicesDataContext";
+import ServicesScreen from "@/components/screens/ServicesScreen";
 import { FinanceDataProvider } from "@/context/FinanceDataContext";
 import FinanceScreen from "@/components/screens/FinanceScreen";
 import CatalogScreen from "@/components/screens/CatalogScreen";
@@ -22,6 +24,7 @@ import UsersScreen from "@/components/screens/UsersScreen";
 const TAB_GROUPS = [
   { label: "Продажі", tabs: [{ id: "crm", label: "CRM" }] },
   { label: "Виробництво", tabs: [{ id: "production", label: "Виробництво" }] },
+  { label: "Послуги", tabs: [{ id: "services", label: "Послуги" }] },
   {
     label: "Каталог",
     tabs: [
@@ -144,6 +147,13 @@ export default function AppShell() {
               <ProductionDataProvider>
                 <ProductionScreen />
               </ProductionDataProvider>
+            )}
+          </div>
+          <div className={`screen${activeTab === "services" ? " active" : ""}`}>
+            {activeTab === "services" && (
+              <ServicesDataProvider>
+                <ServicesScreen />
+              </ServicesDataProvider>
             )}
           </div>
           <div className={`screen${activeTab === "finance" ? " active" : ""}`}>
