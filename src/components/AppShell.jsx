@@ -39,11 +39,50 @@ export default function AppShell() {
   const { profile, user, role, isAdmin, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [compareSelection, setCompareSelection] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const groups = isAdmin ? [...TAB_GROUPS, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }] }] : TAB_GROUPS;
+  const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
+
+  function selectGroup(g) {
+    setActiveTab(g.tabs[0].id);
+    setMobileMenuOpen(false);
+  }
 
   return (
     <div className="app">
+      <div className="mobile-topbar">
+        <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Меню">☰</button>
+        <span className="mobile-group-title">{activeGroup.label}</span>
+      </div>
+      <div className="mobile-subtabs">
+        {activeGroup.tabs.map((t) => (
+          <button
+            key={t.id}
+            className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
+            onClick={() => setActiveTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {mobileMenuOpen && (
+        <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-brand">Moduler Pro</div>
+            {groups.map((g) => (
+              <button
+                key={g.label}
+                className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`}
+                onClick={() => selectGroup(g)}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="shell">
         <div className="sidebar">
           <div className="sidebar-brand">Moduler Pro</div>
