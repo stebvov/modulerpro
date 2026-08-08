@@ -14,11 +14,17 @@ import { marginProduction, marginServices, marginPct, fmtMonthLong } from "@/lib
 export default function FinanceScreen() {
   const { exchangeRates } = useAppData();
   const { canWriteFinance } = useAuth();
-  const { loading, error, monthlyPnl, cumulativePnl, deals, supabase } = useFinanceData();
+  const { loading, error, monthlyPnl, cumulativePnl, deals, overheadTransactions, reload, supabase } = useFinanceData();
   const [dealId, setDealId] = useState("");
   const [dealPnl, setDealPnl] = useState(null);
   const [dealPnlLoading, setDealPnlLoading] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
+
+  async function deleteOverhead(id) {
+    if (!confirm("Видалити цю витрату?")) return;
+    await supabase.from("transactions").delete().eq("id", id);
+    await reload(true);
+  }
 
   async function handleSelectDeal(id) {
     setDealId(id);
@@ -36,6 +42,17 @@ export default function FinanceScreen() {
   const lastMonth = monthlyPnl[monthlyPnl.length - 1];
   const lastCumulative = cumulativePnl[cumulativePnl.length - 1];
   const cumulativeUsd = lastCumulative ? convert(lastCumulative.cumulative_net_profit, "USD", exchangeRates) || 0 : 0;
+
+  const totalOverhead = overheadTransactions.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const byCategory = Object.values(
+    overheadTransactions.reduce((acc, t) => {
+      const key = t.category || "Без категорії";
+      if (!acc[key]) acc[key] = { category: key, sum: 0 };
+      acc[key].sum += Number(t.amount || 0);
+      return acc;
+    }, {})
+  ).sort((a, b) => b.sum - a.sum);
+  const maxCategorySum = Math.max(1, ...byCategory.map((c) => c.sum));
 
   return (
     <div>
@@ -146,6 +163,64 @@ export default function FinanceScreen() {
         <p className="note" style={{ marginTop: 6 }}>
           Загальні витрати (оренда офісу, зарплати, реклама тощо) та витрати конкретного майданчика розподіляються між будинками пропорційно до їх площі та кількості днів у виробництві за відповідний місяць.
         </p>
+      )}
+
+      <div className="section-label">04 — Адміністративні та майданчикові витрати</div>
+      {!overheadTransactions.length ? (
+        <div className="empty">Витрат цього типу ще немає.</div>
+      ) : (
+        <>
+          <div className="ops-kpi-grid" style={{ marginBottom: 16 }}>
+            <div className="ops-kpi">
+              <div className="k-label">Усього витрачено</div>
+              <div className="k-value">{fmtCurrency(totalOverhead, "UAH", exchangeRates)}</div>
+              <div className="note" style={{ marginTop: 4 }}>{overheadTransactions.length} записів</div>
+            </div>
+          </div>
+
+          <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Звіт по категоріях</div>
+          <div className="card" style={{ padding: 16, marginBottom: 20, cursor: "default" }}>
+            {byCategory.map(({ category, sum }) => (
+              <div key={category} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 160, fontSize: 12 }}>{category}</div>
+                <div style={{ flex: 1, height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max(2, (sum / maxCategorySum) * 100)}%`, height: "100%", background: "var(--accent)" }} />
+                </div>
+                <div className="note" style={{ marginTop: 0, minWidth: 100, textAlign: "right" }}>{fmtCurrency(sum, "UAH", exchangeRates)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Усі записи</div>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Категорія</th>
+                  <th>Майданчик</th>
+                  <th style={{ textAlign: "right" }}>Сума</th>
+                  <th>Коментар</th>
+                  {canWriteFinance && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {overheadTransactions.map((t) => (
+                  <tr key={t.id}>
+                    <td>{new Date(t.date).toLocaleDateString("uk-UA")}</td>
+                    <td className="note">{t.category || "—"}</td>
+                    <td className="note">{t.siteName || "Загальні (компанія)"}</td>
+                    <td style={{ textAlign: "right" }}>{fmtCurrency(t.amount, "UAH", exchangeRates)}</td>
+                    <td className="note">{t.note || "—"}</td>
+                    {canWriteFinance && (
+                      <td><span className="icon-x" onClick={() => deleteOverhead(t.id)}>×</span></td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <TransactionModal

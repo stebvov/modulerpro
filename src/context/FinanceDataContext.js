@@ -10,6 +10,7 @@ const EMPTY = {
   cumulativePnl: [],
   deals: [],
   sites: [],
+  overheadTransactions: [],
 };
 
 export function FinanceDataProvider({ children }) {
@@ -22,13 +23,18 @@ export function FinanceDataProvider({ children }) {
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const [monthlyPnl, cumulativePnl, deals, sites] = await Promise.all([
+        const [monthlyPnl, cumulativePnl, deals, sites, overheadTransactions] = await Promise.all([
           supabase.from("v_monthly_pnl").select("*").order("month"),
           supabase.from("v_cumulative_net_profit").select("*").order("month"),
           supabase.from("deals").select("id, created_at, leads(name)").order("created_at", { ascending: false }).limit(200),
           supabase.from("production_sites").select("id, name").order("sort_order"),
+          supabase
+            .from("transactions")
+            .select("id, date, amount, category, note, site_id, production_sites(name)")
+            .eq("type", "витрата-офіс")
+            .order("date", { ascending: false }),
         ]);
-        const firstError = [monthlyPnl, cumulativePnl, deals, sites].find((r) => r.error);
+        const firstError = [monthlyPnl, cumulativePnl, deals, sites, overheadTransactions].find((r) => r.error);
         if (firstError) throw firstError.error;
 
         setData({
@@ -36,6 +42,7 @@ export function FinanceDataProvider({ children }) {
           cumulativePnl: cumulativePnl.data || [],
           deals: (deals.data || []).map((d) => ({ id: d.id, leadName: d.leads?.name || null })),
           sites: sites.data || [],
+          overheadTransactions: (overheadTransactions.data || []).map((t) => ({ ...t, siteName: t.production_sites?.name || null })),
         });
         setError(null);
       } catch (e) {
