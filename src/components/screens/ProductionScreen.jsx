@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useProductionData } from "@/context/ProductionDataContext";
 import ProductionLoadWidget from "@/components/ProductionLoadWidget";
 import SlotModal from "@/components/modals/SlotModal";
-import { addWeeks, fmtWeekLabel, overlaps, rangeToPercent, startOfWeek, statusColors } from "@/lib/production";
+import { addWeeks, fmtWeekLabel, overlaps, rangeToPercent, startOfWeek, statusStyles } from "@/lib/production";
 
 const WEEKS_VISIBLE = 8;
 
@@ -44,13 +44,12 @@ export default function ProductionScreen() {
     setSavingCell(null);
   }
 
-  if (loading) return <div className="ops-theme"><div className="empty">Завантаження виробництва...</div></div>;
-  if (error) return <div className="ops-theme"><div className="empty">Помилка підключення: {error}</div></div>;
+  if (loading) return <div className="empty">Завантаження виробництва...</div>;
+  if (error) return <div className="empty">Помилка підключення: {error}</div>;
 
   return (
-    <div className="ops-theme">
-      <h1 style={{ margin: "0 0 2px" }}>Виробництво</h1>
-      <p className="note" style={{ color: "var(--text-secondary)" }}>Календар майданчиків, завантаженість і чек-лист етапів по кожному юніту.</p>
+    <div>
+      <p className="note">Календар майданчиків, завантаженість і чек-лист етапів по кожному юніту.</p>
 
       <ProductionLoadWidget />
 
@@ -61,7 +60,7 @@ export default function ProductionScreen() {
           <button className="seg-btn" onClick={() => setWindowStart(startOfWeek(new Date()))}>Сьогодні</button>
           <button className="seg-btn" onClick={() => setWindowStart(addWeeks(windowStart, WEEKS_VISIBLE))}>{WEEKS_VISIBLE} тижнів →</button>
         </div>
-        <div className="mono" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+        <div className="note">
           {fmtWeekLabel(windowStart)} — {fmtWeekLabel(addWeeks(windowEnd, -1))}
         </div>
       </div>
@@ -84,8 +83,7 @@ export default function ProductionScreen() {
                   {canWriteCatalog ? (
                     <>
                       <input
-                        className="mono"
-                        style={{ width: "100%", fontSize: 11, marginBottom: 4, background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", padding: "2px 4px" }}
+                        style={{ width: "100%", fontSize: 11, marginBottom: 4, padding: "2px 4px" }}
                         placeholder="відповідальний"
                         defaultValue={site.responsible_person || ""}
                         disabled={savingCell === site.id + "responsible_person"}
@@ -93,8 +91,7 @@ export default function ProductionScreen() {
                       />
                       <input
                         type="number"
-                        className="mono"
-                        style={{ width: "100%", fontSize: 11, background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", padding: "2px 4px" }}
+                        style={{ width: "100%", fontSize: 11, padding: "2px 4px" }}
                         placeholder="юнітів/міс"
                         defaultValue={site.capacity_units_per_month ?? ""}
                         disabled={savingCell === site.id + "capacity_units_per_month"}
@@ -115,11 +112,12 @@ export default function ProductionScreen() {
                   const pos = rangeToPercent(slot.start_date, slot.deadline, windowStart.getTime(), windowEnd.getTime());
                   if (!pos) return null;
                   const label = slot.deal_id ? dealLabelFor(slot.deal_id) || "угода" : "вільно";
+                  const style = statusStyles[slot.status];
                   return (
                     <div
                       key={slot.id}
                       className={`gantt-bar${lane === 1 ? " row2" : ""}`}
-                      style={{ left: `${pos.left}%`, width: `${pos.width}%`, background: statusColors[slot.status] }}
+                      style={{ left: `${pos.left}%`, width: `${pos.width}%`, background: style.bg, color: style.text }}
                       title={`${slot.status}${slot.deal_id ? " · " + label : ""}`}
                       onClick={() => setModal({ slot })}
                     >

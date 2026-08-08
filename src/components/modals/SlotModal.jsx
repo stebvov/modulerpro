@@ -99,7 +99,7 @@ export default function SlotModal({ open, slot, defaultSiteId, onClose, onSaved 
   }
 
   return (
-    <div className="modal-overlay open ops-theme" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <h2>{slot ? "Юніт у виробництві" : "Новий виробничий слот"}</h2>
         {error && <div className="auth-error">{error}</div>}
@@ -144,7 +144,7 @@ export default function SlotModal({ open, slot, defaultSiteId, onClose, onSaved 
                 <div key={st.id} className={`stage-item${st.completed_at ? " done" : ""}`}>
                   <span className="stage-check" onClick={() => canWriteCatalog && toggleStage(st)}>{st.completed_at ? "✓" : ""}</span>
                   <span className="stage-name">{st.stage_name}</span>
-                  {st.completed_at && <span className="stage-date mono">{new Date(st.completed_at).toLocaleDateString("uk-UA")}</span>}
+                  {st.completed_at && <span className="stage-date">{new Date(st.completed_at).toLocaleDateString("uk-UA")}</span>}
                 </div>
               ))}
             </div>

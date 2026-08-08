@@ -1,11 +1,13 @@
 export const SLOT_STATUSES = ["вільний", "заброньований", "в роботі", "готово"];
 export const STAGE_NAMES = ["каркас", "стіни", "дах", "оздоблення", "готово до самовивозу"];
 
-export const statusColors = {
-  вільний: "var(--text-muted)",
-  заброньований: "var(--ops-cyan)",
-  "в роботі": "var(--accent)",
-  готово: "var(--success)",
+// Reuses the same badge-style tokens as the rest of the app (.tag/.badge:
+// light tint background + saturated text) instead of inventing new colors.
+export const statusStyles = {
+  вільний: { bg: "var(--border)", text: "var(--text-secondary)" },
+  заброньований: { bg: "var(--accent-bg)", text: "var(--accent)" },
+  "в роботі": { bg: "var(--amber-bg)", text: "var(--amber)" },
+  готово: { bg: "var(--success-bg)", text: "var(--success)" },
 };
 
 const DAY = 86400000;
