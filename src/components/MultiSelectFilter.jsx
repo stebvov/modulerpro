@@ -1,10 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useDropdownPosition } from "@/lib/useFloatingDropdown";
 
 export default function MultiSelectFilter({ options, selected, onChange, label }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const wrapRef = useRef(null);
+  const popupRef = useRef(null);
+  const pos = useDropdownPosition(open, wrapRef);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (wrapRef.current?.contains(e.target)) return;
+      if (popupRef.current?.contains(e.target)) return;
+      setOpen(false);
+      setQuery("");
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
 
   function toggle(id) {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -15,17 +32,12 @@ export default function MultiSelectFilter({ options, selected, onChange, label }
     : options;
 
   return (
-    <div
-      className="ms-filter"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) { setOpen(false); setQuery(""); }
-      }}
-    >
+    <div className="ms-filter" ref={wrapRef}>
       <button type="button" className={`ms-filter-btn${selected.length ? " active" : ""}`} onClick={() => setOpen((o) => !o)}>
         {label}{selected.length ? ` (${selected.length})` : ""} ▾
       </button>
-      {open && (
-        <div className="ms-filter-list">
+      {open && pos && createPortal(
+        <div ref={popupRef} className="ms-filter-list" style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 1000 }}>
           {options.length > 5 && (
             <input
               type="text"
@@ -48,7 +60,8 @@ export default function MultiSelectFilter({ options, selected, onChange, label }
             </label>
           ))}
           {!filtered.length && <div className="ms-filter-empty">Нічого не знайдено</div>}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

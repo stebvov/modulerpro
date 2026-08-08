@@ -53,6 +53,7 @@ export default function SuppliersScreen() {
           <button className="btn primary" onClick={() => openModal(null)}>+ Новий постачальник</button>
         )}
       </div>
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -120,6 +121,7 @@ export default function SuppliersScreen() {
           )}
         </tbody>
       </table>
+      </div>
 
       <SupplierModal open={modalOpen} supplier={editing} onClose={() => setModalOpen(false)} onSaved={() => setModalOpen(false)} />
     </div>

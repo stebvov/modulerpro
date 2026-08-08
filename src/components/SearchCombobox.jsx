@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useDropdownPosition } from "@/lib/useFloatingDropdown";
 
 export default function SearchCombobox({
   value,
@@ -16,6 +18,8 @@ export default function SearchCombobox({
   const [busy, setBusy] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const blurTimer = useRef(null);
+  const wrapRef = useRef(null);
+  const pos = useDropdownPosition(open && !disabled, wrapRef);
 
   const selected = options.find((o) => o.id === value) || null;
 
@@ -97,7 +101,7 @@ export default function SearchCombobox({
   const createIdx = showCreate ? rows.length - 1 : -1;
 
   return (
-    <div className="combobox" onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 150); }}
+    <div className="combobox" ref={wrapRef} onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 150); }}
          onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); }}>
       <input
         type="text"
@@ -108,8 +112,8 @@ export default function SearchCombobox({
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onKeyDown={handleKeyDown}
       />
-      {open && !disabled && (
-        <div className="combobox-list">
+      {open && !disabled && pos && createPortal(
+        <div className="combobox-list" style={{ position: "fixed", top: pos.top, left: pos.left, right: "auto", width: pos.width, zIndex: 1000 }}>
           {showClear && (
             <div
               className={`combobox-item combobox-clear${clearIdx === highlight ? " highlighted" : ""}`}
@@ -142,7 +146,8 @@ export default function SearchCombobox({
               {busy ? "Створення..." : createLabel(query.trim())}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

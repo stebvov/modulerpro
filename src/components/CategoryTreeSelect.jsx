@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useDropdownPosition } from "@/lib/useFloatingDropdown";
 
 // Single-select category picker showing the nested tree (indented,
 // collapsible parents) instead of a flat <select>. Selecting a parent is
@@ -9,9 +11,22 @@ import { useRef, useState } from "react";
 export default function CategoryTreeSelect({ value, categories, onChange, placeholder = "Всі категорії" }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
-  const blurTimer = useRef(null);
+  const wrapRef = useRef(null);
+  const popupRef = useRef(null);
+  const pos = useDropdownPosition(open, wrapRef);
 
   const selected = categories.find((c) => c.id === value) || null;
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (wrapRef.current?.contains(e.target)) return;
+      if (popupRef.current?.contains(e.target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
 
   function toggleExpand(id, e) {
     e.preventDefault();
@@ -52,21 +67,18 @@ export default function CategoryTreeSelect({ value, categories, onChange, placeh
   }
 
   return (
-    <div
-      className="ms-filter"
-      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
-      onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); }}
-    >
+    <div className="ms-filter" ref={wrapRef}>
       <button type="button" className={`ms-filter-btn${value ? " active" : ""}`} onClick={() => setOpen((o) => !o)}>
         {selected ? selected.name : placeholder} ▾
       </button>
-      {open && (
-        <div className="combobox-list tree-combobox-list">
+      {open && pos && createPortal(
+        <div ref={popupRef} className="combobox-list tree-combobox-list" style={{ position: "fixed", top: pos.top, left: pos.left, right: "auto", width: pos.width, zIndex: 1000 }}>
           <div className="combobox-item combobox-clear" onMouseDown={(e) => { e.preventDefault(); select(""); }}>
             {placeholder}
           </div>
           {categories.filter((c) => !c.parent_id).map((c) => renderNode(c, 0))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

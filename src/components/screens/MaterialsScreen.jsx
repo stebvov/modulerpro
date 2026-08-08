@@ -49,6 +49,7 @@ export default function MaterialsScreen() {
           <button className="btn primary" onClick={() => openModal(null)}>+ Новий матеріал</button>
         )}
       </div>
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -100,6 +101,7 @@ export default function MaterialsScreen() {
           )}
         </tbody>
       </table>
+      </div>
 
       <MaterialModal
         open={modalOpen}

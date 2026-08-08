@@ -93,6 +93,7 @@ export default function PriceBySupplierScreen() {
             <h3 style={{ fontSize: 14, margin: "0 0 4px" }}>
               {s.name} <span className="btn small" onClick={() => setContactsSupplierId(s.id)}>контакти</span>
             </h3>
+            <div className="table-scroll">
             <table>
               <thead><tr><th>Матеріал</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
@@ -153,6 +154,7 @@ export default function PriceBySupplierScreen() {
                 })}
               </tbody>
             </table>
+            </div>
             <div className="toolbar" style={{ marginTop: 8 }}>
               <div className="toolbar-left">
                 {canWriteFinance && addOptions.length > 0 && (

@@ -143,7 +143,8 @@ export default function CategoriesScreen() {
   return (
     <div>
       {error && <div className="auth-error">{error}</div>}
-      <div className="cat-columns">
+      <div className="table-scroll">
+      <div className="cat-columns" style={{ minWidth: 640 }}>
         <div className="cat-col">
           <h3>Категорії товарів (шаблонів)</h3>
           {productCategories.map((c) => (
@@ -204,6 +205,7 @@ export default function CategoriesScreen() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

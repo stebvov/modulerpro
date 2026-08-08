@@ -130,6 +130,7 @@ export default function PriceByMaterialScreen() {
         return (
           <div key={m.id} id={`mat-${m.id}`} style={{ marginBottom: 18, scrollMarginTop: 12 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.icon ? `${m.icon} ` : ""}{m.name} <span className="note">({m.unit})</span></h3>
+            <div className="table-scroll">
             <table>
               <thead><tr><th>Постачальник</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
@@ -235,6 +236,7 @@ export default function PriceByMaterialScreen() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })}

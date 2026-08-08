@@ -19,7 +19,8 @@ export default function CompareScreen({ compareSelection }) {
   return (
     <div>
       <p className="note">Обери до 3 шаблонів у каталозі (чекбокс під карткою), щоб порівняти тут.</p>
-      <div className="compare-wrap" style={{ gridTemplateColumns: `repeat(${compareSelection.length}, 1fr)` }}>
+      <div className="table-scroll">
+      <div className="compare-wrap" style={{ gridTemplateColumns: `repeat(${compareSelection.length}, minmax(260px, 1fr))`, minWidth: compareSelection.length * 260 }}>
         {compareSelection.map((id) => {
           const t = templates.find((x) => x.id === id);
           if (!t) return null;
@@ -86,6 +87,7 @@ export default function CompareScreen({ compareSelection }) {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
