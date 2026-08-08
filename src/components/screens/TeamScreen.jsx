@@ -52,6 +52,7 @@ export default function TeamScreen() {
         )}
       </div>
 
+      <div className="table-scroll">
       <table>
         <thead>
           <tr><th>Ім&apos;я</th><th>Роль</th><th>Тип</th><th>Доступ</th><th></th></tr>
@@ -75,13 +76,14 @@ export default function TeamScreen() {
           )}
         </tbody>
       </table>
+      </div>
 
       <div className="section-label">Матриця доступу</div>
       <p className="note">
         Визначає, що бачить і що може редагувати кожна роль. Рядки з позначкою «запропоновано» — ролі «монтаж» і
         «логістика» з&apos;явилися у даних команди, але не описані в оригінальному ТЗ.
       </p>
-      <div style={{ overflowX: "auto" }}>
+      <div className="table-scroll">
         <table>
           <thead>
             <tr>

@@ -71,6 +71,7 @@ export default function ServicesScreen() {
               {EXECUTION_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
             </select>
           </div>
+          <div className="table-scroll">
           <table>
             <thead>
               <tr>
@@ -108,10 +109,12 @@ export default function ServicesScreen() {
               )}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
       {view === "partners" && (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -146,6 +149,7 @@ export default function ServicesScreen() {
             )}
           </tbody>
         </table>
+        </div>
       )}
 
       {executionModal && (

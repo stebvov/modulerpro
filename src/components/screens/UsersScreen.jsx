@@ -145,6 +145,7 @@ export default function UsersScreen() {
         </div>
       )}
 
+      <div className="table-scroll">
       <table>
         <thead>
           <tr><th>Ім&apos;я</th><th>Роль</th><th>Створено</th><th></th></tr>
@@ -171,6 +172,7 @@ export default function UsersScreen() {
           {!profiles.length && <tr><td colSpan={4} className="empty">Немає користувачів</td></tr>}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

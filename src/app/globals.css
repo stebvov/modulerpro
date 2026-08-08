@@ -25,7 +25,10 @@ body {
   color: var(--text);
 }
 a { color: inherit; }
-.app { max-width: 1320px; margin: 0 auto; padding: 20px 20px 60px; }
+.app { max-width: 1320px; margin: 0 auto; padding: 20px 20px 60px; overflow-x: hidden; }
+/* Scroll wrapper for wide tables/calendars — keeps the horizontal scroll
+   contained to the table itself instead of the whole page on mobile. */
+.table-scroll { overflow-x: auto; }
 h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 6px; }
 .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }

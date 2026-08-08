@@ -179,6 +179,7 @@ export default function MarketingScreen() {
               <button className="btn primary" onClick={() => setCampaignModal({ campaign: null })}>+ Кампанія</button>
             )}
           </div>
+          <div className="table-scroll">
           <table>
             <thead>
               <tr>
@@ -221,6 +222,7 @@ export default function MarketingScreen() {
               )}
             </tbody>
           </table>
+          </div>
         </>
       )}
 

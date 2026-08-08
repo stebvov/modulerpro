@@ -96,6 +96,7 @@ export default function PriceByMaterialScreen() {
 
       {showAudit && (
         <div className="section-body" style={{ marginBottom: 14 }}>
+          <div className="table-scroll">
           <table>
             <thead><tr><th>Матеріал</th><th>Категорія</th><th>К-сть постачальників</th><th>Найнижча ціна</th><th></th></tr></thead>
             <tbody>
@@ -118,6 +119,7 @@ export default function PriceByMaterialScreen() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

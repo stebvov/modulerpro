@@ -65,7 +65,8 @@ export default function ProductionScreen() {
         </div>
       </div>
 
-      <div>
+      <div className="table-scroll">
+        <div style={{ minWidth: 760 }}>
         <div className="gantt-header">
           <div />
           <div className="gantt-weeks">
@@ -130,6 +131,7 @@ export default function ProductionScreen() {
           );
         })}
         {!sites.length && <div className="empty">Немає жодного майданчика.</div>}
+        </div>
       </div>
 
       {modal && (
