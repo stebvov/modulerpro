@@ -19,8 +19,7 @@ import CatalogScreen from "@/components/screens/CatalogScreen";
 import MaterialsScreen from "@/components/screens/MaterialsScreen";
 import SuppliersScreen from "@/components/screens/SuppliersScreen";
 import CategoriesScreen from "@/components/screens/CategoriesScreen";
-import PriceByMaterialScreen from "@/components/screens/PriceByMaterialScreen";
-import PriceBySupplierScreen from "@/components/screens/PriceBySupplierScreen";
+import PriceScreen from "@/components/screens/PriceScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
@@ -37,8 +36,7 @@ const TAB_GROUPS = [
       { id: "materials", label: "Матеріали" },
       { id: "suppliers", label: "Постачальники" },
       { id: "categories", label: "Категорії" },
-      { id: "price-by-material", label: "Ціни за товаром" },
-      { id: "price-by-supplier", label: "Ціни за постачальником" },
+      { id: "price", label: "Ціни" },
     ],
   },
 ];
@@ -215,11 +213,8 @@ export default function AppShell() {
           <div className={`screen${activeTab === "categories" ? " active" : ""}`}>
             {activeTab === "categories" && <CategoriesScreen />}
           </div>
-          <div className={`screen${activeTab === "price-by-material" ? " active" : ""}`}>
-            {activeTab === "price-by-material" && <PriceByMaterialScreen />}
-          </div>
-          <div className={`screen${activeTab === "price-by-supplier" ? " active" : ""}`}>
-            {activeTab === "price-by-supplier" && <PriceBySupplierScreen />}
+          <div className={`screen${activeTab === "price" ? " active" : ""}`}>
+            {activeTab === "price" && <PriceScreen />}
           </div>
           {isAdmin && (
             <div className={`screen${activeTab === "users" ? " active" : ""}`}>
