@@ -1,4 +1,4 @@
-import DesignEngineScreen from "@/components/screens/DesignEngineCoreScreen";
+import DesignEngineScreen from "@/components/screens/DesignEngineV2";
 import styles from "./design-engine.module.css";
 
 export default function DesignEnginePage() {
