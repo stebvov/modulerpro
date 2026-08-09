@@ -29,6 +29,58 @@ export function avgCostPerM2(templates) {
   return Math.round(priced.reduce((s, t) => s + Number(t.base_cost_per_m2), 0) / priced.length);
 }
 
+// Cheapest known supplier price for a material — same rule TemplateModal uses
+// when showing the live BOM total.
+function bestSupplierPrice(materialId, supplierPrices) {
+  const rows = supplierPrices.filter((p) => p.material_id === materialId);
+  if (!rows.length) return null;
+  return Math.min(...rows.map((p) => Number(p.price)));
+}
+
+// Actual production cost of a template (materials at their cheapest known
+// supplier price, or the row's override, plus extra costs like labor) — as
+// opposed to product_templates.base_cost_per_m2, which is the price charged
+// to the customer, not the cost to build.
+export function templateProductionCost(templateId, bomItems, extraCosts, supplierPrices) {
+  const bomTotal = bomItems
+    .filter((b) => b.template_id === templateId)
+    .reduce((sum, b) => {
+      const qty = Number(b.quantity_per_unit) || 0;
+      if (!b.material_id || !qty) return sum;
+      const price = b.unit_price_override != null ? Number(b.unit_price_override) : bestSupplierPrice(b.material_id, supplierPrices);
+      return sum + qty * (price || 0);
+    }, 0);
+  const extraTotal = extraCosts
+    .filter((e) => e.template_id === templateId)
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  return bomTotal + extraTotal;
+}
+
+// Average actual cost per m² across templates that have a priced BOM — used
+// to estimate cost for custom (no-template) deals, mirroring how
+// estimated_price already averages base_cost_per_m2 for the same case.
+export function avgProductionCostPerM2(templates, bomItems, extraCosts, supplierPrices) {
+  const withCost = templates
+    .map((t) => ({ area: Number(t.area_m2) || 0, cost: templateProductionCost(t.id, bomItems, extraCosts, supplierPrices) }))
+    .filter((x) => x.area > 0 && x.cost > 0);
+  if (!withCost.length) return 0;
+  return Math.round(withCost.reduce((s, x) => s + x.cost / x.area, 0) / withCost.length);
+}
+
+// production_cost_snapshot for a deal: real BOM+extra cost for a templated
+// deal, or an area-based estimate (same average-cost approach as
+// estimated_price) for a custom deal.
+export function computeProductionCostSnapshot(deal, { templates, bomItems, extraCosts, supplierPrices }) {
+  if (deal.is_custom) {
+    const areaM2 = Number(deal.custom_area_m2) || 0;
+    if (!areaM2) return null;
+    return Math.round(areaM2 * avgProductionCostPerM2(templates, bomItems, extraCosts, supplierPrices));
+  }
+  if (!deal.template_id) return null;
+  const cost = templateProductionCost(deal.template_id, bomItems, extraCosts, supplierPrices);
+  return cost > 0 ? Math.round(cost) : null;
+}
+
 const COLD = [47, 93, 138];
 const HOT = [193, 101, 47];
 export function stageColor(index, total) {

@@ -14,6 +14,7 @@ import {
   findRateCard,
   foundationVariants,
   avgCostPerM2,
+  computeProductionCostSnapshot,
   curr,
   fmtDateTime,
 } from "@/lib/crm";
@@ -201,11 +202,12 @@ function ActivityLog({ deal, activities, onReload }) {
 }
 
 export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) {
-  const { supabase, leads, leadContacts, leadCategoryLinks, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, reload } = useCrmData();
+  const { supabase, leads, leadContacts, leadCategoryLinks, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, bomItems, extraCosts, supplierPrices, marginAlerts, reload } = useCrmData();
   const { canWriteCatalog } = useAuth();
 
   const dealRow = dealId ? deals.find((d) => d.id === dealId) : null;
   const existingLead = dealRow ? leads.find((l) => l.id === dealRow.lead_id) : null;
+  const marginAlert = dealId ? marginAlerts.find((m) => m.deal_id === dealId) : null;
 
   const [tab, setTab] = useState("основне");
   const [form, setForm] = useState(null);
@@ -353,6 +355,9 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       const chosenTpl = templates.find((t) => t.id === template_id);
       const production_price = isHouses && !is_custom && chosenTpl && chosenTpl.base_cost_per_m2 != null ? Math.round(chosenTpl.area_m2 * chosenTpl.base_cost_per_m2) : null;
       const estimated_price = isHouses && is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : null;
+      const production_cost_snapshot = isHouses
+        ? computeProductionCostSnapshot({ is_custom, template_id, custom_area_m2 }, { templates, bomItems, extraCosts, supplierPrices })
+        : null;
 
       const dealPayload = {
         lead_id: leadId,
@@ -364,6 +369,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         quantity: isHouses ? (Number(form.quantity) || 1) : 1,
         production_price,
         estimated_price,
+        production_cost_snapshot,
         owner_id: form.owner_id || null,
       };
 
@@ -557,6 +563,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               {previewServicesSum > 0 && <div style={{ fontSize: 12, color: "#C1652F", marginTop: 4 }}>Послуги разом: {curr(previewServicesSum)} грн</div>}
               <div style={{ fontSize: 13, marginTop: 6, fontWeight: 600 }}>Разом: {curr(previewTotal)} грн</div>
             </div>
+
+            {dealId && marginAlert?.is_below_threshold && (
+              <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
+                ⚠ Маржа {marginAlert.margin_pct}% — нижче порогу {marginAlert.threshold_pct}%
+              </div>
+            )}
           </>
         )}
 

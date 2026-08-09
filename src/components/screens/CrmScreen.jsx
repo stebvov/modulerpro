@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useCrmData } from "@/context/CrmDataContext";
 import DealModal from "@/components/modals/DealModal";
 import CrmSettingsModal from "@/components/modals/CrmSettingsModal";
-import { curr, fmtDate, fmtDateTime, stageColor } from "@/lib/crm";
+import MarginThresholdModal from "@/components/modals/MarginThresholdModal";
+import { computeProductionCostSnapshot, curr, fmtDate, fmtDateTime, stageColor } from "@/lib/crm";
 
 function AttentionReport({ rows, onOpenDeal, onClose }) {
   const sorted = [...rows].sort((a, b) => (b.days_without_attention || 0) - (a.days_without_attention || 0));
@@ -50,7 +51,10 @@ function AttentionReport({ rows, onOpenDeal, onClose }) {
 }
 
 export default function CrmScreen() {
-  const { loading, error, pipelines, pipelineStages, dealsKanban, dealServices, leadCategoryLinks, productCategories, supabase, reload } = useCrmData();
+  const {
+    loading, error, pipelines, pipelineStages, dealsKanban, deals, dealServices, leadCategoryLinks, productCategories,
+    templates, bomItems, extraCosts, supplierPrices, marginAlerts, supabase, reload,
+  } = useCrmData();
   const { canWriteCatalog } = useAuth();
   const [pipelineId, setPipelineId] = useState(null);
   const [search, setSearch] = useState("");
@@ -86,7 +90,13 @@ export default function CrmScreen() {
     const idx = stages.findIndex((s) => s.id === deal.stage_id);
     const next = stages[idx + dir];
     if (!next) return;
-    await supabase.from("deals").update({ stage_id: next.id }).eq("id", deal.deal_id);
+    const patch = { stage_id: next.id };
+    const rawDeal = deals.find((d) => d.id === deal.deal_id);
+    if (rawDeal && rawDeal.production_cost_snapshot == null) {
+      const snapshot = computeProductionCostSnapshot(rawDeal, { templates, bomItems, extraCosts, supplierPrices });
+      if (snapshot != null) patch.production_cost_snapshot = snapshot;
+    }
+    await supabase.from("deals").update(patch).eq("id", deal.deal_id);
     await reload(true);
   }
 
@@ -122,6 +132,7 @@ export default function CrmScreen() {
             📋
             {overdueCount > 0 && <span className="notif-badge">{overdueCount}</span>}
           </button>
+          <button className="btn" title="Поріг маржі-сигналізації" onClick={() => setModal({ mode: "margin" })}>⚠</button>
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => setModal({ mode: "add" })}>+ Новий лід</button>
           )}
@@ -157,12 +168,22 @@ export default function CrmScreen() {
                   const services = dealServices.filter((s) => s.deal_id === d.deal_id);
                   const overdue = d.next_action_at && new Date(d.next_action_at) < new Date();
                   const dSince = d.days_without_attention;
+                  const marginAlert = marginAlerts.find((m) => m.deal_id === d.deal_id);
                   return (
                     <div key={d.deal_id} className="card kanban-card" style={{ borderColor: overdue ? "var(--danger)" : undefined }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.25 }}>{d.lead_name}</div>
                         <span className="icon-x" onClick={() => setModal({ mode: "edit", dealId: d.deal_id })} title="Редагувати">✎</span>
                       </div>
+                      {marginAlert?.is_below_threshold && (
+                        <div
+                          className="badge"
+                          style={{ marginTop: 4, background: "var(--danger-bg)", color: "var(--danger)" }}
+                          title={`Маржа ${marginAlert.margin_pct}% — нижче порогу ${marginAlert.threshold_pct}%`}
+                        >
+                          ⚠ Маржа {marginAlert.margin_pct}%
+                        </div>
+                      )}
                       <div className="note" style={{ marginTop: 4 }}>
                         {pipeline.slug === "houses"
                           ? d.is_custom
@@ -228,6 +249,7 @@ export default function CrmScreen() {
       )}
       {modal?.mode === "settings" && <CrmSettingsModal open onClose={() => setModal(null)} />}
       {modal?.mode === "report" && <AttentionReport rows={dealsKanban} onOpenDeal={openDealFromReport} onClose={() => setModal(null)} />}
+      {modal?.mode === "margin" && <MarginThresholdModal open onClose={() => setModal(null)} />}
     </div>
   );
 }

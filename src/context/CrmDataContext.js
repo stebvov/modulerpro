@@ -20,6 +20,10 @@ const EMPTY = {
   teamMembers: [],
   productCategories: [],
   templates: [],
+  bomItems: [],
+  extraCosts: [],
+  supplierPrices: [],
+  marginAlerts: [],
 };
 
 export function CrmDataProvider({ children }) {
@@ -47,6 +51,10 @@ export function CrmDataProvider({ children }) {
           teamMembers,
           productCategories,
           templates,
+          bomItems,
+          extraCosts,
+          supplierPrices,
+          marginAlerts,
         ] = await Promise.all([
           supabase.from("pipelines").select("*").order("sort_order"),
           supabase.from("pipeline_stages").select("*").order("sort_order"),
@@ -62,11 +70,16 @@ export function CrmDataProvider({ children }) {
           supabase.from("team_members").select("*").order("name"),
           supabase.from("product_categories").select("*").order("sort_order"),
           supabase.from("product_templates").select("id,name,area_m2,base_cost_per_m2,status").order("sort_order"),
+          supabase.from("template_bom_items").select("template_id,material_id,quantity_per_unit,unit_price_override"),
+          supabase.from("template_extra_costs").select("template_id,amount"),
+          supabase.from("supplier_prices").select("material_id,price"),
+          supabase.from("v_deal_margin_alerts").select("*"),
         ]);
 
         const firstError = [
           pipelines, pipelineStages, dealsKanban, deals, dealServices, dealActivities,
           dealAttachments, leads, leadContacts, leadCategoryLinks, serviceRateCards, teamMembers, productCategories, templates,
+          bomItems, extraCosts, supplierPrices, marginAlerts,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -85,6 +98,10 @@ export function CrmDataProvider({ children }) {
           teamMembers: teamMembers.data || [],
           productCategories: productCategories.data || [],
           templates: templates.data || [],
+          bomItems: bomItems.data || [],
+          extraCosts: extraCosts.data || [],
+          supplierPrices: supplierPrices.data || [],
+          marginAlerts: marginAlerts.data || [],
         });
         setError(null);
       } catch (e) {
