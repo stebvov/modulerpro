@@ -16,7 +16,6 @@ import MarketingScreen from "@/components/screens/MarketingScreen";
 import { FinanceDataProvider } from "@/context/FinanceDataContext";
 import FinanceScreen from "@/components/screens/FinanceScreen";
 import CatalogScreen from "@/components/screens/CatalogScreen";
-import CompareScreen from "@/components/screens/CompareScreen";
 import MaterialsScreen from "@/components/screens/MaterialsScreen";
 import SuppliersScreen from "@/components/screens/SuppliersScreen";
 import CategoriesScreen from "@/components/screens/CategoriesScreen";
@@ -35,7 +34,6 @@ const TAB_GROUPS = [
     label: "Каталог",
     tabs: [
       { id: "catalog", label: "Каталог шаблонів" },
-      { id: "compare", label: "Порівняння" },
       { id: "materials", label: "Матеріали" },
       { id: "suppliers", label: "Постачальники" },
       { id: "categories", label: "Категорії" },
@@ -49,7 +47,6 @@ export default function AppShell() {
   const { currency, setCurrency } = useAppData();
   const { isAdmin, canWriteFinance } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
-  const [compareSelection, setCompareSelection] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => new Set());
@@ -207,10 +204,7 @@ export default function AppShell() {
             )}
           </div>
           <div className={`screen${activeTab === "catalog" ? " active" : ""}`}>
-            {activeTab === "catalog" && <CatalogScreen compareSelection={compareSelection} setCompareSelection={setCompareSelection} />}
-          </div>
-          <div className={`screen${activeTab === "compare" ? " active" : ""}`}>
-            {activeTab === "compare" && <CompareScreen compareSelection={compareSelection} />}
+            {activeTab === "catalog" && <CatalogScreen />}
           </div>
           <div className={`screen${activeTab === "materials" ? " active" : ""}`}>
             {activeTab === "materials" && <MaterialsScreen />}

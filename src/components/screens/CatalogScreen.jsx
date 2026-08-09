@@ -7,8 +7,9 @@ import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import TemplateModal from "@/components/modals/TemplateModal";
 import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
 import SettingsPageHeader from "@/components/SettingsPageHeader";
+import CompareScreen from "@/components/screens/CompareScreen";
 
-export default function CatalogScreen({ compareSelection, setCompareSelection }) {
+export default function CatalogScreen() {
   const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteCatalog } = useAuth();
@@ -23,6 +24,8 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [showCategoriesPage, setShowCategoriesPage] = useState(false);
+  const [compareSelection, setCompareSelection] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
 
   const list = templates.filter((t) => {
     if (statusFilter && t.status !== statusFilter) return false;
@@ -100,6 +103,18 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
 
   return (
     <div>
+      <div className="toolbar" style={{ marginBottom: 10 }}>
+        <div className="toolbar-left">
+          <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)}>
+            ⇄ Порівняння{compareSelection.length ? ` (${compareSelection.length})` : ""}
+          </button>
+        </div>
+      </div>
+
+      {showCompare && <CompareScreen compareSelection={compareSelection} />}
+
+      {!showCompare && (
+      <>
       <div className="filters-row">
         <div className="filter-field">
           <label>Статус</label>
@@ -207,6 +222,8 @@ export default function CatalogScreen({ compareSelection, setCompareSelection })
             );
           })}
         </div>
+      )}
+      </>
       )}
 
       <TemplateModal

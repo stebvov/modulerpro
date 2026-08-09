@@ -147,7 +147,10 @@ export default function PriceByMaterialScreen() {
                       <tr>
                         <td>
                           {s ? s.name : "—"}{" "}
-                          <span className="btn small" onClick={() => setContactsSupplierId(p.supplier_id)}>контакти</span>
+                          <span className="btn small" onClick={() => setContactsSupplierId(p.supplier_id)} title="Контакти">
+                            <span className="btn-label-full">контакти</span>
+                            <span className="btn-label-compact">👤</span>
+                          </span>
                         </td>
                         <td>
                           <input
@@ -178,12 +181,17 @@ export default function PriceByMaterialScreen() {
                           {canWriteFinance && (
                             <span
                               className="btn small"
+                              title="Зберегти"
                               onClick={() => handleSave(p.supplier_id, p.material_id, editPrices[key] ?? p.price, editNotes[key] ?? p.note ?? "")}
                             >
-                              Зберегти
+                              <span className="btn-label-full">Зберегти</span>
+                              <span className="btn-label-compact">💾</span>
                             </span>
                           )}{" "}
-                          <span className="btn small" onClick={() => setOpenHistory((o) => ({ ...o, [key]: !o[key] }))}>історія</span>
+                          <span className="btn small" onClick={() => setOpenHistory((o) => ({ ...o, [key]: !o[key] }))} title="Історія">
+                            <span className="btn-label-full">історія</span>
+                            <span className="btn-label-compact">🕘</span>
+                          </span>
                         </td>
                       </tr>
                       {openHistory[key] && (

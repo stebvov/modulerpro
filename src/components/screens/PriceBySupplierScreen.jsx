@@ -91,7 +91,10 @@ export default function PriceBySupplierScreen() {
         return (
           <div key={s.id} style={{ marginBottom: 18 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 4px" }}>
-              {s.name} <span className="btn small" onClick={() => setContactsSupplierId(s.id)}>контакти</span>
+              {s.name} <span className="btn small" onClick={() => setContactsSupplierId(s.id)} title="Контакти">
+                <span className="btn-label-full">контакти</span>
+                <span className="btn-label-compact">👤</span>
+              </span>
             </h3>
             <div className="table-scroll">
             <table>
@@ -135,7 +138,10 @@ export default function PriceBySupplierScreen() {
                         <td className={stale ? "stale" : "fresh"}>{daysAgo(p.updated_at)} дн. тому</td>
                         <td className={stale ? "stale" : "fresh"}>{stale ? "застаріла" : "актуальна"}</td>
                         <td>
-                          <span className="btn small" onClick={() => setOpenHistory((o) => ({ ...o, [key]: !o[key] }))}>історія</span>
+                          <span className="btn small" onClick={() => setOpenHistory((o) => ({ ...o, [key]: !o[key] }))} title="Історія">
+                            <span className="btn-label-full">історія</span>
+                            <span className="btn-label-compact">🕘</span>
+                          </span>
                         </td>
                       </tr>
                       {openHistory[key] && (

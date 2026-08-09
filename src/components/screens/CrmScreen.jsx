@@ -227,10 +227,16 @@ export default function CrmScreen() {
                         {canWriteCatalog && (
                           <div style={{ display: "flex", gap: 4 }}>
                             {idx > 0 && (
-                              <button className="btn small" onClick={() => moveStage(d, -1)} title="Повернути на попередній етап">← Назад</button>
+                              <button className="btn small" onClick={() => moveStage(d, -1)} title="Повернути на попередній етап">
+                                <span className="btn-label-full">← Назад</span>
+                                <span className="btn-label-compact">←</span>
+                              </button>
                             )}
                             {idx < stages.length - 1 && (
-                              <button className="btn small" style={{ background: color, color: "#fff", borderColor: color }} onClick={() => moveStage(d, 1)}>Далі →</button>
+                              <button className="btn small" style={{ background: color, color: "#fff", borderColor: color }} onClick={() => moveStage(d, 1)} title="Далі">
+                                <span className="btn-label-full">Далі →</span>
+                                <span className="btn-label-compact">→</span>
+                              </button>
                             )}
                           </div>
                         )}

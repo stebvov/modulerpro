@@ -110,7 +110,10 @@ export default function SuppliersScreen() {
                 <td>{"★".repeat(rel)}{"☆".repeat(5 - rel)}</td>
                 <td>
                   {canWriteCatalog && (
-                    <span className="btn small" onClick={() => openModal(s)}>Редагувати</span>
+                    <span className="btn small" onClick={() => openModal(s)} title="Редагувати">
+                      <span className="btn-label-full">Редагувати</span>
+                      <span className="btn-label-compact">✎</span>
+                    </span>
                   )}
                 </td>
               </tr>
