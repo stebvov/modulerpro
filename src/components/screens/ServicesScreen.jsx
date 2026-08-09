@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useServicesData } from "@/context/ServicesDataContext";
 import ExecutionModal from "@/components/modals/ExecutionModal";
 import PartnerModal from "@/components/modals/PartnerModal";
-import { EXECUTION_STATUSES, SERVICE_TYPE_LABELS, actualTotal, curr, statusStyles } from "@/lib/services";
+import { EXECUTION_STATUSES, SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS, actualTotal, curr, statusStyles } from "@/lib/services";
 
 export default function ServicesScreen() {
   const { loading, error, partners, executions } = useServicesData();
@@ -95,7 +95,7 @@ export default function ServicesScreen() {
                 return (
                   <tr key={e.id} style={{ cursor: "pointer" }} onClick={() => setExecutionModal({ execution: e })}>
                     <td>{ds?.deals?.leads?.name || "—"}</td>
-                    <td>{SERVICE_TYPE_LABELS[ds?.service_type] || ds?.service_type || "—"}</td>
+                    <td>{ds?.service_type ? `${SERVICE_TYPE_ICONS[ds.service_type] || "•"} ` : ""}{SERVICE_TYPE_LABELS[ds?.service_type] || ds?.service_type || "—"}</td>
                     <td>{executor}</td>
                     <td style={{ textAlign: "right" }}>{curr(plan)}</td>
                     <td style={{ textAlign: "right" }}>{curr(fact)}</td>
@@ -132,7 +132,7 @@ export default function ServicesScreen() {
               return (
                 <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setPartnerModal({ partner: p })}>
                   <td>{p.name}</td>
-                  <td>{SERVICE_TYPE_LABELS[p.service_type] || p.service_type}</td>
+                  <td>{SERVICE_TYPE_ICONS[p.service_type] || "•"} {SERVICE_TYPE_LABELS[p.service_type] || p.service_type}</td>
                   <td>{p.region || "—"}</td>
                   <td>{"★".repeat(rel)}{"☆".repeat(5 - rel)}</td>
                   <td>

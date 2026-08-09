@@ -207,6 +207,14 @@ input.price-input { width: 100px; }
   .extra-row input.label-input { flex: 2; }
   .extra-row input.amount-input { width: 90px; }
 }
+
+/* Row-action buttons: full text label on desktop, icon-only on mobile
+   to keep narrow tables (e.g. Materials) from needing horizontal scroll. */
+.btn-label-compact { display: none; }
+@media (max-width: 700px) {
+  .btn-label-full { display: none; }
+  .btn-label-compact { display: inline; }
+}
 .tag-checks { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag-check { display: flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 3px 10px; cursor: pointer; }
 .tag-check input { margin: 0; }

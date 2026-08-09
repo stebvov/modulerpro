@@ -25,7 +25,7 @@ export default function SuppliersScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
+  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name, icon: c.icon }));
 
   const list = suppliers.filter((s) => {
     const cats = supplierCategoryLinks.filter((l) => l.supplier_id === s.id).map((l) => l.category_id);
@@ -93,7 +93,7 @@ export default function SuppliersScreen() {
             return (
               <tr key={s.id}>
                 <td>{s.name}</td>
-                <td>{cats.map((c) => <span className="tag" key={c.id}>{c.name}</span>)}{!cats.length && "—"}</td>
+                <td>{cats.map((c) => <span className="tag" key={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</span>)}{!cats.length && "—"}</td>
                 <td>
                   {contacts.length
                     ? contacts.map((c) => {

@@ -20,7 +20,7 @@ export default function MaterialsScreen() {
   const [editing, setEditing] = useState(null);
   const [page, setPage] = useState(null); // null | "categories" | "units"
 
-  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name }));
+  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name, icon: c.icon }));
   const unitOptions = materialUnits.map((u) => ({ id: u.name, label: u.name }));
   const catOrder = flattenCategoryOrder(materialCategories);
 
@@ -112,12 +112,15 @@ export default function MaterialsScreen() {
             const cat = materialCategories.find((c) => c.id === m.category_id);
             return (
               <tr key={m.id}>
-                <td>{cat ? cat.name : "—"}</td>
+                <td>{cat ? `${cat.icon ? cat.icon + " " : ""}${cat.name}` : "—"}</td>
                 <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
                 <td>{m.unit}</td>
                 <td>
                   {canWriteCatalog && (
-                    <span className="btn small" onClick={() => openModal(m)}>Редагувати</span>
+                    <span className="btn small" onClick={() => openModal(m)} title="Редагувати">
+                      <span className="btn-label-full">Редагувати</span>
+                      <span className="btn-label-compact">✎</span>
+                    </span>
                   )}
                 </td>
               </tr>

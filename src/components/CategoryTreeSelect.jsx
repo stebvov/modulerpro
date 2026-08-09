@@ -59,7 +59,7 @@ export default function CategoryTreeSelect({ value, categories, onChange, placeh
           ) : (
             <span className="tree-toggle">·</span>
           )}
-          {cat.name}
+          {cat.icon ? `${cat.icon} ` : ""}{cat.name}
         </div>
         {hasChildren && isExpanded && children.map((c) => renderNode(c, depth + 1))}
       </div>
@@ -69,7 +69,7 @@ export default function CategoryTreeSelect({ value, categories, onChange, placeh
   return (
     <div className="ms-filter" ref={wrapRef}>
       <button type="button" className={`ms-filter-btn${value ? " active" : ""}`} onClick={() => setOpen((o) => !o)}>
-        {selected ? selected.name : placeholder} ▾
+        {selected ? `${selected.icon ? selected.icon + " " : ""}${selected.name}` : placeholder} ▾
       </button>
       {open && pos && createPortal(
         <div ref={popupRef} className="combobox-list tree-combobox-list" style={{ position: "fixed", top: pos.top, left: pos.left, right: "auto", width: pos.width, zIndex: 1000 }}>

@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useServicesData } from "@/context/ServicesDataContext";
-import { SERVICE_TYPE_LABELS, EXECUTION_STATUSES, EXPENSE_FIELDS, curr } from "@/lib/services";
+import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS, EXECUTION_STATUSES, EXPENSE_FIELDS, curr } from "@/lib/services";
 
 function dealServiceLabel(ds) {
   const leadName = ds.deals?.leads?.name || "Без клієнта";
   const type = SERVICE_TYPE_LABELS[ds.service_type] || ds.service_type;
-  return `${leadName} — ${type} — ${curr(ds.price)}`;
+  return `${leadName} — ${SERVICE_TYPE_ICONS[ds.service_type] || "•"} ${type} — ${curr(ds.price)}`;
 }
 
 export default function ExecutionModal({ open, execution, onClose, onSaved }) {
@@ -129,7 +129,7 @@ export default function ExecutionModal({ open, execution, onClose, onSaved }) {
             <label>Партнер</label>
             <select value={partnerId} onChange={(e) => setPartnerId(e.target.value)} disabled={!canWriteCatalog}>
               <option value="">— обери —</option>
-              {activePartners.map((p) => <option key={p.id} value={p.id}>{p.name} ({SERVICE_TYPE_LABELS[p.service_type] || p.service_type})</option>)}
+              {activePartners.map((p) => <option key={p.id} value={p.id}>{p.name} ({SERVICE_TYPE_ICONS[p.service_type] || "•"} {SERVICE_TYPE_LABELS[p.service_type] || p.service_type})</option>)}
             </select>
           </div>
         )}

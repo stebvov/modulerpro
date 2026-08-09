@@ -82,7 +82,7 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
           <label>Категорія</label>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             {materialCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>
             ))}
           </select>
         </div>

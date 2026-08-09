@@ -56,7 +56,7 @@ export default function MultiSelectFilter({ options, selected, onChange, label }
           {filtered.map((o) => (
             <label className="ms-filter-item" key={o.id}>
               <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)} />
-              {o.label}
+              {o.icon ? `${o.icon} ` : ""}{o.label}
             </label>
           ))}
           {!filtered.length && <div className="ms-filter-empty">Нічого не знайдено</div>}

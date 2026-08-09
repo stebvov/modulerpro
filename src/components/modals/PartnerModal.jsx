@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useServicesData } from "@/context/ServicesDataContext";
-import { SERVICE_TYPE_LABELS } from "@/lib/services";
+import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from "@/lib/services";
 
 export default function PartnerModal({ open, partner, onClose, onSaved }) {
   const { supabase, reload } = useServicesData();
@@ -77,7 +77,7 @@ export default function PartnerModal({ open, partner, onClose, onSaved }) {
         <div className="form-row">
           <label>Тип послуги</label>
           <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} disabled={!canWriteCatalog}>
-            {Object.entries(SERVICE_TYPE_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            {Object.entries(SERVICE_TYPE_LABELS).map(([v, label]) => <option key={v} value={v}>{SERVICE_TYPE_ICONS[v] || "•"} {label}</option>)}
           </select>
         </div>
         <div className="form-row">

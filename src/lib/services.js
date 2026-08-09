@@ -5,6 +5,13 @@ export const SERVICE_TYPE_LABELS = {
   під_ключ: "Під ключ",
 };
 
+export const SERVICE_TYPE_ICONS = {
+  доставка: "🚚",
+  фундамент: "🧱",
+  монтаж: "🔧",
+  під_ключ: "🔑",
+};
+
 export const EXECUTOR_TYPES = ["партнер", "власна_бригада"];
 
 export const EXECUTION_STATUSES = ["заплановано", "в_процесі", "завершено"];
