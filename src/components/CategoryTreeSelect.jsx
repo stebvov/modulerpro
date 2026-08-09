@@ -17,6 +17,14 @@ export default function CategoryTreeSelect({ value, categories, onChange, placeh
 
   const selected = categories.find((c) => c.id === value) || null;
 
+  // The popup defaults to the anchor button's width, which is fine on
+  // desktop but too narrow on mobile for long category names + icons —
+  // widen it (clamped to the viewport) and re-clamp the left offset so it
+  // stays on-screen.
+  const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+  const popupWidth = pos ? Math.min(Math.max(pos.width, 280), Math.max(vw - 16, 200)) : 0;
+  const popupLeft = pos ? Math.max(8, Math.min(pos.left, vw - popupWidth - 8)) : 0;
+
   useEffect(() => {
     if (!open) return;
     function handleOutside(e) {
@@ -72,7 +80,7 @@ export default function CategoryTreeSelect({ value, categories, onChange, placeh
         {selected ? `${selected.icon ? selected.icon + " " : ""}${selected.name}` : placeholder} ▾
       </button>
       {open && pos && createPortal(
-        <div ref={popupRef} className="combobox-list tree-combobox-list" style={{ position: "fixed", top: pos.top, left: pos.left, right: "auto", width: pos.width, zIndex: 1000 }}>
+        <div ref={popupRef} className="combobox-list tree-combobox-list" style={{ position: "fixed", top: pos.top, left: popupLeft, right: "auto", width: popupWidth, zIndex: 1000 }}>
           <div className="combobox-item combobox-clear" onMouseDown={(e) => { e.preventDefault(); select(""); }}>
             {placeholder}
           </div>

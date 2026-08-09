@@ -17,7 +17,6 @@ export default function PriceByMaterialScreen() {
   const { canWriteFinance, profile, user } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [showAudit, setShowAudit] = useState(false);
   const [contactsSupplierId, setContactsSupplierId] = useState(null);
   const [fullSupplier, setFullSupplier] = useState(null);
   const [openHistory, setOpenHistory] = useState({});
@@ -58,10 +57,6 @@ export default function PriceByMaterialScreen() {
     setBusy(false);
   }
 
-  function scrollToMaterial(materialId) {
-    document.getElementById(`mat-${materialId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   function openFullSupplier(supplier) {
     setContactsSupplierId(null);
     setFullSupplier(supplier);
@@ -73,9 +68,6 @@ export default function PriceByMaterialScreen() {
         <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
         <input type="text" className="search-input" placeholder="Пошук товару..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      <button className="btn small" onClick={() => setShowAudit((v) => !v)}>
-        Огляд цін {showAudit ? "▾" : "▸"}
-      </button>
     </div>
   );
 
@@ -93,35 +85,6 @@ export default function PriceByMaterialScreen() {
     <div>
       <p className="note">Список товарів. Обери потрібний або відфільтруй пошуком — побачиш ціни всіх постачальників.</p>
       {toolbar}
-
-      {showAudit && (
-        <div className="section-body" style={{ marginBottom: 14 }}>
-          <div className="table-scroll">
-          <table>
-            <thead><tr><th>Матеріал</th><th>Категорія</th><th>К-сть постачальників</th><th>Найнижча ціна</th><th></th></tr></thead>
-            <tbody>
-              {list.map((m) => {
-                const rows = supplierPrices.filter((p) => p.material_id === m.id);
-                const cheapest = rows.length ? Math.min(...rows.map((p) => Number(p.price))) : null;
-                const cat = materialCategories.find((c) => c.id === m.category_id);
-                return (
-                  <tr key={m.id} style={{ cursor: "pointer" }} onClick={() => scrollToMaterial(m.id)}>
-                    <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
-                    <td>{cat ? cat.name : "—"}</td>
-                    <td>{rows.length}</td>
-                    <td>{cheapest != null ? fmtCurrency(cheapest, currency, exchangeRates, showDecimals) : "—"}</td>
-                    <td>
-                      {!rows.length && <span className="badge draft" style={{ color: "var(--danger)" }}>немає ціни</span>}
-                      {rows.length === 1 && <span className="badge draft">немає конкуренції</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        </div>
-      )}
 
       {list.map((m) => {
         const rows = supplierPrices.filter((p) => p.material_id === m.id).sort((a, b) => a.price - b.price);

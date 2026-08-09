@@ -212,11 +212,8 @@ function Toolbar({ search, setSearch, categoryFilter, setCategoryFilter, materia
   return (
     <div className="toolbar">
       <div className="toolbar-left">
+        <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
         <input type="text" className="search-input" placeholder="Пошук постачальника..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="">Всі категорії</option>
-          {materialCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
       </div>
     </div>
   );
