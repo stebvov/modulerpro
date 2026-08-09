@@ -8,7 +8,6 @@ import MultiSelectFilter from "@/components/MultiSelectFilter";
 import MaterialModal from "@/components/modals/MaterialModal";
 import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
 import UnitsPanel from "@/components/panels/UnitsPanel";
-import SettingsPageHeader from "@/components/SettingsPageHeader";
 
 export default function MaterialsScreen() {
   const { materials, materialCategories, materialUnits } = useAppData();
@@ -46,16 +45,14 @@ export default function MaterialsScreen() {
   if (page === "categories") {
     return (
       <div>
-        <SettingsPageHeader title="Категорії матеріалів / постачальників" onBack={() => setPage(null)} />
-        <MaterialCategoriesPanel />
+        <MaterialCategoriesPanel onBack={() => setPage(null)} />
       </div>
     );
   }
   if (page === "units") {
     return (
       <div>
-        <SettingsPageHeader title="Одиниці виміру" onBack={() => setPage(null)} />
-        <UnitsPanel />
+        <UnitsPanel onBack={() => setPage(null)} />
       </div>
     );
   }

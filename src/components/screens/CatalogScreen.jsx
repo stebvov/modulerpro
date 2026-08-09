@@ -6,7 +6,6 @@ import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import TemplateModal from "@/components/modals/TemplateModal";
 import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
-import SettingsPageHeader from "@/components/SettingsPageHeader";
 import CompareScreen from "@/components/screens/CompareScreen";
 
 export default function CatalogScreen() {
@@ -95,8 +94,7 @@ export default function CatalogScreen() {
   if (showCategoriesPage) {
     return (
       <div>
-        <SettingsPageHeader title="Категорії товарів" onBack={() => setShowCategoriesPage(false)} />
-        <ProductCategoriesPanel />
+        <ProductCategoriesPanel onBack={() => setShowCategoriesPage(false)} />
       </div>
     );
   }

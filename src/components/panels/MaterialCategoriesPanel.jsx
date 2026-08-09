@@ -5,7 +5,7 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { guessMaterialIcon } from "@/lib/materialIcon";
 
-export default function MaterialCategoriesPanel() {
+export default function MaterialCategoriesPanel({ onBack }) {
   const { supabase, materialCategories, reload } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [newMaterialCat, setNewMaterialCat] = useState("");
@@ -121,7 +121,7 @@ export default function MaterialCategoriesPanel() {
           />
           {canWriteCatalog && (
             <select
-              style={{ fontSize: 12, width: 150 }}
+              className="cat-parent-select"
               value={c.parent_id || ""}
               onChange={(e) => reparentMaterialCategory(c, e.target.value)}
             >
@@ -142,7 +142,10 @@ export default function MaterialCategoriesPanel() {
 
   return (
     <div>
-      <h3>Категорії матеріалів / постачальників</h3>
+      <div className="cat-panel-header">
+        {onBack && <button className="btn small" onClick={onBack}>← Назад</button>}
+        <h3>Категорії матеріалів / постачальників</h3>
+      </div>
       <p className="note" style={{ marginTop: -4 }}>Порядок тут визначає порядок у фільтрах і сортування матеріалів за категорією.</p>
       {error && <div className="auth-error">{error}</div>}
       {materialCategories.filter((c) => !c.parent_id).map((c) => renderMaterialNode(c, 0))}

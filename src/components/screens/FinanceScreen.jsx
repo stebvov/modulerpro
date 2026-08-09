@@ -10,7 +10,6 @@ import GoalProgressBar from "@/components/GoalProgressBar";
 import TransactionModal from "@/components/modals/TransactionModal";
 import TransactionAttachments from "@/components/TransactionAttachments";
 import TransactionCategoriesPanel from "@/components/panels/TransactionCategoriesPanel";
-import SettingsPageHeader from "@/components/SettingsPageHeader";
 import { convert, fmtCurrency } from "@/lib/format";
 import { marginProduction, marginServices, marginPct, fmtMonthLong } from "@/lib/finance";
 
@@ -50,8 +49,7 @@ export default function FinanceScreen() {
   if (showCategoriesPage) {
     return (
       <div>
-        <SettingsPageHeader title="Категорії транзакцій" onBack={() => setShowCategoriesPage(false)} />
-        <TransactionCategoriesPanel />
+        <TransactionCategoriesPanel onBack={() => setShowCategoriesPage(false)} />
       </div>
     );
   }

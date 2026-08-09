@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFinanceData } from "@/context/FinanceDataContext";
 import { useAuth } from "@/context/AuthContext";
 
-export default function TransactionCategoriesPanel() {
+export default function TransactionCategoriesPanel({ onBack }) {
   const { supabase, transactionCategories, allTransactions, reload } = useFinanceData();
   const { canWriteFinance } = useAuth();
   const [newCategory, setNewCategory] = useState("");
@@ -61,7 +61,10 @@ export default function TransactionCategoriesPanel() {
 
   return (
     <div>
-      <h3>Категорії транзакцій</h3>
+      <div className="cat-panel-header">
+        {onBack && <button className="btn small" onClick={onBack}>← Назад</button>}
+        <h3>Категорії транзакцій</h3>
+      </div>
       <p className="note" style={{ marginTop: -4 }}>
         Перейменування застосується одразу до всіх транзакцій з цією категорією.
       </p>

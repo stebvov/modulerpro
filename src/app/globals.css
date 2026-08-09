@@ -173,10 +173,13 @@ input.price-input { width: 100px; }
 .empty { color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center; }
 .cat-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .cat-col h3 { font-size: 14px; margin: 0 0 10px; }
+.cat-panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cat-panel-header h3 { margin: 0; }
 .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; background: var(--card); font-size: 13px; gap: 8px; }
 .cat-item.child { margin-left: 20px; background: #faf9f6; }
-.cat-item input.rename-input { flex: 1; border: none; background: transparent; padding: 2px; font-size: 13px; }
+.cat-item input.rename-input { flex: 1; min-width: 0; border: none; background: transparent; padding: 2px; font-size: 13px; }
 .cat-item input.rename-input:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+.cat-parent-select { font-size: 12px; width: 150px; flex-shrink: 0; }
 .cat-add { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
 .cat-add input { flex: 1; min-width: 140px; }
 .icon-x { cursor: pointer; color: var(--text-muted); font-size: 15px; padding: 0 4px; flex-shrink: 0; background: none; border: none; }
@@ -214,6 +217,18 @@ input.price-input { width: 100px; }
 @media (max-width: 700px) {
   .btn-label-full { display: none; }
   .btn-label-compact { display: inline; }
+}
+
+/* Category/unit settings rows: wrap instead of overflowing horizontally on mobile. */
+@media (max-width: 700px) {
+  .cat-item { flex-wrap: wrap; row-gap: 6px; }
+  .cat-item .cat-toggle { order: 1; }
+  .cat-item .cat-reorder { order: 2; }
+  .cat-item input.icon-input { order: 3; }
+  .cat-item input.rename-input { order: 4; flex: 1 1 90px; min-width: 90px; }
+  .cat-item .icon-x { order: 5; }
+  .cat-item span.note { order: 6; }
+  .cat-item .cat-parent-select { order: 7; flex: 1 1 100%; width: 100%; margin-top: 2px; }
 }
 .tag-checks { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag-check { display: flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 3px 10px; cursor: pointer; }

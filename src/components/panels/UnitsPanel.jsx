@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 
-export default function UnitsPanel() {
+export default function UnitsPanel({ onBack }) {
   const { supabase, materials, materialUnits, reload } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [newUnit, setNewUnit] = useState("");
@@ -62,7 +62,10 @@ export default function UnitsPanel() {
 
   return (
     <div>
-      <h3>Одиниці виміру</h3>
+      <div className="cat-panel-header">
+        {onBack && <button className="btn small" onClick={onBack}>← Назад</button>}
+        <h3>Одиниці виміру</h3>
+      </div>
       <p className="note" style={{ marginTop: -4 }}>
         Порядок тут визначає порядок у списку вибору одиниці. Перейменування застосується одразу до всіх матеріалів з цією одиницею.
       </p>

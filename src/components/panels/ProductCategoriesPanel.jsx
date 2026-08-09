@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 
-export default function ProductCategoriesPanel() {
+export default function ProductCategoriesPanel({ onBack }) {
   const { supabase, productCategories, reload } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [newProductCat, setNewProductCat] = useState("");
@@ -44,7 +44,10 @@ export default function ProductCategoriesPanel() {
 
   return (
     <div>
-      <h3>Категорії товарів (шаблонів)</h3>
+      <div className="cat-panel-header">
+        {onBack && <button className="btn small" onClick={onBack}>← Назад</button>}
+        <h3>Категорії товарів (шаблонів)</h3>
+      </div>
       {error && <div className="auth-error">{error}</div>}
       {productCategories.map((c) => (
         <div className="cat-item" key={c.id}>
