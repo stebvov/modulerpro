@@ -1,0 +1,82 @@
+.page { min-height: 100vh; padding: 24px; background: var(--bg); color: var(--text); }
+:global(.design-engine) { max-width: 1320px; margin: 0 auto; }
+:global(.design-engine-head) { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; margin-bottom:18px; }
+:global(.design-kicker) { font-size:11px; letter-spacing:.12em; color:var(--text-muted); margin-bottom:6px; }
+:global(.design-engine h2) { margin:0 0 6px; font-size:25px; font-weight:650; }
+:global(.design-engine p) { margin:0; color:var(--text-secondary); font-size:13px; line-height:1.5; }
+:global(.design-actions) { display:flex; gap:8px; flex-shrink:0; }
+:global(.design-stepper) { display:flex; gap:6px; overflow-x:auto; padding:4px 0 14px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+:global(.design-step) { border:1px solid var(--border); background:var(--card); color:var(--text-secondary); border-radius:18px; padding:7px 13px; font:inherit; font-size:12px; white-space:nowrap; cursor:pointer; }
+:global(.design-step.active) { background:var(--accent); border-color:var(--accent); color:#fff; }
+:global(.design-step.done) { color:var(--accent); }
+:global(.design-notice) { padding:10px 12px; border:1px solid var(--border); background:var(--accent-bg); color:var(--text-secondary); border-radius:8px; margin-bottom:14px; font-size:12px; }
+:global(.design-grid) { display:grid; gap:16px; }
+:global(.design-grid.two) { grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr); }
+:global(.design-panel) { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; min-width:0; }
+:global(.design-panel-title) { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13px; font-weight:650; margin-bottom:14px; }
+:global(.design-form-grid) { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+:global(.design-form-grid label), :global(.design-full) { display:flex; flex-direction:column; gap:5px; font-size:11px; color:var(--text-secondary); }
+:global(.design-form-grid input), :global(.design-form-grid select), :global(.design-full textarea) { width:100%; border:1px solid var(--border-strong); border-radius:7px; padding:8px 9px; background:#fff; color:var(--text); font:inherit; font-size:13px; }
+:global(.design-check) { flex-direction:row !important; align-items:center; padding-top:21px; }
+:global(.design-full) { margin-top:12px; }
+:global(.design-upload) { margin-top:12px; padding:14px; border:1px dashed var(--border-strong); border-radius:8px; color:var(--text-muted); font-size:12px; text-align:center; }
+:global(.design-generate) { margin-top:14px; width:100%; }
+:global(.design-vision-list) { display:flex; flex-direction:column; }
+:global(.design-vision-list > div) { display:flex; gap:12px; padding:13px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.45; }
+:global(.design-vision-list b) { color:var(--accent); font-size:11px; min-width:22px; }
+:global(.design-workspace) { display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:16px; }
+:global(.plan-panel) { min-height:600px; }
+:global(.plan-canvas) { width:100%; min-height:520px; display:flex; align-items:center; justify-content:center; background:#f8f8f5; border:1px solid var(--border); border-radius:8px; padding:24px; overflow:hidden; color:#5e5d57; }
+:global(.plan-canvas svg) { width:min(100%,760px); max-height:560px; }
+:global(.plan-room) { cursor:pointer; }
+:global(.plan-room.selected rect) { stroke:var(--accent); stroke-width:.07; }
+:global(.rule-badge), :global(.pending-badge) { display:inline-flex; align-items:center; border-radius:12px; padding:3px 7px; font-size:9px; letter-spacing:.04em; background:var(--accent-bg); color:var(--accent); white-space:nowrap; }
+:global(.pending-badge) { background:var(--amber-bg); color:var(--amber); }
+:global(.design-inspector) { display:flex; flex-direction:column; gap:10px; }
+:global(.inspector-name) { font-size:18px; font-weight:650; }
+:global(.muted) { color:var(--text-muted); font-size:12px; }
+:global(.rule-card) { display:flex; flex-direction:column; gap:5px; margin-top:auto; padding:12px; border-radius:8px; background:#f7f7f3; border:1px solid var(--border); font-size:11px; }
+:global(.rule-card span) { color:var(--accent); }
+:global(.rule-card small) { color:var(--text-muted); line-height:1.4; }
+:global(.full) { width:100%; margin-top:4px; }
+:global(.axonometric) { min-height:400px; background:#f8f8f5; border:1px solid var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+:global(.axo-house) { width:58%; height:48%; background:#dddcd5; border:2px solid #77756d; transform:skewY(-18deg) rotateX(45deg) rotateZ(0deg); box-shadow:28px 20px 0 #c9c7bf; position:relative; }
+:global(.axo-window) { position:absolute; left:15%; top:26%; width:35%; height:27%; background:#e6f1fb; border:2px solid #77756d; }
+:global(.axo-door) { position:absolute; right:13%; top:22%; width:15%; height:45%; background:#b7b4aa; border:2px solid #77756d; }
+:global(.axo-top) { position:absolute; top:18%; left:20%; right:20%; display:flex; justify-content:space-between; color:var(--text-muted); font-size:11px; }
+:global(.axo-label) { position:absolute; bottom:16%; color:var(--text-secondary); font-size:12px; }
+:global(.architecture-metrics), :global(.result-summary), :global(.price-grid) { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+:global(.architecture-metrics > div), :global(.result-summary > div), :global(.price-grid > div) { border:1px solid var(--border); border-radius:8px; padding:11px; display:flex; flex-direction:column; gap:4px; }
+:global(.architecture-metrics b), :global(.result-summary b), :global(.price-grid b) { font-size:15px; }
+:global(.architecture-metrics span), :global(.result-summary span), :global(.price-grid span) { font-size:10px; color:var(--text-muted); }
+:global(.decision-list) { display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+:global(.decision-list > div) { display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px; font-size:12px; }
+:global(.decision-list b) { margin-left:auto; font-weight:550; }
+:global(.design-source) { color:var(--text-secondary); font-size:11px; margin-bottom:10px; }
+:global(.design-bom-table) { display:flex; flex-direction:column; }
+:global(.design-bom-row) { display:grid; grid-template-columns:1fr auto; gap:4px 12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+:global(.design-bom-row small) { grid-column:1 / -1; color:var(--text-muted); font-size:10px; }
+:global(.price-panel) { display:flex; flex-direction:column; }
+:global(.price-big) { font-size:32px; font-weight:700; margin-top:10px; }
+:global(.price-panel > small) { color:var(--text-muted); line-height:1.4; margin-top:14px; }
+:global(.result-tabs) { display:flex; gap:5px; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:16px; }
+:global(.result-tabs span) { padding:8px 10px; font-size:11px; color:var(--text-muted); white-space:nowrap; }
+:global(.result-tabs span.active) { color:var(--accent); border-bottom:2px solid var(--accent); }
+:global(.result-footer) { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); color:var(--text-secondary); font-size:11px; }
+:global(.empty) { padding:24px; color:var(--text-muted); text-align:center; font-size:12px; }
+@media (max-width: 900px) {
+  .page { padding:14px; }
+  :global(.design-engine-head), :global(.design-workspace), :global(.design-grid.two) { grid-template-columns:1fr; display:grid; }
+  :global(.design-actions) { width:100%; }
+  :global(.design-actions .btn) { flex:1; }
+  :global(.design-form-grid) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  :global(.plan-panel) { min-height:420px; }
+  :global(.plan-canvas) { min-height:380px; padding:10px; }
+  :global(.result-footer) { flex-direction:column; align-items:stretch; }
+}
+@media (max-width: 520px) {
+  :global(.design-form-grid) { grid-template-columns:1fr; }
+  :global(.design-check) { padding-top:4px; }
+  :global(.architecture-metrics), :global(.result-summary), :global(.price-grid) { grid-template-columns:1fr 1fr; }
+  :global(.design-engine h2) { font-size:20px; }
+}
