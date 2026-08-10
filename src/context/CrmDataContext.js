@@ -24,6 +24,9 @@ const EMPTY = {
   extraCosts: [],
   supplierPrices: [],
   marginAlerts: [],
+  services: [],
+  serviceTemplates: [],
+  serviceTemplateItems: [],
 };
 
 export function CrmDataProvider({ children }) {
@@ -55,6 +58,9 @@ export function CrmDataProvider({ children }) {
           extraCosts,
           supplierPrices,
           marginAlerts,
+          services,
+          serviceTemplates,
+          serviceTemplateItems,
         ] = await Promise.all([
           supabase.from("pipelines").select("*").order("sort_order"),
           supabase.from("pipeline_stages").select("*").order("sort_order"),
@@ -74,12 +80,15 @@ export function CrmDataProvider({ children }) {
           supabase.from("template_extra_costs").select("template_id,amount"),
           supabase.from("supplier_prices").select("material_id,price"),
           supabase.from("v_deal_margin_alerts").select("*"),
+          supabase.from("services").select("id,name,category_id,unit,base_price").order("sort_order"),
+          supabase.from("service_templates").select("id,name,status").order("sort_order"),
+          supabase.from("service_template_items").select("*"),
         ]);
 
         const firstError = [
           pipelines, pipelineStages, dealsKanban, deals, dealServices, dealActivities,
           dealAttachments, leads, leadContacts, leadCategoryLinks, serviceRateCards, teamMembers, productCategories, templates,
-          bomItems, extraCosts, supplierPrices, marginAlerts,
+          bomItems, extraCosts, supplierPrices, marginAlerts, services, serviceTemplates, serviceTemplateItems,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -102,6 +111,9 @@ export function CrmDataProvider({ children }) {
           extraCosts: extraCosts.data || [],
           supplierPrices: supplierPrices.data || [],
           marginAlerts: marginAlerts.data || [],
+          services: services.data || [],
+          serviceTemplates: serviceTemplates.data || [],
+          serviceTemplateItems: serviceTemplateItems.data || [],
         });
         setError(null);
       } catch (e) {

@@ -23,6 +23,10 @@ const EMPTY = {
   priceHistory: [],
   profiles: [],
   materialUnits: [],
+  services: [],
+  serviceCategories: [],
+  serviceTemplates: [],
+  serviceTemplateItems: [],
 };
 
 export function DataProvider({ children }) {
@@ -55,6 +59,10 @@ export function DataProvider({ children }) {
           priceHistory,
           profiles,
           materialUnits,
+          services,
+          serviceCategories,
+          serviceTemplates,
+          serviceTemplateItems,
         ] = await Promise.all([
           supabase.from("materials").select("*").order("name"),
           supabase.from("suppliers").select("*").order("name"),
@@ -73,6 +81,10 @@ export function DataProvider({ children }) {
           supabase.from("supplier_price_history").select("*").order("changed_at", { ascending: false }),
           supabase.from("profiles").select("*").order("created_at"),
           supabase.from("material_units").select("*").order("sort_order"),
+          supabase.from("services").select("*").order("sort_order"),
+          supabase.from("service_categories").select("*").order("sort_order"),
+          supabase.from("service_templates").select("*").order("sort_order"),
+          supabase.from("service_template_items").select("*").order("sort_order"),
         ]);
 
         const firstError = [
@@ -80,6 +92,7 @@ export function DataProvider({ children }) {
           productCategories, materialCategories, bomGroups, exchangeRates,
           supplierCategoryLinks, supplierContacts, templateFiles, productCategoryLinks,
           priceHistory, profiles, materialUnits,
+          services, serviceCategories, serviceTemplates, serviceTemplateItems,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -101,6 +114,10 @@ export function DataProvider({ children }) {
           priceHistory: priceHistory.data || [],
           profiles: profiles.data || [],
           materialUnits: materialUnits.data || [],
+          services: services.data || [],
+          serviceCategories: serviceCategories.data || [],
+          serviceTemplates: serviceTemplates.data || [],
+          serviceTemplateItems: serviceTemplateItems.data || [],
         });
         setError(null);
       } catch (e) {

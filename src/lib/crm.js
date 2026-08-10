@@ -67,23 +67,50 @@ export function avgProductionCostPerM2(templates, bomItems, extraCosts, supplier
   return Math.round(withCost.reduce((s, x) => s + x.cost / x.area, 0) / withCost.length);
 }
 
-// Sum of (template's area × cost/m²) × line quantity across all lines — the
-// already-multiplied grand total for a multi-line template selection, meant
-// to be stored directly as deals.production_price (with deals.quantity=1).
-export function templateLinesProductionPrice(lines, templates) {
-  return (lines || []).reduce((sum, l) => {
-    const tpl = templates.find((t) => t.id === l.template_id);
-    if (!tpl || tpl.base_cost_per_m2 == null) return sum;
-    return sum + tpl.area_m2 * tpl.base_cost_per_m2 * (Number(l.quantity) || 0);
+// Unit price of a service template: sum of (unit_price_override ?? the
+// service's base_price) × item quantity across its items.
+export function serviceTemplateUnitPrice(serviceTemplateId, serviceTemplateItems, services) {
+  return serviceTemplateItems
+    .filter((i) => i.service_template_id === serviceTemplateId)
+    .reduce((sum, i) => {
+      const svc = services.find((s) => s.id === i.service_id);
+      const price = i.unit_price_override != null ? Number(i.unit_price_override) : Number(svc?.base_price) || 0;
+      return sum + price * (Number(i.quantity) || 0);
+    }, 0);
+}
+
+// Order items are polymorphic: { kind: "house" | "service" | "custom",
+// template_id (house/service), unit_price (custom only), quantity }. Sum of
+// each line's unit price × its own quantity — the already-multiplied grand
+// total, meant to be stored directly as deals.production_price (with
+// deals.quantity=1 for the "template" request type).
+export function orderItemsProductionTotal(items, { templates, services, serviceTemplateItems }) {
+  return (items || []).reduce((sum, l) => {
+    const qty = Number(l.quantity) || 0;
+    if (l.kind === "house") {
+      const tpl = templates.find((t) => t.id === l.template_id);
+      if (!tpl || tpl.base_cost_per_m2 == null) return sum;
+      return sum + tpl.area_m2 * tpl.base_cost_per_m2 * qty;
+    }
+    if (l.kind === "service") {
+      return sum + serviceTemplateUnitPrice(l.template_id, serviceTemplateItems, services) * qty;
+    }
+    if (l.kind === "custom") {
+      return sum + (Number(l.unit_price) || 0) * qty;
+    }
+    return sum;
   }, 0);
 }
 
-// production_cost_snapshot for a deal: real BOM+extra cost for one or more
-// templated lines, or an area-based estimate (same average-cost approach as
-// estimated_price) for a custom deal.
+// production_cost_snapshot for a deal: real BOM+extra cost for its "house"
+// order-item lines only (service/custom lines aren't materials-based, so —
+// same as the old standalone services block before it — they don't
+// contribute to this materials-cost figure), or an area-based estimate
+// (same average-cost approach as estimated_price) for a custom deal.
 export function computeProductionCostSnapshot(deal, { templates, bomItems, extraCosts, supplierPrices }) {
-  if (deal.template_lines?.length) {
-    const total = deal.template_lines.reduce((sum, l) => {
+  const houseLines = (deal.template_lines || []).filter((l) => l.kind === "house");
+  if (houseLines.length) {
+    const total = houseLines.reduce((sum, l) => {
       const cost = templateProductionCost(l.template_id, bomItems, extraCosts, supplierPrices);
       return sum + cost * (Number(l.quantity) || 0);
     }, 0);

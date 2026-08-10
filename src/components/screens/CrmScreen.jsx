@@ -53,7 +53,7 @@ function AttentionReport({ rows, onOpenDeal, onClose }) {
 export default function CrmScreen() {
   const {
     loading, error, pipelines, pipelineStages, dealsKanban, deals, dealServices, leadCategoryLinks, productCategories,
-    templates, bomItems, extraCosts, supplierPrices, marginAlerts, supabase, reload,
+    templates, serviceTemplates, bomItems, extraCosts, supplierPrices, marginAlerts, supabase, reload,
   } = useCrmData();
   const { canWriteCatalog } = useAuth();
   const [pipelineId, setPipelineId] = useState(null);
@@ -185,22 +185,27 @@ export default function CrmScreen() {
                         </div>
                       )}
                       <div className="note" style={{ marginTop: 4 }}>
+                        {d.is_custom && (
+                          <>Кастом · {d.custom_area_m2 || "?"} м²{d.quantity > 1 && <> · ×{d.quantity}</>}{d.template_lines?.length ? " + " : ""}</>
+                        )}
                         {d.template_lines?.length ? (
                           d.template_lines.map((l, i) => {
-                            const tpl = templates.find((t) => t.id === l.template_id);
+                            let itemLabel = l.label;
+                            if (l.kind === "house") itemLabel = templates.find((t) => t.id === l.template_id)?.name || "?";
+                            else if (l.kind === "service") itemLabel = serviceTemplates.find((t) => t.id === l.template_id)?.name || "?";
                             return (
                               <span key={i}>
                                 {i > 0 && ", "}
-                                {tpl?.name || "?"} ×{l.quantity}
+                                {itemLabel} ×{l.quantity}
                               </span>
                             );
                           })
-                        ) : d.is_custom ? (
-                          <>Кастом · {d.custom_area_m2 || "?"} м²{d.quantity > 1 && <> · ×{d.quantity}</>}</>
-                        ) : d.template_name ? (
-                          <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}{d.quantity > 1 && <> · ×{d.quantity}</>}</>
-                        ) : (
-                          <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Індивідуальний"}</>
+                        ) : !d.is_custom && (
+                          d.template_name ? (
+                            <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}{d.quantity > 1 && <> · ×{d.quantity}</>}</>
+                          ) : (
+                            <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Індивідуальний"}</>
+                          )
                         )}
                       </div>
                       <div className="note" style={{ marginTop: 2 }}>{d.lead_region}</div>

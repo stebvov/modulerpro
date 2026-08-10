@@ -7,14 +7,11 @@ import SearchCombobox from "@/components/SearchCombobox";
 import {
   CONTACT_TYPES,
   ACTIVITY_TYPES,
-  SERVICE_TYPES,
   LEAD_SOURCES,
   LEAD_STATUSES,
-  AVERAGE_ESTIMATE,
-  findRateCard,
-  foundationVariants,
   avgCostPerM2,
-  templateLinesProductionPrice,
+  serviceTemplateUnitPrice,
+  orderItemsProductionTotal,
   computeProductionCostSnapshot,
   curr,
   fmtDateTime,
@@ -24,99 +21,42 @@ function emptyContact(type, value) {
   return { key: Math.random().toString(36).slice(2), type: type || "телефон", value: value || "" };
 }
 
-function emptyTemplateLine(overrides) {
-  return { key: Math.random().toString(36).slice(2), template_id: overrides?.template_id || "", quantity: overrides?.quantity ?? 1 };
-}
-
-function emptyService(overrides) {
+function emptyOrderItem(overrides) {
   return {
     key: Math.random().toString(36).slice(2),
-    service_type: overrides?.service_type || "монтаж",
-    variant: overrides?.variant || null,
-    calc_method: overrides?.calc_method || "вручну",
-    quantity_units: overrides?.quantity_units ?? "",
-    price: overrides?.price ?? 0,
-    rate_card_id: overrides?.rate_card_id || null,
+    selection: overrides?.selection || "",
+    label: overrides?.label || "",
+    unit_price: overrides?.unit_price ?? "",
+    quantity: overrides?.quantity ?? 1,
   };
 }
 
-function ServiceRow({ service, rateCards, defaultQuantity, onChange, onRemove }) {
-  const rateCard = findRateCard(rateCards, service.service_type, service.variant);
-  const variants = foundationVariants(rateCards);
-  function set(patch) {
-    onChange({ ...service, ...patch });
+// Parses an order-item row's <select> value into a {kind, template_id}
+// pair. "custom" is a sentinel for a free-text line; "house:<id>" /
+// "service:<id>" encode a catalog template reference in one field so a
+// single combined dropdown can offer both kinds plus the custom option.
+function parseSelection(selection) {
+  if (selection === "custom") return { kind: "custom", template_id: null };
+  if (selection.includes(":")) {
+    const [kind, id] = selection.split(":");
+    return { kind, template_id: id };
   }
-  function setType(service_type) {
-    const variant = service_type === "фундамент" ? variants[0] || null : null;
-    const rc = findRateCard(rateCards, service_type, variant);
-    const qty = rc ? defaultQuantity(service_type, variant) : "";
-    set({
-      service_type,
-      variant,
-      calc_method: rc ? "за_тарифом" : "вручну",
-      quantity_units: qty,
-      price: rc ? rc.rate * qty : AVERAGE_ESTIMATE[service_type] || 0,
-      rate_card_id: rc ? rc.id : null,
-    });
-  }
-  function setVariant(variant) {
-    const rc = findRateCard(rateCards, service.service_type, variant);
-    const qty = rc ? defaultQuantity(service.service_type, variant) : "";
-    set({ variant, quantity_units: qty, price: rc ? rc.rate * qty : service.price, rate_card_id: rc ? rc.id : null });
-  }
-  function setMethod(calc_method) {
-    if (calc_method === "за_тарифом" && rateCard) {
-      const qty = service.quantity_units || defaultQuantity(service.service_type, service.variant);
-      set({ calc_method, quantity_units: qty, price: rateCard.rate * qty, rate_card_id: rateCard.id });
-    } else if (calc_method === "середнє") {
-      set({ calc_method, quantity_units: "", price: AVERAGE_ESTIMATE[service.service_type] || 0, rate_card_id: null });
-    } else {
-      set({ calc_method: "вручну", quantity_units: "", rate_card_id: null });
-    }
-  }
-  function setQty(e) {
-    const qty = Number(e.target.value) || 0;
-    set({ quantity_units: e.target.value, price: rateCard ? rateCard.rate * qty : service.price });
-  }
-  return (
-    <div>
-      <div className="service-row-grid">
-        <div style={{ display: "flex", gap: 4 }}>
-          <select value={service.service_type} onChange={(e) => setType(e.target.value)}>
-            {SERVICE_TYPES.map((t) => (
-              <option key={t} value={t}>{t.replace("_", " ")}</option>
-            ))}
-          </select>
-          {service.service_type === "фундамент" && (
-            <select value={service.variant || ""} onChange={(e) => setVariant(e.target.value)}>
-              {variants.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          )}
-        </div>
-        <div className="seg-row">
-          <button type="button" className={`seg-btn${service.calc_method === "за_тарифом" ? " active" : ""}`} disabled={!rateCard} onClick={() => setMethod("за_тарифом")} title="За тарифом">Тариф</button>
-          <button type="button" className={`seg-btn${service.calc_method === "середнє" ? " active" : ""}`} onClick={() => setMethod("середнє")} title="Середня оцінка">≈</button>
-          <button type="button" className={`seg-btn${service.calc_method === "вручну" ? " active" : ""}`} onClick={() => setMethod("вручну")} title="Вручну">Ручна</button>
-        </div>
-        {service.calc_method === "за_тарифом" && rateCard ? (
-          <input type="number" step="0.1" value={service.quantity_units} onChange={setQty} title={`Кількість · тариф ${curr(rateCard.rate)} грн/од.`} />
-        ) : (
-          <div />
-        )}
-        {service.calc_method === "вручну" ? (
-          <input type="number" value={service.price} onChange={(e) => set({ price: Number(e.target.value) || 0 })} title="Сума, грн" />
-        ) : (
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", whiteSpace: "nowrap" }}>
-            {service.calc_method === "середнє" && "≈ "}{curr(service.price)}
-          </div>
-        )}
-        <span className="icon-x" onClick={onRemove}>×</span>
-      </div>
-      {service.calc_method === "за_тарифом" && rateCard && (
-        <div className="note" style={{ marginTop: -2, marginBottom: 6 }}>тариф {curr(rateCard.rate)} грн/од.</div>
-      )}
-    </div>
-  );
+  return { kind: "", template_id: null };
+}
+
+function resolveOrderItems(rows) {
+  return rows
+    .map((row) => {
+      const { kind, template_id } = parseSelection(row.selection);
+      if (kind === "custom") {
+        return { kind, template_id: null, label: row.label.trim(), unit_price: Number(row.unit_price) || 0, quantity: Number(row.quantity) || 0 };
+      }
+      if (kind === "house" || kind === "service") {
+        return { kind, template_id, quantity: Number(row.quantity) || 0 };
+      }
+      return null;
+    })
+    .filter((r) => r && r.quantity > 0 && (r.kind === "custom" ? r.label : r.template_id));
 }
 
 function ActivityLog({ dealId, activities, nextActionAt, nextActionNote, onEnsureSaved, onReload }) {
@@ -216,7 +156,10 @@ function ActivityLog({ dealId, activities, nextActionAt, nextActionNote, onEnsur
 }
 
 export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) {
-  const { supabase, leads, leadContacts, leadCategoryLinks, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, bomItems, extraCosts, supplierPrices, marginAlerts, reload } = useCrmData();
+  const {
+    supabase, leads, leadContacts, leadCategoryLinks, deals, dealActivities, teamMembers, productCategories,
+    templates, serviceTemplates, services, serviceTemplateItems, bomItems, extraCosts, supplierPrices, marginAlerts, reload,
+  } = useCrmData();
   const { canWriteCatalog, profile } = useAuth();
 
   const [savedId, setSavedId] = useState(dealId || null);
@@ -225,9 +168,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // The deal/lead as they currently exist in context — re-derived from
-  // savedId (not the dealId prop) so it stays correct after an implicit
-  // save triggered from the History tab on a brand-new lead.
   const currentDealRow = savedId ? deals.find((d) => d.id === savedId) : null;
   const currentLead = currentDealRow ? leads.find((l) => l.id === currentDealRow.lead_id) : null;
   const marginAlert = savedId ? marginAlerts.find((m) => m.deal_id === savedId) : null;
@@ -248,14 +188,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       if (!hasPhoneContact && existingLead.phone) contactsSeed.unshift(emptyContact("телефон", existingLead.phone));
       if (!contactsSeed.length) contactsSeed.push(emptyContact("телефон"));
       const categoryIds = leadCategoryLinks.filter((l) => l.lead_id === existingLead.id).map((l) => l.category_id);
-      const services = dealServices
-        .filter((s) => s.deal_id === dealId)
-        .map((s) => emptyService({ service_type: s.service_type, variant: s.variant, calc_method: s.calc_method, quantity_units: s.quantity_units ?? "", price: s.price, rate_card_id: s.rate_card_id }));
-      const templateLines = dealRow.template_lines?.length
-        ? dealRow.template_lines.map((l) => emptyTemplateLine(l))
-        : dealRow.template_id
-        ? [emptyTemplateLine({ template_id: dealRow.template_id, quantity: dealRow.quantity || 1 })]
-        : [];
+      const orderItems = (dealRow.template_lines || []).map((item) =>
+        emptyOrderItem({
+          selection: item.kind === "custom" ? "custom" : `${item.kind || "house"}:${item.template_id}`,
+          label: item.label || "",
+          unit_price: item.unit_price ?? "",
+          quantity: item.quantity,
+        })
+      );
       setForm({
         lead_name: existingLead.name || "",
         lead_region: existingLead.region || "",
@@ -265,13 +205,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         lead_notes: existingLead.notes || "",
         category_ids: categoryIds,
         contacts: contactsSeed,
-        request_type: dealRow.is_custom ? "custom" : templateLines.length ? "template" : "individual",
-        template_lines: templateLines,
+        request_type: dealRow.is_custom ? "custom" : orderItems.length ? "template" : "individual",
+        order_items: orderItems,
         custom_area_m2: dealRow.custom_area_m2 ?? "",
         custom_notes: dealRow.custom_notes || "",
         quantity: dealRow.quantity || 1,
         owner_id: dealRow.owner_id || "",
-        services: services.length ? services : [],
       });
     } else {
       const defaultOwner = teamMembers.find((m) => m.name === profile?.full_name);
@@ -281,8 +220,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         category_ids: [],
         contacts: [emptyContact("телефон")],
         request_type: pipeline.slug === "houses" ? "template" : "individual",
-        template_lines: [], custom_area_m2: "", custom_notes: "",
-        quantity: 1, owner_id: defaultOwner?.id || "", services: [],
+        order_items: [], custom_area_m2: "", custom_notes: "",
+        quantity: 1, owner_id: defaultOwner?.id || "",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,6 +231,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
 
   const ownerOptions = teamMembers.map((m) => ({ id: m.id, label: m.name }));
   const showExtraOpen = !!(form.lead_region || form.category_ids.length || form.lead_source !== "сайт" || form.lead_status !== "новий");
+  const showOrderItems = form.request_type === "template" || form.request_type === "custom";
 
   function update(key) {
     return (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -309,37 +249,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     }));
   }
 
-  function addTemplateLine() {
-    setForm((f) => ({ ...f, template_lines: [...f.template_lines, emptyTemplateLine()] }));
+  function addOrderItem() {
+    setForm((f) => ({ ...f, order_items: [...f.order_items, emptyOrderItem()] }));
   }
-  function updateTemplateLine(idx, patch) {
-    setForm((f) => { const lines = [...f.template_lines]; lines[idx] = { ...lines[idx], ...patch }; return { ...f, template_lines: lines }; });
+  function updateOrderItem(idx, patch) {
+    setForm((f) => { const rows = [...f.order_items]; rows[idx] = { ...rows[idx], ...patch }; return { ...f, order_items: rows }; });
   }
-  function removeTemplateLine(idx) {
-    setForm((f) => ({ ...f, template_lines: f.template_lines.filter((_, i) => i !== idx) }));
-  }
-
-  function defaultQuantity(service_type) {
-    if (service_type === "монтаж") return Number(form.quantity) || 1;
-    if (service_type === "фундамент") {
-      if (form.request_type === "custom") return Number(form.custom_area_m2) || 0;
-      return form.template_lines.reduce((sum, l) => {
-        const tpl = templates.find((t) => t.id === l.template_id);
-        return sum + (tpl ? Number(tpl.area_m2) * (Number(l.quantity) || 0) : 0);
-      }, 0);
-    }
-    return 1;
-  }
-  function addService() {
-    const rc = findRateCard(serviceRateCards, "монтаж", null);
-    const qty = defaultQuantity("монтаж");
-    setForm((f) => ({ ...f, services: [...f.services, emptyService({ service_type: "монтаж", calc_method: rc ? "за_тарифом" : "вручну", quantity_units: qty, price: rc ? rc.rate * qty : AVERAGE_ESTIMATE["монтаж"], rate_card_id: rc?.id })] }));
-  }
-  function updateService(idx, next) {
-    setForm((f) => { const s = [...f.services]; s[idx] = next; return { ...f, services: s }; });
-  }
-  function removeService(idx) {
-    setForm((f) => ({ ...f, services: f.services.filter((_, i) => i !== idx) }));
+  function removeOrderItem(idx) {
+    setForm((f) => ({ ...f, order_items: f.order_items.filter((_, i) => i !== idx) }));
   }
 
   async function createTeamMember(text) {
@@ -349,14 +266,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     return data.id;
   }
 
+  const cleanOrderItems = resolveOrderItems(form.order_items);
+  const orderItemsTotal = orderItemsProductionTotal(cleanOrderItems, { templates, services, serviceTemplateItems });
   const previewProductionTotal =
-    form.request_type === "template"
-      ? templateLinesProductionPrice(form.template_lines, templates)
-      : form.request_type === "custom"
-      ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) * (Number(form.quantity) || 1)
+    form.request_type === "custom"
+      ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) * (Number(form.quantity) || 1) + orderItemsTotal
+      : form.request_type === "template"
+      ? orderItemsTotal
       : 0;
-  const previewServicesSum = form.services.reduce((s, x) => s + (Number(x.price) || 0), 0);
-  const previewTotal = previewProductionTotal + previewServicesSum;
 
   async function saveDeal() {
     if (!form.lead_name.trim()) { setTab("основне"); setError("Заповни ім'я/назву клієнта."); return null; }
@@ -397,15 +314,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       }
 
       const is_custom = form.request_type === "custom";
-      const isTemplateType = form.request_type === "template";
-      const cleanLines = isTemplateType
-        ? form.template_lines.filter((l) => l.template_id && Number(l.quantity) > 0).map((l) => ({ template_id: l.template_id, quantity: Number(l.quantity) }))
-        : [];
+      const itemsForType = showOrderItems ? cleanOrderItems : [];
       const custom_area_m2 = is_custom ? (form.custom_area_m2 === "" ? null : Number(form.custom_area_m2)) : null;
-      const production_price = cleanLines.length ? Math.round(templateLinesProductionPrice(cleanLines, templates)) : null;
-      const estimated_price = is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : null;
+      const houseAndServiceTotal = orderItemsProductionTotal(itemsForType, { templates, services, serviceTemplateItems });
+      const customHouseTotal = is_custom ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) : 0;
+      const production_price = itemsForType.length || is_custom ? Math.round(houseAndServiceTotal + customHouseTotal) : null;
+      const estimated_price = is_custom ? Math.round(customHouseTotal) : null;
       const production_cost_snapshot = computeProductionCostSnapshot(
-        { is_custom, template_id: null, custom_area_m2, template_lines: cleanLines },
+        { is_custom, template_id: null, custom_area_m2, template_lines: itemsForType },
         { templates, bomItems, extraCosts, supplierPrices }
       );
 
@@ -413,7 +329,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         lead_id: leadId,
         pipeline_id: pipeline.id,
         template_id: null,
-        template_lines: cleanLines,
+        template_lines: itemsForType,
         is_custom,
         custom_area_m2,
         custom_notes: form.custom_notes.trim() || null,
@@ -433,23 +349,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         const { data: created, error: e } = await supabase.from("deals").insert([dealPayload]).select().single();
         if (e) throw e;
         newSavedId = created.id;
-      }
-
-      await supabase.from("deal_services").delete().eq("deal_id", newSavedId);
-      if (form.services.length) {
-        const { error: e } = await supabase.from("deal_services").insert(
-          form.services.map((s) => ({
-            deal_id: newSavedId,
-            service_type: s.service_type,
-            variant: s.variant || null,
-            calc_method: s.calc_method,
-            quantity_units: s.quantity_units === "" ? null : Number(s.quantity_units),
-            rate_used: s.rate_card_id ? Number((serviceRateCards.find((r) => r.id === s.rate_card_id) || {}).rate) || null : null,
-            rate_card_id: s.rate_card_id || null,
-            price: Number(s.price) || 0,
-          }))
-        );
-        if (e) throw e;
       }
 
       setSavedId(newSavedId);
@@ -605,26 +504,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               </div>
             </div>
 
-            {form.request_type === "template" && (
-              <div className="form-row">
-                <label>Шаблони</label>
-                {form.template_lines.map((line, i) => (
-                  <div key={line.key} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                    <select style={{ flex: 1 }} value={line.template_id} onChange={(e) => updateTemplateLine(i, { template_id: e.target.value })}>
-                      <option value="">— не вибрано —</option>
-                      {templates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
-                        </option>
-                      ))}
-                    </select>
-                    <input type="number" min="1" style={{ width: 70 }} value={line.quantity} onChange={(e) => updateTemplateLine(i, { quantity: e.target.value })} title="Кількість" />
-                    <span className="icon-x" onClick={() => removeTemplateLine(i)}>×</span>
-                  </div>
-                ))}
-                <button type="button" className="btn small self-left" onClick={addTemplateLine}>+ Додати шаблон</button>
-              </div>
-            )}
             {form.request_type === "custom" && (
               <>
                 <div className="form-row">
@@ -638,18 +517,49 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               </>
             )}
 
-            <details className="section-details" open={form.services.length > 0}>
-              <summary>
-                Замовлення клієнта (послуги)
-                <span className="section-count"> — {form.services.length} поз., {curr(previewServicesSum)} грн</span>
-              </summary>
-              <div className="section-body">
-                {form.services.map((s, i) => (
-                  <ServiceRow key={s.key} service={s} rateCards={serviceRateCards} defaultQuantity={defaultQuantity} onChange={(next) => updateService(i, next)} onRemove={() => removeService(i)} />
-                ))}
-                <button type="button" className="btn small self-left" onClick={addService}>+ Додати послугу</button>
+            {showOrderItems && (
+              <div className="form-row">
+                <label>Позиції замовлення{form.request_type === "custom" ? " (послуги, додаткові матеріали)" : " (шаблони будинків, послуг, кастомні позиції)"}</label>
+                {form.order_items.map((row, i) => {
+                  const { kind } = parseSelection(row.selection);
+                  return (
+                    <div key={row.key} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                      <select style={{ flex: "1 1 220px" }} value={row.selection} onChange={(e) => updateOrderItem(i, { selection: e.target.value })}>
+                        <option value="">— вибери —</option>
+                        <option value="custom">— кастомна позиція (матеріал/послуга) —</option>
+                        {form.request_type === "template" && templates.length > 0 && (
+                          <optgroup label="Будинки">
+                            {templates.map((t) => (
+                              <option key={t.id} value={`house:${t.id}`}>
+                                {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {serviceTemplates.length > 0 && (
+                          <optgroup label="Послуги">
+                            {serviceTemplates.map((t) => (
+                              <option key={t.id} value={`service:${t.id}`}>
+                                {t.name} · {curr(serviceTemplateUnitPrice(t.id, serviceTemplateItems, services))} грн
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                      {kind === "custom" && (
+                        <>
+                          <input style={{ flex: "1 1 140px" }} value={row.label} onChange={(e) => updateOrderItem(i, { label: e.target.value })} placeholder="назва позиції" />
+                          <input type="number" style={{ width: 90 }} value={row.unit_price} onChange={(e) => updateOrderItem(i, { unit_price: e.target.value })} placeholder="ціна" />
+                        </>
+                      )}
+                      <input type="number" min="1" step="1" style={{ width: 70 }} value={row.quantity} onChange={(e) => updateOrderItem(i, { quantity: e.target.value })} title="Кількість" />
+                      <span className="icon-x" onClick={() => removeOrderItem(i)}>×</span>
+                    </div>
+                  );
+                })}
+                <button type="button" className="btn small self-left" onClick={addOrderItem}>+ Додати позицію</button>
               </div>
-            </details>
+            )}
 
             <div className="form-row">
               <label>Відповідальний</label>
@@ -665,15 +575,13 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               {form.request_type !== "individual" && (
                 <>
                   <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {form.request_type === "custom" ? "Орієнтовна ціна виробництва" : "Ціна виробництва (автоматично)"}
+                    {form.request_type === "custom" ? "Орієнтовна вартість (будинок + позиції)" : "Вартість замовлення (автоматично)"}
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
                     {form.request_type === "custom" ? "≈ " : ""}{curr(previewProductionTotal)} грн
                   </div>
                 </>
               )}
-              {previewServicesSum > 0 && <div style={{ fontSize: 12, color: "#C1652F", marginTop: 4 }}>Послуги разом: {curr(previewServicesSum)} грн</div>}
-              <div style={{ fontSize: 13, marginTop: 6, fontWeight: 600 }}>Разом: {curr(previewTotal)} грн</div>
             </div>
 
             {savedId && marginAlert?.is_below_threshold && (
