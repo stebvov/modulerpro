@@ -236,7 +236,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         lead_notes: existingLead.notes || "",
         category_ids: categoryIds,
         contacts: contacts.length ? contacts.map((c) => emptyContact(c.type, c.value)) : [emptyContact()],
-        is_custom: dealRow.is_custom || false,
+        request_type: dealRow.is_custom ? "custom" : dealRow.template_id ? "template" : "service",
         template_id: dealRow.template_id || "",
         custom_area_m2: dealRow.custom_area_m2 ?? "",
         custom_notes: dealRow.custom_notes || "",
@@ -250,7 +250,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         lead_source: "сайт", lead_status: "новий", lead_budget_range: "", lead_notes: "",
         category_ids: [],
         contacts: [emptyContact()],
-        is_custom: false, template_id: "", custom_area_m2: "", custom_notes: "",
+        request_type: pipeline.slug === "houses" ? "template" : "service",
+        template_id: "", custom_area_m2: "", custom_notes: "",
         quantity: 1, owner_id: "", services: [],
       });
     }
@@ -259,7 +260,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
 
   if (!open || !form) return null;
 
-  const isHouses = pipeline.slug === "houses";
   const ownerOptions = teamMembers.map((m) => ({ id: m.id, label: m.name }));
 
   function update(key) {
@@ -281,7 +281,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   function defaultQuantity(service_type) {
     if (service_type === "монтаж") return Number(form.quantity) || 1;
     if (service_type === "фундамент") {
-      if (form.is_custom) return Number(form.custom_area_m2) || 0;
+      if (form.request_type === "custom") return Number(form.custom_area_m2) || 0;
       const tpl = templates.find((t) => t.id === form.template_id);
       return tpl ? Number(tpl.area_m2) : 0;
     }
@@ -307,9 +307,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   }
 
   const tpl = templates.find((t) => t.id === form.template_id);
-  const previewUnit = isHouses ? (form.is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : tpl && tpl.base_cost_per_m2 != null ? Math.round(tpl.area_m2 * tpl.base_cost_per_m2) : 0) : 0;
+  const previewUnit =
+    form.request_type === "custom"
+      ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates))
+      : form.request_type === "template" && tpl && tpl.base_cost_per_m2 != null
+      ? Math.round(tpl.area_m2 * tpl.base_cost_per_m2)
+      : 0;
   const previewServicesSum = form.services.reduce((s, x) => s + (Number(x.price) || 0), 0);
-  const previewQuantity = isHouses ? Number(form.quantity) || 1 : 1;
+  const previewQuantity = form.request_type !== "service" ? Number(form.quantity) || 1 : 1;
   const previewTotal = previewUnit * previewQuantity + previewServicesSum;
 
   async function handleSave() {
@@ -349,15 +354,16 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         if (e) throw e;
       }
 
-      const is_custom = isHouses ? form.is_custom : false;
-      const template_id = isHouses && !is_custom ? form.template_id || null : null;
-      const custom_area_m2 = isHouses && is_custom ? (form.custom_area_m2 === "" ? null : Number(form.custom_area_m2)) : null;
+      const is_custom = form.request_type === "custom";
+      const template_id = form.request_type === "template" ? form.template_id || null : null;
+      const custom_area_m2 = is_custom ? (form.custom_area_m2 === "" ? null : Number(form.custom_area_m2)) : null;
       const chosenTpl = templates.find((t) => t.id === template_id);
-      const production_price = isHouses && !is_custom && chosenTpl && chosenTpl.base_cost_per_m2 != null ? Math.round(chosenTpl.area_m2 * chosenTpl.base_cost_per_m2) : null;
-      const estimated_price = isHouses && is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : null;
-      const production_cost_snapshot = isHouses
-        ? computeProductionCostSnapshot({ is_custom, template_id, custom_area_m2 }, { templates, bomItems, extraCosts, supplierPrices })
-        : null;
+      const production_price = template_id && chosenTpl && chosenTpl.base_cost_per_m2 != null ? Math.round(chosenTpl.area_m2 * chosenTpl.base_cost_per_m2) : null;
+      const estimated_price = is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : null;
+      const production_cost_snapshot =
+        form.request_type !== "service"
+          ? computeProductionCostSnapshot({ is_custom, template_id, custom_area_m2 }, { templates, bomItems, extraCosts, supplierPrices })
+          : null;
 
       const dealPayload = {
         lead_id: leadId,
@@ -365,8 +371,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         template_id,
         is_custom,
         custom_area_m2,
-        custom_notes: isHouses ? (form.custom_notes.trim() || null) : null,
-        quantity: isHouses ? (Number(form.quantity) || 1) : 1,
+        custom_notes: form.request_type !== "service" ? (form.custom_notes.trim() || null) : null,
+        quantity: form.request_type !== "service" ? (Number(form.quantity) || 1) : 1,
         production_price,
         estimated_price,
         production_cost_snapshot,
@@ -486,33 +492,35 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <input value={form.lead_budget_range} onChange={update("lead_budget_range")} placeholder="напр. 500 000 - 800 000 грн" />
             </div>
 
-            {isHouses && (
+            <div className="form-row">
+              <label>Тип запиту</label>
+              <div className="seg-row">
+                <button type="button" className={`seg-btn${form.request_type === "template" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "template" }))}>Готовий шаблон</button>
+                <button type="button" className={`seg-btn${form.request_type === "custom" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "custom" }))}>Кастомний запит</button>
+                <button type="button" className={`seg-btn${form.request_type === "service" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "service" }))}>Послуга</button>
+              </div>
+            </div>
+            {form.request_type === "template" && (
+              <div className="form-row">
+                <label>Шаблон</label>
+                <select value={form.template_id} onChange={update("template_id")}>
+                  <option value="">— не вибрано —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {form.request_type === "custom" && (
+              <div className="form-row">
+                <label>Бажана площа, м²</label>
+                <input type="number" step="0.1" value={form.custom_area_m2} onChange={update("custom_area_m2")} />
+              </div>
+            )}
+            {form.request_type !== "service" && (
               <>
-                <div className="form-row">
-                  <label>Тип запиту</label>
-                  <div className="seg-row">
-                    <button type="button" className={`seg-btn${!form.is_custom ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, is_custom: false }))}>Готовий шаблон</button>
-                    <button type="button" className={`seg-btn${form.is_custom ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, is_custom: true }))}>Кастомний запит</button>
-                  </div>
-                </div>
-                {!form.is_custom ? (
-                  <div className="form-row">
-                    <label>Шаблон</label>
-                    <select value={form.template_id} onChange={update("template_id")}>
-                      <option value="">— не вибрано —</option>
-                      {templates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="form-row">
-                    <label>Бажана площа, м²</label>
-                    <input type="number" step="0.1" value={form.custom_area_m2} onChange={update("custom_area_m2")} />
-                  </div>
-                )}
                 <div className="form-row">
                   <label>Побажання клієнта (опис)</label>
                   <textarea rows={2} value={form.custom_notes} onChange={update("custom_notes")} placeholder="Побажання, деталі, особливості запиту…" />
@@ -550,13 +558,13 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
             {!dealId && <div className="note">Файли можна прикріпити до запису у вкладці «Історія» після збереження угоди.</div>}
 
             <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-              {isHouses && (
+              {form.request_type !== "service" && (
                 <>
                   <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {form.is_custom ? "Орієнтовна ціна виробництва" : "Ціна виробництва (автоматично)"}
+                    {form.request_type === "custom" ? "Орієнтовна ціна виробництва" : "Ціна виробництва (автоматично)"}
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
-                    {form.is_custom ? "≈ " : ""}{curr(previewUnit)} грн {previewQuantity > 1 ? `× ${previewQuantity} = ${curr(previewUnit * previewQuantity)} грн` : ""}
+                    {form.request_type === "custom" ? "≈ " : ""}{curr(previewUnit)} грн {previewQuantity > 1 ? `× ${previewQuantity} = ${curr(previewUnit * previewQuantity)} грн` : ""}
                   </div>
                 </>
               )}

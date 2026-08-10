@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const ROLES = ["admin", "manager", "accountant"];
+const ROLES = ["admin", "manager", "accountant", "partner"];
 const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
 function generatePassword(length = 12) {
@@ -28,6 +28,7 @@ export async function POST(request) {
   const email = (body.email || "").trim().toLowerCase();
   const fullName = (body.fullName || "").trim();
   const role = ROLES.includes(body.role) ? body.role : "manager";
+  const partnerGroupId = role === "partner" && body.partnerGroupId ? body.partnerGroupId : null;
   if (!email) {
     return NextResponse.json({ error: "Вкажи email." }, { status: 400 });
   }
@@ -53,7 +54,7 @@ export async function POST(request) {
     return NextResponse.json({ error: createError.message }, { status: 400 });
   }
 
-  const { error: roleError } = await admin.from("profiles").update({ role }).eq("id", created.user.id);
+  const { error: roleError } = await admin.from("profiles").update({ role, partner_group_id: partnerGroupId }).eq("id", created.user.id);
   if (roleError) {
     return NextResponse.json({ error: roleError.message }, { status: 500 });
   }

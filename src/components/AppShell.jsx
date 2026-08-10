@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import ProfileMenu from "@/components/ProfileMenu";
@@ -21,15 +21,17 @@ import SuppliersScreen from "@/components/screens/SuppliersScreen";
 import CategoriesScreen from "@/components/screens/CategoriesScreen";
 import PriceScreen from "@/components/screens/PriceScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
+import AccessGroupsScreen from "@/components/screens/AccessGroupsScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
 
 const TAB_GROUPS = [
-  { label: "CRM", tabs: [{ id: "crm", label: "CRM" }] },
-  { label: "Виробництво", tabs: [{ id: "production", label: "Виробництво" }] },
-  { label: "Послуги", tabs: [{ id: "services", label: "Послуги" }] },
-  { label: "Маркетинг", tabs: [{ id: "marketing", label: "Маркетинг" }] },
+  { key: "crm", label: "CRM", tabs: [{ id: "crm", label: "CRM" }] },
+  { key: "production", label: "Виробництво", tabs: [{ id: "production", label: "Виробництво" }] },
+  { key: "services", label: "Послуги", tabs: [{ id: "services", label: "Послуги" }] },
+  { key: "marketing", label: "Маркетинг", tabs: [{ id: "marketing", label: "Маркетинг" }] },
   {
+    key: "catalog",
     label: "Каталог",
     tabs: [
       { id: "catalog", label: "Каталог шаблонів" },
@@ -43,17 +45,28 @@ const TAB_GROUPS = [
 
 export default function AppShell() {
   const { currency, setCurrency } = useAppData();
-  const { isAdmin, canWriteFinance } = useAuth();
+  const { isAdmin, canWriteFinance, isPartner, partnerTabs } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
   let groups = TAB_GROUPS;
-  if (canWriteFinance) groups = [...groups, { label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
-  if (isAdmin) groups = [...groups, { label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }] }];
+  if (isPartner) groups = groups.filter((g) => (partnerTabs || new Set()).has(g.key));
+  if (canWriteFinance) groups = [...groups, { key: "finance", label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
+  if (isAdmin) groups = [...groups, { key: "admin", label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }, { id: "access-groups", label: "Ролі доступу" }] }];
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
-  const activeTabInfo = activeGroup.tabs.find((t) => t.id === activeTab) || activeGroup.tabs[0];
+  const activeTabInfo = activeGroup?.tabs.find((t) => t.id === activeTab) || activeGroup?.tabs[0];
+
+  useEffect(() => {
+    if (!isPartner || !partnerTabs) return;
+    const allowedIds = groups.flatMap((g) => g.tabs.map((t) => t.id));
+    if (allowedIds.length && !allowedIds.includes(activeTab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab(allowedIds[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPartner, partnerTabs, activeTab]);
 
   function selectGroup(g) {
     setActiveTab(g.tabs[0].id);
@@ -152,7 +165,7 @@ export default function AppShell() {
             </div>
           </div>
 
-          {activeGroup.tabs.length > 1 && (
+          {activeGroup && activeGroup.tabs.length > 1 && (
             <div className="mobile-subtabs">
               {activeGroup.tabs.map((t) => (
                 <button
@@ -228,6 +241,11 @@ export default function AppShell() {
                   <TeamScreen />
                 </TeamDataProvider>
               )}
+            </div>
+          )}
+          {isAdmin && (
+            <div className={`screen${activeTab === "access-groups" ? " active" : ""}`}>
+              {activeTab === "access-groups" && <AccessGroupsScreen />}
             </div>
           )}
         </div>

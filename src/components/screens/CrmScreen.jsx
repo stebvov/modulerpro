@@ -185,11 +185,11 @@ export default function CrmScreen() {
                         </div>
                       )}
                       <div className="note" style={{ marginTop: 4 }}>
-                        {pipeline.slug === "houses"
-                          ? d.is_custom
-                            ? <>Кастом · {d.custom_area_m2 || "?"} м²</>
-                            : <>{d.template_name || "без шаблону"}{d.area_m2 ? <> · {d.area_m2} м²</> : null}</>
-                          : <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "—"}</>}
+                        {d.is_custom
+                          ? <>Кастом · {d.custom_area_m2 || "?"} м²</>
+                          : d.template_name
+                          ? <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}</>
+                          : <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Послуга"}</>}
                         {d.quantity > 1 && <> · ×{d.quantity}</>}
                       </div>
                       <div className="note" style={{ marginTop: 2 }}>{d.lead_region}</div>

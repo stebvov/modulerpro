@@ -11,12 +11,14 @@ export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [partnerTabs, setPartnerTabs] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(
     async (currentUser) => {
       if (!currentUser) {
         setProfile(null);
+        setPartnerTabs(null);
         return;
       }
       const { data } = await supabase
@@ -25,6 +27,12 @@ export function AuthProvider({ children }) {
         .eq("id", currentUser.id)
         .single();
       setProfile(data || null);
+      if (data?.role === "partner" && data.partner_group_id) {
+        const { data: tabs } = await supabase.from("partner_group_tabs").select("tab_key").eq("partner_group_id", data.partner_group_id);
+        setPartnerTabs(new Set((tabs || []).map((t) => t.tab_key)));
+      } else {
+        setPartnerTabs(null);
+      }
     },
     [supabase]
   );
@@ -71,6 +79,10 @@ export function AuthProvider({ children }) {
     canWriteCatalog: role === "admin" || role === "manager",
     canWriteFinance: role === "admin" || role === "accountant",
     isAdmin: role === "admin",
+    isPartner: role === "partner",
+    // null = no tab restriction (non-partner roles); Set = the only tab
+    // groups a partner's access group has been granted.
+    partnerTabs,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
