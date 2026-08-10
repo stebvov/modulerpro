@@ -22,6 +22,10 @@ export default function UsersScreen() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [resetBusyId, setResetBusyId] = useState(null);
+  const [resetResult, setResetResult] = useState(null);
+  const [resetCopied, setResetCopied] = useState(false);
+  const [blockBusyId, setBlockBusyId] = useState(null);
 
   useEffect(() => {
     supabase.from("partner_groups").select("*").order("sort_order").then(({ data }) => setPartnerGroups(data || []));
@@ -94,6 +98,62 @@ export default function UsersScreen() {
     ].join("\n");
     navigator.clipboard.writeText(text);
     setCopied(true);
+  }
+
+  async function resetPassword(p) {
+    setResetBusyId(p.id);
+    setError("");
+    setResetCopied(false);
+    try {
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: p.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Не вдалося скинути пароль.");
+      setResetResult({ ...data, fullName: p.full_name, role: p.role });
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setResetBusyId(null);
+    }
+  }
+
+  function copyResetInfo() {
+    if (!resetResult) return;
+    const loginUrl = `${window.location.origin}/login`;
+    const text = [
+      "Доступ до Moduler Pro",
+      `Посилання: ${loginUrl}`,
+      `Email: ${resetResult.email}`,
+      `Пароль: ${resetResult.password}`,
+      `Роль: ${roleLabels[resetResult.role] || resetResult.role}`,
+      "Після входу зміни пароль: кнопка «Змінити пароль» біля «Вийти».",
+    ].join("\n");
+    navigator.clipboard.writeText(text);
+    setResetCopied(true);
+  }
+
+  async function toggleBlocked(p) {
+    const blocked = !p.is_blocked;
+    if (blocked && !confirm(`Заблокувати доступ для «${p.full_name || p.id}»? Користувач не зможе увійти.`)) return;
+    setBlockBusyId(p.id);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/set-user-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: p.id, blocked }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Не вдалося змінити статус.");
+      await reload(true);
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setBlockBusyId(null);
+    }
   }
 
   return (
@@ -174,10 +234,31 @@ export default function UsersScreen() {
         </div>
       )}
 
+      {resetResult && (
+        <div className="card" style={{ padding: 16, marginBottom: 20, cursor: "default" }}>
+          <p className="note" style={{ marginTop: 0 }}>
+            Пароль для «{resetResult.fullName || resetResult.email}» скинуто. Скопіюй дані нижче і передай користувачу —
+            старий пароль більше не діє.
+          </p>
+          <table>
+            <tbody>
+              <tr><td className="note">Посилання</td><td>{typeof window !== "undefined" ? `${window.location.origin}/login` : "/login"}</td></tr>
+              <tr><td className="note">Email</td><td>{resetResult.email}</td></tr>
+              <tr><td className="note">Новий пароль</td><td>{resetResult.password}</td></tr>
+              <tr><td className="note">Роль</td><td>{roleLabels[resetResult.role] || resetResult.role}</td></tr>
+            </tbody>
+          </table>
+          <div className="modal-actions" style={{ marginTop: 12 }}>
+            <button className="btn" onClick={() => setResetResult(null)}>Закрити</button>
+            <button className="btn primary" onClick={copyResetInfo}>{resetCopied ? "Скопійовано ✓" : "Скопіювати"}</button>
+          </div>
+        </div>
+      )}
+
       <div className="table-scroll">
       <table>
         <thead>
-          <tr><th>Ім&apos;я</th><th>Роль</th><th>Група доступу</th><th>Створено</th><th></th></tr>
+          <tr><th>Ім&apos;я</th><th>Роль</th><th>Група доступу</th><th>Статус</th><th>Створено</th><th></th></tr>
         </thead>
         <tbody>
           {profiles.map((p) => (
@@ -194,21 +275,46 @@ export default function UsersScreen() {
                   <span className="note">—</span>
                 )}
               </td>
+              <td>
+                {p.is_blocked ? (
+                  <span className="role-pill" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>заблокований</span>
+                ) : (
+                  <span className="note">активний</span>
+                )}
+              </td>
               <td>{new Date(p.created_at).toLocaleDateString("uk-UA")}</td>
               <td>
-                <select
-                  value={p.role}
-                  disabled={busyId === p.id}
-                  onChange={(e) => changeRole(p.id, e.target.value)}
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>{roleLabels[r]}</option>
-                  ))}
-                </select>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <select
+                    value={p.role}
+                    disabled={busyId === p.id}
+                    onChange={(e) => changeRole(p.id, e.target.value)}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>{roleLabels[r]}</option>
+                    ))}
+                  </select>
+                  <button className="btn small" disabled={resetBusyId === p.id} onClick={() => resetPassword(p)} title="Скинути пароль і скопіювати доступ">
+                    <span className="btn-label-full">🔑 Скинути пароль</span>
+                    <span className="btn-label-compact">🔑</span>
+                  </button>
+                  {p.id !== user?.id && (
+                    <button
+                      className="btn small"
+                      style={p.is_blocked ? undefined : { color: "var(--danger)" }}
+                      disabled={blockBusyId === p.id}
+                      onClick={() => toggleBlocked(p)}
+                      title={p.is_blocked ? "Розблокувати" : "Заблокувати"}
+                    >
+                      <span className="btn-label-full">{p.is_blocked ? "✅ Розблокувати" : "🚫 Заблокувати"}</span>
+                      <span className="btn-label-compact">{p.is_blocked ? "✅" : "🚫"}</span>
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
-          {!profiles.length && <tr><td colSpan={5} className="empty">Немає користувачів</td></tr>}
+          {!profiles.length && <tr><td colSpan={6} className="empty">Немає користувачів</td></tr>}
         </tbody>
       </table>
       </div>
