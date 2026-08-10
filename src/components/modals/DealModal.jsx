@@ -14,13 +14,18 @@ import {
   findRateCard,
   foundationVariants,
   avgCostPerM2,
+  templateLinesProductionPrice,
   computeProductionCostSnapshot,
   curr,
   fmtDateTime,
 } from "@/lib/crm";
 
 function emptyContact(type, value) {
-  return { key: Math.random().toString(36).slice(2), type: type || "email", value: value || "" };
+  return { key: Math.random().toString(36).slice(2), type: type || "телефон", value: value || "" };
+}
+
+function emptyTemplateLine(overrides) {
+  return { key: Math.random().toString(36).slice(2), template_id: overrides?.template_id || "", quantity: overrides?.quantity ?? 1 };
 }
 
 function emptyService(overrides) {
@@ -114,15 +119,15 @@ function ServiceRow({ service, rateCards, defaultQuantity, onChange, onRemove })
   );
 }
 
-function ActivityLog({ deal, activities, onReload }) {
+function ActivityLog({ dealId, activities, nextActionAt, nextActionNote, onEnsureSaved, onReload }) {
   const { supabase } = useCrmData();
   const { profile, user } = useAuth();
   const [type, setType] = useState("дзвінок");
   const [note, setNote] = useState("");
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [naDate, setNaDate] = useState(deal.next_action_at ? deal.next_action_at.slice(0, 16) : "");
-  const [naNote, setNaNote] = useState(deal.next_action_note || "");
+  const [naDate, setNaDate] = useState(nextActionAt ? nextActionAt.slice(0, 16) : "");
+  const [naNote, setNaNote] = useState(nextActionNote || "");
 
   const author = profile?.full_name || user?.email || null;
   const sorted = [...activities].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -131,10 +136,12 @@ function ActivityLog({ deal, activities, onReload }) {
     if (!note.trim()) return;
     setBusy(true);
     try {
+      const id = dealId || (await onEnsureSaved());
+      if (!id) return;
       let attachment_name = null;
       let attachment_path = null;
       if (file) {
-        const path = `${deal.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const path = `${id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const { error: upErr } = await supabase.storage.from("deal-files").upload(path, file);
         if (!upErr) {
           attachment_name = file.name;
@@ -142,7 +149,7 @@ function ActivityLog({ deal, activities, onReload }) {
         }
       }
       await supabase.from("deal_activities").insert([
-        { deal_id: deal.id, type, note: note.trim(), attachment_name, attachment_path, created_by: author },
+        { deal_id: id, type, note: note.trim(), attachment_name, attachment_path, created_by: author },
       ]);
       setNote("");
       setFile(null);
@@ -155,10 +162,12 @@ function ActivityLog({ deal, activities, onReload }) {
   async function saveNextAction() {
     setBusy(true);
     try {
+      const id = dealId || (await onEnsureSaved());
+      if (!id) return;
       await supabase
         .from("deals")
         .update({ next_action_at: naDate ? new Date(naDate).toISOString() : null, next_action_note: naNote })
-        .eq("id", deal.id);
+        .eq("id", id);
       await onReload();
     } finally {
       setBusy(false);
@@ -167,6 +176,11 @@ function ActivityLog({ deal, activities, onReload }) {
 
   return (
     <div>
+      {!dealId && (
+        <p className="note" style={{ marginTop: 0 }}>
+          Лід ще не збережений — перший запис чи нагадування збереже його автоматично.
+        </p>
+      )}
       {sorted.length > 0 && (
         <div style={{ marginBottom: 10, maxHeight: 220, overflowY: "auto" }}>
           {sorted.map((a) => {
@@ -203,16 +217,20 @@ function ActivityLog({ deal, activities, onReload }) {
 
 export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) {
   const { supabase, leads, leadContacts, leadCategoryLinks, deals, dealServices, dealActivities, teamMembers, productCategories, templates, serviceRateCards, bomItems, extraCosts, supplierPrices, marginAlerts, reload } = useCrmData();
-  const { canWriteCatalog } = useAuth();
+  const { canWriteCatalog, profile } = useAuth();
 
-  const dealRow = dealId ? deals.find((d) => d.id === dealId) : null;
-  const existingLead = dealRow ? leads.find((l) => l.id === dealRow.lead_id) : null;
-  const marginAlert = dealId ? marginAlerts.find((m) => m.deal_id === dealId) : null;
-
+  const [savedId, setSavedId] = useState(dealId || null);
   const [tab, setTab] = useState("основне");
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // The deal/lead as they currently exist in context — re-derived from
+  // savedId (not the dealId prop) so it stays correct after an implicit
+  // save triggered from the History tab on a brand-new lead.
+  const currentDealRow = savedId ? deals.find((d) => d.id === savedId) : null;
+  const currentLead = currentDealRow ? leads.find((l) => l.id === currentDealRow.lead_id) : null;
+  const marginAlert = savedId ? marginAlerts.find((m) => m.deal_id === savedId) : null;
 
   useEffect(() => {
     if (!open) return;
@@ -220,24 +238,35 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab("основне");
     setError("");
+    setSavedId(dealId || null);
+    const dealRow = dealId ? deals.find((d) => d.id === dealId) : null;
+    const existingLead = dealRow ? leads.find((l) => l.id === dealRow.lead_id) : null;
     if (dealId && dealRow && existingLead) {
-      const contacts = leadContacts.filter((c) => c.lead_id === existingLead.id && !(c.is_primary && c.type === "телефон"));
+      const existingContacts = leadContacts.filter((c) => c.lead_id === existingLead.id);
+      const hasPhoneContact = existingContacts.some((c) => c.type === "телефон");
+      const contactsSeed = existingContacts.map((c) => emptyContact(c.type, c.value));
+      if (!hasPhoneContact && existingLead.phone) contactsSeed.unshift(emptyContact("телефон", existingLead.phone));
+      if (!contactsSeed.length) contactsSeed.push(emptyContact("телефон"));
       const categoryIds = leadCategoryLinks.filter((l) => l.lead_id === existingLead.id).map((l) => l.category_id);
       const services = dealServices
         .filter((s) => s.deal_id === dealId)
         .map((s) => emptyService({ service_type: s.service_type, variant: s.variant, calc_method: s.calc_method, quantity_units: s.quantity_units ?? "", price: s.price, rate_card_id: s.rate_card_id }));
+      const templateLines = dealRow.template_lines?.length
+        ? dealRow.template_lines.map((l) => emptyTemplateLine(l))
+        : dealRow.template_id
+        ? [emptyTemplateLine({ template_id: dealRow.template_id, quantity: dealRow.quantity || 1 })]
+        : [];
       setForm({
         lead_name: existingLead.name || "",
-        lead_phone: existingLead.phone || "",
         lead_region: existingLead.region || "",
         lead_source: existingLead.source || "сайт",
         lead_status: existingLead.status || "новий",
         lead_budget_range: existingLead.budget_range || "",
         lead_notes: existingLead.notes || "",
         category_ids: categoryIds,
-        contacts: contacts.length ? contacts.map((c) => emptyContact(c.type, c.value)) : [emptyContact()],
-        request_type: dealRow.is_custom ? "custom" : dealRow.template_id ? "template" : "service",
-        template_id: dealRow.template_id || "",
+        contacts: contactsSeed,
+        request_type: dealRow.is_custom ? "custom" : templateLines.length ? "template" : "individual",
+        template_lines: templateLines,
         custom_area_m2: dealRow.custom_area_m2 ?? "",
         custom_notes: dealRow.custom_notes || "",
         quantity: dealRow.quantity || 1,
@@ -245,14 +274,15 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         services: services.length ? services : [],
       });
     } else {
+      const defaultOwner = teamMembers.find((m) => m.name === profile?.full_name);
       setForm({
-        lead_name: "", lead_phone: "", lead_region: "",
+        lead_name: "", lead_region: "",
         lead_source: "сайт", lead_status: "новий", lead_budget_range: "", lead_notes: "",
         category_ids: [],
-        contacts: [emptyContact()],
-        request_type: pipeline.slug === "houses" ? "template" : "service",
-        template_id: "", custom_area_m2: "", custom_notes: "",
-        quantity: 1, owner_id: "", services: [],
+        contacts: [emptyContact("телефон")],
+        request_type: pipeline.slug === "houses" ? "template" : "individual",
+        template_lines: [], custom_area_m2: "", custom_notes: "",
+        quantity: 1, owner_id: defaultOwner?.id || "", services: [],
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -261,6 +291,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   if (!open || !form) return null;
 
   const ownerOptions = teamMembers.map((m) => ({ id: m.id, label: m.name }));
+  const showExtraOpen = !!(form.lead_region || form.category_ids.length || form.lead_source !== "сайт" || form.lead_status !== "новий");
 
   function update(key) {
     return (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -278,12 +309,24 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     }));
   }
 
+  function addTemplateLine() {
+    setForm((f) => ({ ...f, template_lines: [...f.template_lines, emptyTemplateLine()] }));
+  }
+  function updateTemplateLine(idx, patch) {
+    setForm((f) => { const lines = [...f.template_lines]; lines[idx] = { ...lines[idx], ...patch }; return { ...f, template_lines: lines }; });
+  }
+  function removeTemplateLine(idx) {
+    setForm((f) => ({ ...f, template_lines: f.template_lines.filter((_, i) => i !== idx) }));
+  }
+
   function defaultQuantity(service_type) {
     if (service_type === "монтаж") return Number(form.quantity) || 1;
     if (service_type === "фундамент") {
       if (form.request_type === "custom") return Number(form.custom_area_m2) || 0;
-      const tpl = templates.find((t) => t.id === form.template_id);
-      return tpl ? Number(tpl.area_m2) : 0;
+      return form.template_lines.reduce((sum, l) => {
+        const tpl = templates.find((t) => t.id === l.template_id);
+        return sum + (tpl ? Number(tpl.area_m2) * (Number(l.quantity) || 0) : 0);
+      }, 0);
     }
     return 1;
   }
@@ -306,32 +349,31 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     return data.id;
   }
 
-  const tpl = templates.find((t) => t.id === form.template_id);
-  const previewUnit =
-    form.request_type === "custom"
-      ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates))
-      : form.request_type === "template" && tpl && tpl.base_cost_per_m2 != null
-      ? Math.round(tpl.area_m2 * tpl.base_cost_per_m2)
+  const previewProductionTotal =
+    form.request_type === "template"
+      ? templateLinesProductionPrice(form.template_lines, templates)
+      : form.request_type === "custom"
+      ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) * (Number(form.quantity) || 1)
       : 0;
   const previewServicesSum = form.services.reduce((s, x) => s + (Number(x.price) || 0), 0);
-  const previewQuantity = form.request_type !== "service" ? Number(form.quantity) || 1 : 1;
-  const previewTotal = previewUnit * previewQuantity + previewServicesSum;
+  const previewTotal = previewProductionTotal + previewServicesSum;
 
-  async function handleSave() {
-    if (!form.lead_name.trim()) { setError("Заповни ім'я/назву клієнта."); return; }
+  async function saveDeal() {
+    if (!form.lead_name.trim()) { setTab("основне"); setError("Заповни ім'я/назву клієнта."); return null; }
     setSaving(true);
     setError("");
     try {
+      const phoneContact = form.contacts.find((c) => c.type === "телефон" && c.value.trim());
       const leadPayload = {
         name: form.lead_name.trim(),
-        phone: form.lead_phone.trim() || null,
+        phone: phoneContact ? phoneContact.value.trim() : null,
         region: form.lead_region.trim() || null,
         source: form.lead_source,
         status: form.lead_status,
         budget_range: form.lead_budget_range.trim() || null,
         notes: form.lead_notes.trim() || null,
       };
-      let leadId = existingLead?.id;
+      let leadId = currentLead?.id;
       if (leadId) {
         const { error: e } = await supabase.from("leads").update(leadPayload).eq("id", leadId);
         if (e) throw e;
@@ -355,46 +397,49 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
       }
 
       const is_custom = form.request_type === "custom";
-      const template_id = form.request_type === "template" ? form.template_id || null : null;
+      const isTemplateType = form.request_type === "template";
+      const cleanLines = isTemplateType
+        ? form.template_lines.filter((l) => l.template_id && Number(l.quantity) > 0).map((l) => ({ template_id: l.template_id, quantity: Number(l.quantity) }))
+        : [];
       const custom_area_m2 = is_custom ? (form.custom_area_m2 === "" ? null : Number(form.custom_area_m2)) : null;
-      const chosenTpl = templates.find((t) => t.id === template_id);
-      const production_price = template_id && chosenTpl && chosenTpl.base_cost_per_m2 != null ? Math.round(chosenTpl.area_m2 * chosenTpl.base_cost_per_m2) : null;
+      const production_price = cleanLines.length ? Math.round(templateLinesProductionPrice(cleanLines, templates)) : null;
       const estimated_price = is_custom ? Math.round((Number(form.custom_area_m2) || 0) * avgCostPerM2(templates)) : null;
-      const production_cost_snapshot =
-        form.request_type !== "service"
-          ? computeProductionCostSnapshot({ is_custom, template_id, custom_area_m2 }, { templates, bomItems, extraCosts, supplierPrices })
-          : null;
+      const production_cost_snapshot = computeProductionCostSnapshot(
+        { is_custom, template_id: null, custom_area_m2, template_lines: cleanLines },
+        { templates, bomItems, extraCosts, supplierPrices }
+      );
 
       const dealPayload = {
         lead_id: leadId,
         pipeline_id: pipeline.id,
-        template_id,
+        template_id: null,
+        template_lines: cleanLines,
         is_custom,
         custom_area_m2,
-        custom_notes: form.request_type !== "service" ? (form.custom_notes.trim() || null) : null,
-        quantity: form.request_type !== "service" ? (Number(form.quantity) || 1) : 1,
+        custom_notes: form.custom_notes.trim() || null,
+        quantity: is_custom ? (Number(form.quantity) || 1) : 1,
         production_price,
         estimated_price,
         production_cost_snapshot,
         owner_id: form.owner_id || null,
       };
 
-      let savedDealId = dealId;
-      if (savedDealId) {
-        const { error: e } = await supabase.from("deals").update(dealPayload).eq("id", savedDealId);
+      let newSavedId = savedId;
+      if (newSavedId) {
+        const { error: e } = await supabase.from("deals").update(dealPayload).eq("id", newSavedId);
         if (e) throw e;
       } else {
         dealPayload.stage_id = pipeline.stages[0].id;
         const { data: created, error: e } = await supabase.from("deals").insert([dealPayload]).select().single();
         if (e) throw e;
-        savedDealId = created.id;
+        newSavedId = created.id;
       }
 
-      await supabase.from("deal_services").delete().eq("deal_id", savedDealId);
+      await supabase.from("deal_services").delete().eq("deal_id", newSavedId);
       if (form.services.length) {
         const { error: e } = await supabase.from("deal_services").insert(
           form.services.map((s) => ({
-            deal_id: savedDealId,
+            deal_id: newSavedId,
             service_type: s.service_type,
             variant: s.variant || null,
             calc_method: s.calc_method,
@@ -407,36 +452,48 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         if (e) throw e;
       }
 
+      setSavedId(newSavedId);
       await reload();
-      onSaved?.(savedDealId);
+      return newSavedId;
     } catch (err) {
       setError(err.message || String(err));
+      return null;
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleSave() {
+    const id = await saveDeal();
+    if (id) onSaved?.(id);
+  }
+
+  async function ensureSaved() {
+    if (savedId) return savedId;
+    return await saveDeal();
+  }
+
   async function handleDelete() {
-    if (!dealId) return;
+    if (!savedId) return;
     if (!confirm(`Видалити ліда «${form.lead_name}»? Це видалить угоду, історію спілкування та послуги. Дію не можна скасувати.`)) return;
     setSaving(true);
     setError("");
     try {
-      const { data: files } = await supabase.storage.from("deal-files").list(dealId);
+      const { data: files } = await supabase.storage.from("deal-files").list(savedId);
       if (files?.length) {
-        await supabase.storage.from("deal-files").remove(files.map((f) => `${dealId}/${f.name}`));
+        await supabase.storage.from("deal-files").remove(files.map((f) => `${savedId}/${f.name}`));
       }
 
-      await supabase.from("deal_services").delete().eq("deal_id", dealId);
-      await supabase.from("deal_activities").delete().eq("deal_id", dealId);
-      await supabase.from("deal_attachments").delete().eq("deal_id", dealId);
+      await supabase.from("deal_services").delete().eq("deal_id", savedId);
+      await supabase.from("deal_activities").delete().eq("deal_id", savedId);
+      await supabase.from("deal_attachments").delete().eq("deal_id", savedId);
 
-      const { error: e } = await supabase.from("deals").delete().eq("id", dealId);
+      const { error: e } = await supabase.from("deals").delete().eq("id", savedId);
       if (e) throw e;
 
-      const leadId = dealRow?.lead_id;
+      const leadId = currentDealRow?.lead_id;
       if (leadId) {
-        const otherDeals = deals.filter((d) => d.lead_id === leadId && d.id !== dealId);
+        const otherDeals = deals.filter((d) => d.lead_id === leadId && d.id !== savedId);
         if (!otherDeals.length) {
           await supabase.from("lead_contacts").delete().eq("lead_id", leadId);
           await supabase.from("lead_category_links").delete().eq("lead_id", leadId);
@@ -453,12 +510,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     }
   }
 
-  const activities = dealId ? dealActivities.filter((a) => a.deal_id === dealId) : [];
+  const activities = savedId ? dealActivities.filter((a) => a.deal_id === savedId) : [];
 
   return (
     <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg">
-        <h2>{dealId ? "Редагувати угоду" : `Новий лід — ${pipeline.name}`}</h2>
+        <h2>{savedId ? "Редагувати угоду" : `Новий лід — ${pipeline.name}`}</h2>
         {error && <div className="auth-error">{error}</div>}
 
         <div className="seg-row" style={{ marginBottom: 16 }}>
@@ -469,20 +526,19 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         </div>
 
         {tab === "історія" ? (
-          dealId ? (
-            <ActivityLog deal={dealRow} activities={activities} onReload={reload} />
-          ) : (
-            <div className="empty">Спершу збережи угоду, потім додай історію спілкування та файли.</div>
-          )
+          <ActivityLog
+            dealId={savedId}
+            activities={activities}
+            nextActionAt={currentDealRow?.next_action_at}
+            nextActionNote={currentDealRow?.next_action_note}
+            onEnsureSaved={ensureSaved}
+            onReload={reload}
+          />
         ) : (
           <>
             <div className="form-row">
               <label>Ім&apos;я / назва клієнта *</label>
               <input value={form.lead_name} onChange={update("lead_name")} />
-            </div>
-            <div className="form-row">
-              <label>Телефон</label>
-              <input value={form.lead_phone} onChange={update("lead_phone")} placeholder="+380 ..." />
             </div>
             <div className="form-row">
               <label>Контакти</label>
@@ -491,76 +547,89 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                   <select style={{ flex: "0 0 110px" }} value={c.type} onChange={(e) => updateContact(c.key, { type: e.target.value })}>
                     {CONTACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <input className="value-input" value={c.value} onChange={(e) => updateContact(c.key, { value: e.target.value })} placeholder="значення" />
+                  <input className="value-input" value={c.value} onChange={(e) => updateContact(c.key, { value: e.target.value })} placeholder={c.type === "телефон" ? "+380 ..." : "значення"} />
                   <span className="icon-x" onClick={() => removeContact(c.key)}>×</span>
                 </div>
               ))}
               <button type="button" className="btn small self-left" onClick={() => setForm((f) => ({ ...f, contacts: [...f.contacts, emptyContact()] }))}>+ Контакт</button>
             </div>
+
             <div className="form-row">
-              <label>Регіон</label>
-              <input value={form.lead_region} onChange={update("lead_region")} />
-            </div>
-            <div className="form-row">
-              <label>Категорії (можна декілька)</label>
-              <div className="tag-checks">
-                {productCategories.map((c) => (
-                  <label className="tag-check" key={c.id}>
-                    <input type="checkbox" checked={form.category_ids.includes(c.id)} onChange={() => toggleCategory(c.id)} />
-                    {c.name}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="form-row">
-              <label>Джерело ліда</label>
-              <select value={form.lead_source} onChange={update("lead_source")}>
-                {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>Статус ліда</label>
-              <select value={form.lead_status} onChange={update("lead_status")}>
-                {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <label>Опис</label>
+              <textarea rows={2} value={form.custom_notes} onChange={update("custom_notes")} placeholder="Побажання, деталі, особливості запиту…" />
             </div>
             <div className="form-row">
               <label>Бюджет (орієнтовно)</label>
               <input value={form.lead_budget_range} onChange={update("lead_budget_range")} placeholder="напр. 500 000 - 800 000 грн" />
             </div>
 
+            <details className="section-details" open={showExtraOpen}>
+              <summary>Додаткові поля</summary>
+              <div className="section-body">
+                <div className="form-row">
+                  <label>Регіон</label>
+                  <input value={form.lead_region} onChange={update("lead_region")} />
+                </div>
+                <div className="form-row">
+                  <label>Категорії (можна декілька)</label>
+                  <div className="tag-checks">
+                    {productCategories.map((c) => (
+                      <label className="tag-check" key={c.id}>
+                        <input type="checkbox" checked={form.category_ids.includes(c.id)} onChange={() => toggleCategory(c.id)} />
+                        {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label>Джерело ліда</label>
+                  <select value={form.lead_source} onChange={update("lead_source")}>
+                    {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label>Статус ліда</label>
+                  <select value={form.lead_status} onChange={update("lead_status")}>
+                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+            </details>
+
             <div className="form-row">
               <label>Тип запиту</label>
               <div className="seg-row">
-                <button type="button" className={`seg-btn${form.request_type === "template" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "template" }))}>Готовий шаблон</button>
-                <button type="button" className={`seg-btn${form.request_type === "custom" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "custom" }))}>Кастомний запит</button>
-                <button type="button" className={`seg-btn${form.request_type === "service" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "service" }))}>Послуга</button>
+                <button type="button" className={`seg-btn${form.request_type === "template" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "template" }))}>Шаблон</button>
+                <button type="button" className={`seg-btn${form.request_type === "custom" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "custom" }))}>Кастомний</button>
+                <button type="button" className={`seg-btn${form.request_type === "individual" ? " active" : ""}`} onClick={() => setForm((f) => ({ ...f, request_type: "individual" }))}>Індивідуальний</button>
               </div>
             </div>
+
             {form.request_type === "template" && (
               <div className="form-row">
-                <label>Шаблон</label>
-                <select value={form.template_id} onChange={update("template_id")}>
-                  <option value="">— не вибрано —</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
-                    </option>
-                  ))}
-                </select>
+                <label>Шаблони</label>
+                {form.template_lines.map((line, i) => (
+                  <div key={line.key} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <select style={{ flex: 1 }} value={line.template_id} onChange={(e) => updateTemplateLine(i, { template_id: e.target.value })}>
+                      <option value="">— не вибрано —</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
+                        </option>
+                      ))}
+                    </select>
+                    <input type="number" min="1" style={{ width: 70 }} value={line.quantity} onChange={(e) => updateTemplateLine(i, { quantity: e.target.value })} title="Кількість" />
+                    <span className="icon-x" onClick={() => removeTemplateLine(i)}>×</span>
+                  </div>
+                ))}
+                <button type="button" className="btn small self-left" onClick={addTemplateLine}>+ Додати шаблон</button>
               </div>
             )}
             {form.request_type === "custom" && (
-              <div className="form-row">
-                <label>Бажана площа, м²</label>
-                <input type="number" step="0.1" value={form.custom_area_m2} onChange={update("custom_area_m2")} />
-              </div>
-            )}
-            {form.request_type !== "service" && (
               <>
                 <div className="form-row">
-                  <label>Побажання клієнта (опис)</label>
-                  <textarea rows={2} value={form.custom_notes} onChange={update("custom_notes")} placeholder="Побажання, деталі, особливості запиту…" />
+                  <label>Бажана площа, м²</label>
+                  <input type="number" step="0.1" value={form.custom_area_m2} onChange={update("custom_area_m2")} />
                 </div>
                 <div className="form-row">
                   <label>Кількість, шт</label>
@@ -592,16 +661,14 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <textarea rows={2} value={form.lead_notes} onChange={update("lead_notes")} />
             </div>
 
-            {!dealId && <div className="note">Файли можна прикріпити до запису у вкладці «Історія» після збереження угоди.</div>}
-
             <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-              {form.request_type !== "service" && (
+              {form.request_type !== "individual" && (
                 <>
                   <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     {form.request_type === "custom" ? "Орієнтовна ціна виробництва" : "Ціна виробництва (автоматично)"}
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
-                    {form.request_type === "custom" ? "≈ " : ""}{curr(previewUnit)} грн {previewQuantity > 1 ? `× ${previewQuantity} = ${curr(previewUnit * previewQuantity)} грн` : ""}
+                    {form.request_type === "custom" ? "≈ " : ""}{curr(previewProductionTotal)} грн
                   </div>
                 </>
               )}
@@ -609,7 +676,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <div style={{ fontSize: 13, marginTop: 6, fontWeight: 600 }}>Разом: {curr(previewTotal)} грн</div>
             </div>
 
-            {dealId && marginAlert?.is_below_threshold && (
+            {savedId && marginAlert?.is_below_threshold && (
               <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
                 ⚠ Маржа {marginAlert.margin_pct}% — нижче порогу {marginAlert.threshold_pct}%
               </div>
@@ -618,7 +685,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         )}
 
         <div className="modal-actions">
-          {dealId && canWriteCatalog && (
+          {savedId && canWriteCatalog && (
             <button className="btn" style={{ color: "var(--danger)", marginRight: "auto" }} onClick={handleDelete} disabled={saving}>
               Видалити ліда
             </button>

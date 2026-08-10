@@ -185,12 +185,23 @@ export default function CrmScreen() {
                         </div>
                       )}
                       <div className="note" style={{ marginTop: 4 }}>
-                        {d.is_custom
-                          ? <>Кастом · {d.custom_area_m2 || "?"} м²</>
-                          : d.template_name
-                          ? <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}</>
-                          : <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Послуга"}</>}
-                        {d.quantity > 1 && <> · ×{d.quantity}</>}
+                        {d.template_lines?.length ? (
+                          d.template_lines.map((l, i) => {
+                            const tpl = templates.find((t) => t.id === l.template_id);
+                            return (
+                              <span key={i}>
+                                {i > 0 && ", "}
+                                {tpl?.name || "?"} ×{l.quantity}
+                              </span>
+                            );
+                          })
+                        ) : d.is_custom ? (
+                          <>Кастом · {d.custom_area_m2 || "?"} м²{d.quantity > 1 && <> · ×{d.quantity}</>}</>
+                        ) : d.template_name ? (
+                          <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}{d.quantity > 1 && <> · ×{d.quantity}</>}</>
+                        ) : (
+                          <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Індивідуальний"}</>
+                        )}
                       </div>
                       <div className="note" style={{ marginTop: 2 }}>{d.lead_region}</div>
                       {d.lead_phone && <div className="note" style={{ marginTop: 2 }}>{d.lead_phone}</div>}

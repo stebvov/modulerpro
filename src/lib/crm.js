@@ -67,10 +67,28 @@ export function avgProductionCostPerM2(templates, bomItems, extraCosts, supplier
   return Math.round(withCost.reduce((s, x) => s + x.cost / x.area, 0) / withCost.length);
 }
 
-// production_cost_snapshot for a deal: real BOM+extra cost for a templated
-// deal, or an area-based estimate (same average-cost approach as
+// Sum of (template's area × cost/m²) × line quantity across all lines — the
+// already-multiplied grand total for a multi-line template selection, meant
+// to be stored directly as deals.production_price (with deals.quantity=1).
+export function templateLinesProductionPrice(lines, templates) {
+  return (lines || []).reduce((sum, l) => {
+    const tpl = templates.find((t) => t.id === l.template_id);
+    if (!tpl || tpl.base_cost_per_m2 == null) return sum;
+    return sum + tpl.area_m2 * tpl.base_cost_per_m2 * (Number(l.quantity) || 0);
+  }, 0);
+}
+
+// production_cost_snapshot for a deal: real BOM+extra cost for one or more
+// templated lines, or an area-based estimate (same average-cost approach as
 // estimated_price) for a custom deal.
 export function computeProductionCostSnapshot(deal, { templates, bomItems, extraCosts, supplierPrices }) {
+  if (deal.template_lines?.length) {
+    const total = deal.template_lines.reduce((sum, l) => {
+      const cost = templateProductionCost(l.template_id, bomItems, extraCosts, supplierPrices);
+      return sum + cost * (Number(l.quantity) || 0);
+    }, 0);
+    return total > 0 ? Math.round(total) : null;
+  }
   if (deal.is_custom) {
     const areaM2 = Number(deal.custom_area_m2) || 0;
     if (!areaM2) return null;
