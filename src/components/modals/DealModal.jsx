@@ -416,6 +416,43 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     }
   }
 
+  async function handleDelete() {
+    if (!dealId) return;
+    if (!confirm(`Видалити ліда «${form.lead_name}»? Це видалить угоду, історію спілкування та послуги. Дію не можна скасувати.`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      const { data: files } = await supabase.storage.from("deal-files").list(dealId);
+      if (files?.length) {
+        await supabase.storage.from("deal-files").remove(files.map((f) => `${dealId}/${f.name}`));
+      }
+
+      await supabase.from("deal_services").delete().eq("deal_id", dealId);
+      await supabase.from("deal_activities").delete().eq("deal_id", dealId);
+      await supabase.from("deal_attachments").delete().eq("deal_id", dealId);
+
+      const { error: e } = await supabase.from("deals").delete().eq("id", dealId);
+      if (e) throw e;
+
+      const leadId = dealRow?.lead_id;
+      if (leadId) {
+        const otherDeals = deals.filter((d) => d.lead_id === leadId && d.id !== dealId);
+        if (!otherDeals.length) {
+          await supabase.from("lead_contacts").delete().eq("lead_id", leadId);
+          await supabase.from("lead_category_links").delete().eq("lead_id", leadId);
+          await supabase.from("leads").delete().eq("id", leadId);
+        }
+      }
+
+      await reload();
+      onClose();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const activities = dealId ? dealActivities.filter((a) => a.deal_id === dealId) : [];
 
   return (
@@ -581,6 +618,11 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         )}
 
         <div className="modal-actions">
+          {dealId && canWriteCatalog && (
+            <button className="btn" style={{ color: "var(--danger)", marginRight: "auto" }} onClick={handleDelete} disabled={saving}>
+              Видалити ліда
+            </button>
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           {tab === "основне" && (
             <button className="btn primary" onClick={handleSave} disabled={saving || !canWriteCatalog}>
