@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useCrmData } from "@/context/CrmDataContext";
+import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
+
+const REQUEST_TYPE_LABELS = { template: "Шаблон", custom: "Кастомний", individual: "Індивідуальний" };
 
 export default function CrmSettingsModal({ open, onClose }) {
   const { supabase, pipelines, pipelineStages, deals, reload } = useCrmData();
   const [selectedId, setSelectedId] = useState(null);
+  const [showCategories, setShowCategories] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [newStageLabel, setNewStageLabel] = useState({});
   const [error, setError] = useState("");
@@ -24,6 +28,10 @@ export default function CrmSettingsModal({ open, onClose }) {
 
   async function renamePipeline(id, name) {
     await supabase.from("pipelines").update({ name }).eq("id", id);
+    await reload(true);
+  }
+  async function updateDefaultRequestType(id, value) {
+    await supabase.from("pipelines").update({ default_request_type: value }).eq("id", id);
     await reload(true);
   }
   async function deletePipeline(p) {
@@ -97,7 +105,9 @@ export default function CrmSettingsModal({ open, onClose }) {
   return (
     <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg">
-        {selected ? (
+        {showCategories ? (
+          <ProductCategoriesPanel onBack={() => setShowCategories(false)} />
+        ) : selected ? (
           <>
             <div className="cat-panel-header">
               <button className="btn small" onClick={() => setSelectedId(null)}>← Назад</button>
@@ -108,6 +118,12 @@ export default function CrmSettingsModal({ open, onClose }) {
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <input style={{ flex: 1, fontWeight: 600 }} value={selected.name} onChange={(e) => renamePipeline(selected.id, e.target.value)} />
                 <button className="btn small" style={{ color: "var(--danger)" }} onClick={() => deletePipeline(selected)}>Видалити</button>
+              </div>
+              <div className="form-row" style={{ marginBottom: 10 }}>
+                <label>Тип запиту за замовчуванням (для нового ліда)</label>
+                <select value={selected.default_request_type || "individual"} onChange={(e) => updateDefaultRequestType(selected.id, e.target.value)}>
+                  {Object.entries(REQUEST_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
               </div>
               <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Етапи</div>
               {stagesOf(selected.id).map((s, i, arr) => (
@@ -132,9 +148,12 @@ export default function CrmSettingsModal({ open, onClose }) {
             <h2>Воронки продажів</h2>
             {error && <div className="auth-error">{error}</div>}
             <p className="note">
-              Категорії будинків спільні з каталогом шаблонів — керуй ними на вкладці «Категорії». Кожна воронка може мати
-              свій обмежений доступ — налаштуй його в «Ролі доступу».
+              Кожна воронка може мати свій обмежений доступ — налаштуй його в «Ролі доступу».
             </p>
+            <div className="toolbar" style={{ marginBottom: 10 }}>
+              <div className="toolbar-left" />
+              <button className="btn small" onClick={() => setShowCategories(true)}>🏷 Категорії лідів</button>
+            </div>
 
             {pipelines.map((p, i) => (
               <div key={p.id} className="cat-item">

@@ -9,7 +9,6 @@ import {
   ACTIVITY_TYPES,
   LEAD_SOURCES,
   LEAD_STATUSES,
-  avgCostPerM2,
   serviceTemplateUnitPrice,
   orderItemsProductionTotal,
   computeProductionCostSnapshot,
@@ -24,7 +23,7 @@ function emptyContact(type, value) {
 function emptyOrderItem(overrides) {
   return {
     key: Math.random().toString(36).slice(2),
-    selection: overrides?.selection || "",
+    selection: overrides?.selection || "custom",
     label: overrides?.label || "",
     unit_price: overrides?.unit_price ?? "",
     quantity: overrides?.quantity ?? 1,
@@ -207,10 +206,9 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         contacts: contactsSeed,
         request_type: dealRow.is_custom ? "custom" : orderItems.length ? "template" : "individual",
         order_items: orderItems,
-        custom_area_m2: dealRow.custom_area_m2 ?? "",
         custom_notes: dealRow.custom_notes || "",
-        quantity: dealRow.quantity || 1,
         owner_id: dealRow.owner_id || "",
+        manual_price: !orderItems.length && !dealRow.is_custom ? (dealRow.estimated_price ?? "") : "",
       });
     } else {
       const defaultOwner = teamMembers.find((m) => m.name === profile?.full_name);
@@ -219,10 +217,36 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         lead_source: "сайт", lead_status: "новий", lead_budget_range: "", lead_notes: "",
         category_ids: [],
         contacts: [emptyContact("телефон")],
-        request_type: pipeline.slug === "houses" ? "template" : "individual",
-        order_items: [], custom_area_m2: "", custom_notes: "",
-        quantity: 1, owner_id: defaultOwner?.id || "",
+        request_type: pipeline.default_request_type || (pipeline.slug === "houses" ? "template" : "individual"),
+        order_items: [], custom_notes: "",
+        owner_id: defaultOwner?.id || "", manual_price: "",
       });
+      // Keep "Відповідальний" defaulted to the creator even if no matching
+      // team_members row exists yet — create one instead of leaving it blank.
+      if (!defaultOwner && profile?.full_name) {
+        supabase
+          .from("team_members")
+          .select("id")
+          .eq("name", profile.full_name)
+          .maybeSingle()
+          .then(({ data: existing }) => {
+            if (existing) {
+              setForm((f) => (f ? { ...f, owner_id: f.owner_id || existing.id } : f));
+              return;
+            }
+            supabase
+              .from("team_members")
+              .insert([{ name: profile.full_name }])
+              .select()
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  setForm((f) => (f ? { ...f, owner_id: f.owner_id || data.id } : f));
+                  reload(true);
+                }
+              });
+          });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, dealId]);
@@ -267,13 +291,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   }
 
   const cleanOrderItems = resolveOrderItems(form.order_items);
-  const orderItemsTotal = orderItemsProductionTotal(cleanOrderItems, { templates, services, serviceTemplateItems });
-  const previewProductionTotal =
-    form.request_type === "custom"
-      ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) * (Number(form.quantity) || 1) + orderItemsTotal
-      : form.request_type === "template"
-      ? orderItemsTotal
-      : 0;
+  const orderItemsTotal = orderItemsProductionTotal(cleanOrderItems, { templates, services, serviceTemplateItems, serviceTemplates });
+  const previewProductionTotal = showOrderItems ? orderItemsTotal : Number(form.manual_price) || 0;
 
   async function saveDeal() {
     if (!form.lead_name.trim()) { setTab("основне"); setError("Заповни ім'я/назву клієнта."); return null; }
@@ -315,13 +334,11 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
 
       const is_custom = form.request_type === "custom";
       const itemsForType = showOrderItems ? cleanOrderItems : [];
-      const custom_area_m2 = is_custom ? (form.custom_area_m2 === "" ? null : Number(form.custom_area_m2)) : null;
-      const houseAndServiceTotal = orderItemsProductionTotal(itemsForType, { templates, services, serviceTemplateItems });
-      const customHouseTotal = is_custom ? (Number(form.custom_area_m2) || 0) * avgCostPerM2(templates) : 0;
-      const production_price = itemsForType.length || is_custom ? Math.round(houseAndServiceTotal + customHouseTotal) : null;
-      const estimated_price = is_custom ? Math.round(customHouseTotal) : null;
+      const itemsTotal = orderItemsProductionTotal(itemsForType, { templates, services, serviceTemplateItems, serviceTemplates });
+      const production_price = itemsForType.length ? Math.round(itemsTotal) : null;
+      const estimated_price = form.request_type === "individual" ? Number(form.manual_price) || 0 : null;
       const production_cost_snapshot = computeProductionCostSnapshot(
-        { is_custom, template_id: null, custom_area_m2, template_lines: itemsForType },
+        { is_custom, template_id: null, custom_area_m2: null, template_lines: itemsForType },
         { templates, bomItems, extraCosts, supplierPrices }
       );
 
@@ -331,9 +348,9 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         template_id: null,
         template_lines: itemsForType,
         is_custom,
-        custom_area_m2,
+        custom_area_m2: null,
         custom_notes: form.custom_notes.trim() || null,
-        quantity: is_custom ? (Number(form.quantity) || 1) : 1,
+        quantity: 1,
         production_price,
         estimated_price,
         production_cost_snapshot,
@@ -504,17 +521,11 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               </div>
             </div>
 
-            {form.request_type === "custom" && (
-              <>
-                <div className="form-row">
-                  <label>Бажана площа, м²</label>
-                  <input type="number" step="0.1" value={form.custom_area_m2} onChange={update("custom_area_m2")} />
-                </div>
-                <div className="form-row">
-                  <label>Кількість, шт</label>
-                  <input type="number" min="1" value={form.quantity} onChange={update("quantity")} />
-                </div>
-              </>
+            {form.request_type === "individual" && (
+              <div className="form-row">
+                <label>Сума, грн</label>
+                <input type="number" value={form.manual_price} onChange={update("manual_price")} placeholder="орієнтовна сума" />
+              </div>
             )}
 
             {showOrderItems && (
@@ -525,7 +536,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                   return (
                     <div key={row.key} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
                       <select style={{ flex: "1 1 220px" }} value={row.selection} onChange={(e) => updateOrderItem(i, { selection: e.target.value })}>
-                        <option value="">— вибери —</option>
                         <option value="custom">— кастомна позиція (матеріал/послуга) —</option>
                         {form.request_type === "template" && templates.length > 0 && (
                           <optgroup label="Будинки">
@@ -540,7 +550,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                           <optgroup label="Послуги">
                             {serviceTemplates.map((t) => (
                               <option key={t.id} value={`service:${t.id}`}>
-                                {t.name} · {curr(serviceTemplateUnitPrice(t.id, serviceTemplateItems, services))} грн
+                                {t.name} · {curr(serviceTemplateUnitPrice(t.id, serviceTemplateItems, services, serviceTemplates))} грн
                               </option>
                             ))}
                           </optgroup>
@@ -572,16 +582,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
             </div>
 
             <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-              {form.request_type !== "individual" && (
-                <>
-                  <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {form.request_type === "custom" ? "Орієнтовна вартість (будинок + позиції)" : "Вартість замовлення (автоматично)"}
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
-                    {form.request_type === "custom" ? "≈ " : ""}{curr(previewProductionTotal)} грн
-                  </div>
-                </>
-              )}
+              <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {showOrderItems ? "Вартість замовлення (автоматично)" : "Сума"}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
+                {curr(previewProductionTotal)} грн
+              </div>
             </div>
 
             {savedId && marginAlert?.is_below_threshold && (

@@ -27,6 +27,8 @@ const EMPTY = {
   serviceCategories: [],
   serviceTemplates: [],
   serviceTemplateItems: [],
+  menuGroupOrder: [],
+  menuHomeGroup: null,
 };
 
 export function DataProvider({ children }) {
@@ -34,8 +36,30 @@ export function DataProvider({ children }) {
   const [data, setData] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currency, setCurrency] = useState("UAH");
-  const [showDecimals, setShowDecimals] = useState(true);
+  const [currency, setCurrencyState] = useState("UAH");
+  const [showDecimals, setShowDecimalsState] = useState(true);
+
+  useEffect(() => {
+    // Restoring the saved currency/decimals preference on load.
+    const savedCurrency = localStorage.getItem("moduler_currency");
+    if (savedCurrency) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrencyState(savedCurrency);
+    }
+    const savedShowDecimals = localStorage.getItem("moduler_show_decimals");
+    if (savedShowDecimals != null) {
+      setShowDecimalsState(savedShowDecimals === "true");
+    }
+  }, []);
+
+  const setCurrency = useCallback((value) => {
+    setCurrencyState(value);
+    localStorage.setItem("moduler_currency", value);
+  }, []);
+  const setShowDecimals = useCallback((value) => {
+    setShowDecimalsState(value);
+    localStorage.setItem("moduler_show_decimals", String(value));
+  }, []);
 
   const reload = useCallback(
     async (silent = false) => {
@@ -63,6 +87,7 @@ export function DataProvider({ children }) {
           serviceCategories,
           serviceTemplates,
           serviceTemplateItems,
+          menuSettings,
         ] = await Promise.all([
           supabase.from("materials").select("*").order("name"),
           supabase.from("suppliers").select("*").order("name"),
@@ -85,6 +110,7 @@ export function DataProvider({ children }) {
           supabase.from("service_categories").select("*").order("sort_order"),
           supabase.from("service_templates").select("*").order("sort_order"),
           supabase.from("service_template_items").select("*").order("sort_order"),
+          supabase.from("app_menu_settings").select("*").eq("id", true).maybeSingle(),
         ]);
 
         const firstError = [
@@ -92,7 +118,7 @@ export function DataProvider({ children }) {
           productCategories, materialCategories, bomGroups, exchangeRates,
           supplierCategoryLinks, supplierContacts, templateFiles, productCategoryLinks,
           priceHistory, profiles, materialUnits,
-          services, serviceCategories, serviceTemplates, serviceTemplateItems,
+          services, serviceCategories, serviceTemplates, serviceTemplateItems, menuSettings,
         ].find((r) => r.error);
         if (firstError) throw firstError.error;
 
@@ -118,6 +144,8 @@ export function DataProvider({ children }) {
           serviceCategories: serviceCategories.data || [],
           serviceTemplates: serviceTemplates.data || [],
           serviceTemplateItems: serviceTemplateItems.data || [],
+          menuGroupOrder: menuSettings.data?.group_order || [],
+          menuHomeGroup: menuSettings.data?.home_group || null,
         });
         setError(null);
       } catch (e) {

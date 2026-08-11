@@ -24,6 +24,7 @@ import ServicesCatalogScreen from "@/components/screens/ServicesCatalogScreen";
 import ServiceTemplatesScreen from "@/components/screens/ServiceTemplatesScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
 import AccessGroupsScreen from "@/components/screens/AccessGroupsScreen";
+import MenuSettingsScreen from "@/components/screens/MenuSettingsScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
 
@@ -48,7 +49,7 @@ const TAB_GROUPS = [
 ];
 
 export default function AppShell() {
-  const { currency, setCurrency } = useAppData();
+  const { currency, setCurrency, menuGroupOrder, menuHomeGroup } = useAppData();
   const { isAdmin, canWriteFinance, isPartner, partnerTabs } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -58,7 +59,11 @@ export default function AppShell() {
   let groups = TAB_GROUPS;
   if (isPartner) groups = groups.filter((g) => (partnerTabs || new Set()).has(g.key));
   if (canWriteFinance) groups = [...groups, { key: "finance", label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
-  if (isAdmin) groups = [...groups, { key: "admin", label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }, { id: "access-groups", label: "Ролі доступу" }] }];
+  if (isAdmin) groups = [...groups, { key: "admin", label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }, { id: "access-groups", label: "Ролі доступу" }, { id: "menu-settings", label: "Меню" }] }];
+  if (menuGroupOrder?.length) {
+    const orderIndex = new Map(menuGroupOrder.map((k, i) => [k, i]));
+    groups = [...groups].sort((a, b) => (orderIndex.get(a.key) ?? 999) - (orderIndex.get(b.key) ?? 999));
+  }
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
   const activeTabInfo = activeGroup?.tabs.find((t) => t.id === activeTab) || activeGroup?.tabs[0];
 
@@ -71,6 +76,17 @@ export default function AppShell() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPartner, partnerTabs, activeTab]);
+
+  useEffect(() => {
+    if (!menuHomeGroup || isPartner) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveTab((prev) => {
+      if (prev !== "catalog") return prev;
+      const home = groups.find((g) => g.key === menuHomeGroup);
+      return home?.tabs[0]?.id || prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuHomeGroup, isPartner]);
 
   function selectGroup(g) {
     setActiveTab(g.tabs[0].id);
@@ -256,6 +272,11 @@ export default function AppShell() {
           {isAdmin && (
             <div className={`screen${activeTab === "access-groups" ? " active" : ""}`}>
               {activeTab === "access-groups" && <AccessGroupsScreen />}
+            </div>
+          )}
+          {isAdmin && (
+            <div className={`screen${activeTab === "menu-settings" ? " active" : ""}`}>
+              {activeTab === "menu-settings" && <MenuSettingsScreen />}
             </div>
           )}
         </div>

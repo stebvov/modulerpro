@@ -67,9 +67,12 @@ export function avgProductionCostPerM2(templates, bomItems, extraCosts, supplier
   return Math.round(withCost.reduce((s, x) => s + x.cost / x.area, 0) / withCost.length);
 }
 
-// Unit price of a service template: sum of (unit_price_override ?? the
-// service's base_price) × item quantity across its items.
-export function serviceTemplateUnitPrice(serviceTemplateId, serviceTemplateItems, services) {
+// Unit price of a service template: its fixed_price override if set,
+// otherwise the sum of (unit_price_override ?? the service's base_price) ×
+// item quantity across its items.
+export function serviceTemplateUnitPrice(serviceTemplateId, serviceTemplateItems, services, serviceTemplates) {
+  const tpl = serviceTemplates?.find((t) => t.id === serviceTemplateId);
+  if (tpl?.fixed_price != null) return Number(tpl.fixed_price);
   return serviceTemplateItems
     .filter((i) => i.service_template_id === serviceTemplateId)
     .reduce((sum, i) => {
@@ -84,7 +87,7 @@ export function serviceTemplateUnitPrice(serviceTemplateId, serviceTemplateItems
 // each line's unit price × its own quantity — the already-multiplied grand
 // total, meant to be stored directly as deals.production_price (with
 // deals.quantity=1 for the "template" request type).
-export function orderItemsProductionTotal(items, { templates, services, serviceTemplateItems }) {
+export function orderItemsProductionTotal(items, { templates, services, serviceTemplateItems, serviceTemplates }) {
   return (items || []).reduce((sum, l) => {
     const qty = Number(l.quantity) || 0;
     if (l.kind === "house") {
@@ -93,7 +96,7 @@ export function orderItemsProductionTotal(items, { templates, services, serviceT
       return sum + tpl.area_m2 * tpl.base_cost_per_m2 * qty;
     }
     if (l.kind === "service") {
-      return sum + serviceTemplateUnitPrice(l.template_id, serviceTemplateItems, services) * qty;
+      return sum + serviceTemplateUnitPrice(l.template_id, serviceTemplateItems, services, serviceTemplates) * qty;
     }
     if (l.kind === "custom") {
       return sum + (Number(l.unit_price) || 0) * qty;

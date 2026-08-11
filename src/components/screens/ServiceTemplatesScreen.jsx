@@ -40,7 +40,7 @@ export default function ServiceTemplatesScreen() {
         <div className="grid">
           {list.map((t) => {
             const items = serviceTemplateItems.filter((i) => i.service_template_id === t.id);
-            const total = serviceTemplateUnitPrice(t.id, serviceTemplateItems, services);
+            const total = serviceTemplateUnitPrice(t.id, serviceTemplateItems, services, serviceTemplates);
             return (
               <div className="card" key={t.id} onClick={() => openModal(t)}>
                 <h3>{t.name}</h3>

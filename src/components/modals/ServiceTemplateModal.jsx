@@ -16,6 +16,7 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
   const { supabase, services, serviceCategories, serviceTemplateItems, reload } = useAppData();
   const [name, setName] = useState("");
   const [status, setStatus] = useState("draft");
+  const [fixedPrice, setFixedPrice] = useState("");
   const [rows, setRows] = useState([emptyItemRow()]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -26,6 +27,7 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
     setError("");
     setName(template?.name || "");
     setStatus(template?.status || "draft");
+    setFixedPrice(template?.fixed_price ?? "");
     if (template) {
       const items = serviceTemplateItems
         .filter((i) => i.service_template_id === template.id)
@@ -54,7 +56,8 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
     const svc = services.find((s) => s.id === row.service_id);
     return Number(svc?.base_price) || 0;
   }
-  const total = rows.reduce((sum, r) => sum + rowUnitPrice(r) * (Number(r.quantity) || 0), 0);
+  const computedTotal = rows.reduce((sum, r) => sum + rowUnitPrice(r) * (Number(r.quantity) || 0), 0);
+  const total = fixedPrice !== "" ? Number(fixedPrice) : computedTotal;
 
   async function handleSave() {
     if (!name.trim()) { setError("Вкажи назву шаблону послуг."); return; }
@@ -63,13 +66,14 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
     setSaving(true);
     setError("");
     try {
+      const fixed_price = fixedPrice === "" ? null : Number(fixedPrice);
       let templateId = template?.id;
       if (templateId) {
-        const { error: e } = await supabase.from("service_templates").update({ name: name.trim(), status }).eq("id", templateId);
+        const { error: e } = await supabase.from("service_templates").update({ name: name.trim(), status, fixed_price }).eq("id", templateId);
         if (e) throw e;
         await supabase.from("service_template_items").delete().eq("service_template_id", templateId);
       } else {
-        const { data: created, error: e } = await supabase.from("service_templates").insert([{ name: name.trim(), status }]).select().single();
+        const { data: created, error: e } = await supabase.from("service_templates").insert([{ name: name.trim(), status, fixed_price }]).select().single();
         if (e) throw e;
         templateId = created.id;
       }
@@ -130,6 +134,10 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
             <option value="archived">Архів</option>
           </select>
         </div>
+        <div className="form-row">
+          <label>Фіксована ціна, грн</label>
+          <input type="number" value={fixedPrice} onChange={(e) => setFixedPrice(e.target.value)} placeholder={`за замовчуванням — сума послуг (${computedTotal.toLocaleString("uk-UA")} грн)`} />
+        </div>
 
         <div className="form-row">
           <label>Послуги в шаблоні</label>
@@ -159,7 +167,7 @@ export default function ServiceTemplateModal({ open, template, onClose, onSaved 
         </div>
 
         <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-          <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Разом (базова ціна)</div>
+          <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{fixedPrice !== "" ? "Разом (фіксована ціна)" : "Разом (базова ціна)"}</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>{total.toLocaleString("uk-UA")} грн</div>
         </div>
 
