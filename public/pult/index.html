@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Пульт задач</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/pult/app.css">
+<style>[data-pkpick][aria-pressed="true"]{border-color:var(--accent);background:var(--info-bg)}#teamQ{max-width:420px}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<section id="loginView" class="login wrap" hidden>
+  <div><h1>Пульт задач</h1><p class="sub">Вхід для команди. Доступ відкривається лише для email, доданих у розділ «Команда».</p></div>
+  <form id="loginForm" class="panel">
+    <label class="f full">Email<input id="lEmail" type="email" required autocomplete="email"></label>
+    <label class="f full">Пароль<input id="lPass" type="password" required minlength="6" autocomplete="current-password"></label>
+    <div class="row full"><button class="btn primary" type="submit" id="lSubmit">Увійти</button><button class="btn ghost" type="button" id="lMode">Перший вхід: створити пароль</button></div>
+    <div class="err full" id="lErr" hidden></div>
+  </form>
+</section>
+
+<section id="noAccess" class="login wrap" hidden>
+  <h1>Немає доступу</h1>
+  <p class="sub" id="naText"></p>
+  <button class="btn" type="button" data-logout>Вийти</button>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <h1>Пульт задач</h1>
+    <div class="row top-acts"><button class="btn primary" id="addBtn" type="button">+ Задача</button><button class="me-btn" type="button" id="meBtn" title="Мій профіль"><span id="meAva"></span><span id="whoami"></span></button></div>
+  </header>
+
+  <form class="panel" id="addForm" hidden>
+    <label class="f full">Що зробити<textarea id="nTitle" class="title-in" rows="1" required placeholder="Напр.: Зробити генплан Лісовичів по 5 соток"></textarea></label>
+    <label class="f">Проєкт<select id="nProject"></select></label>
+    <label class="f">Виконавець<select id="nOwner"></select></label>
+    <label class="f">Контролер<select id="nCtl"></select></label>
+    <label class="f">Статус<select id="nStatus"></select></label>
+    <div class="full panel" id="nRecurBox" style="padding:12px;background:var(--sunk);border:0"></div>
+    <label class="f full">Чекпоінти (кожен з нового рядка, необовʼязково)<textarea id="nChecks" rows="2" placeholder="Зібрати дані&#10;Погодити з Володимиром&#10;Відправити замовнику"></textarea></label>
+    <div class="row full"><button class="btn primary" type="submit">Додати задачу</button><button class="btn ghost" type="button" data-close="addForm">Скасувати</button></div>
+  </form>
+
+  <form class="panel" id="projForm" hidden>
+    <label class="f full">Назва проєкту<input id="pName" required maxlength="80" placeholder="Напр.: 10-й центр (3 модулі)"></label>
+    <label class="f">Відповідальний<select id="pOwner"></select></label>
+    <label class="f full">Опис і мета<textarea id="pDesc" rows="2" placeholder="Що маємо отримати й до коли"></textarea></label>
+    <div class="row full"><button class="btn primary" type="submit">Створити проєкт</button><button class="btn ghost" type="button" data-close="projForm">Скасувати</button></div>
+  </form>
+
+  <section class="panel" id="meForm" hidden>
+    <div class="full row" style="gap:14px"><span id="meAvaLg"></span><div><h2 id="meName"></h2><span class="meta" id="meEmail"></span></div></div>
+    <label class="f">Імʼя<input id="meNameIn" maxlength="60"></label>
+    <label class="f">Роль<input id="meRoleIn" maxlength="80"></label>
+    <label class="f full">Про себе<textarea id="meDescIn" rows="2"></textarea></label>
+    <label class="f">Фото (jpg/png до 2 МБ)<input id="meAvaIn" type="file" accept="image/jpeg,image/png,image/webp"></label>
+    <div class="row full"><button class="btn primary" type="button" id="meSave">Зберегти профіль</button></div>
+    <label class="f">Новий пароль<input id="mePass1" type="password" minlength="8" autocomplete="new-password"></label>
+    <label class="f">Повторіть пароль<input id="mePass2" type="password" minlength="8" autocomplete="new-password"></label>
+    <div class="row full"><button class="btn" type="button" id="mePassSave">Змінити пароль</button><button class="btn ghost" type="button" data-close="meForm">Закрити</button><span style="flex:1"></span><button class="btn ghost danger" type="button" data-logout>Вийти з пульта</button></div>
+  </section>
+
+  <div class="seg" role="group" aria-label="Розділ">
+    <button type="button" data-tab="tasks" aria-pressed="true">Задачі</button>
+    <button type="button" data-tab="projects" aria-pressed="false">Проєкти</button>
+    <button type="button" data-tab="tg" aria-pressed="false">Telegram <span id="tgCount"></span></button>
+    <button type="button" data-tab="team" aria-pressed="false">Команда</button>
+  </div>
+
+  <div id="tabTasks" class="wrap" style="gap:20px">
+    <section class="stats" id="stats" aria-label="Зведення"></section>
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Групування">
+        <button type="button" data-view="owner" aria-pressed="true">Люди</button>
+        <button type="button" data-view="project" aria-pressed="false">Проєкти</button>
+      </div>
+      <input id="q" type="search" placeholder="Пошук: назва, людина, #номер">
+      <button class="btn fbtn" type="button" id="fBtn" aria-expanded="false" aria-controls="fPanel">Фільтри<span id="fCount"></span></button>
+    </div>
+    <div class="fpanel" id="fPanel" hidden>
+      <select id="fPerson" aria-label="Людина"></select>
+      <select id="fProject" aria-label="Проєкт"></select>
+      <label class="row" style="gap:6px;font-size:14px;color:var(--muted)"><input id="showDone" type="checkbox" style="width:auto"> показати виконані</label>
+    </div>
+    <div class="fchips" id="fChips" hidden></div>
+    <main id="board" class="wrap" style="gap:24px"><div class="empty">Завантаження задач…</div></main>
+    <details class="rules" id="rulesBox">
+      <summary>Правила пульта</summary>
+      <ol>
+        <li>Доручення з Telegram, дзвінка чи зустрічі існує, лише коли воно тут. У групі: <code>/task Катя: що зробити до 30.09</code>.</li>
+        <li>Задачу без терміну й виконавця не прийнято. Жовта пунктирна рамка — термін треба узгодити.</li>
+        <li>Виконавець звітує сам: коментар тут або <code>/upd 12 текст</code> у боті. Закрити: <code>/done 12</code>.</li>
+        <li>Регулярна задача (↻) не закривається: кожен звіт закриває поточний період і переносить дедлайн на наступний.</li>
+        <li>Контролер (👁) не виконує задачу, а стежить за результатом: бачить її, отримує звіти, штовхає виконавця.</li>
+        <li>7 днів без оновлення = сигнал (💤). Бот щоранку надсилає кожному його список і наступний чекпоінт, контролеру — задачі, що потребують уваги; за годину до регулярного звіту нагадує. У пʼятницю о 17:00 — підсумок тижня директору.</li>
+        <li>Оплати: бухгалтер готує платіж у клієнт-банку, Володимир лише підтверджує. Квитанція — в коментар задачі. Тег «оплата».</li>
+        <li>Кожна задача має контролера й наступний чекпоінт. Якщо задача чекає іншу (⏸) — у чекпоінті вказано її #номер.</li>
+      </ol>
+    </details>
+  </div>
+
+  <div id="tabProjects" class="wrap" style="gap:12px" hidden>
+    <div class="toolbar" style="justify-content:space-between"><div class="seg" role="group" aria-label="Фільтр проєктів"><button type="button" data-pflt="withTasks" aria-pressed="false">З відкритими задачами</button><button type="button" data-pflt="active" aria-pressed="true">Активні</button><button type="button" data-pflt="done" aria-pressed="false">Завершені</button><button type="button" data-pflt="all" aria-pressed="false">Усі</button></div><button class="btn" id="addProjBtn" type="button">+ Проєкт</button></div>
+    <div class="pgrid" id="projGrid"></div>
+  </div>
+
+  <div id="tabTg" class="wrap" style="gap:12px" hidden>
+    <div class="toolbar"><h2 style="flex:1">Повідомлення з робочих чатів</h2><label class="row" style="gap:6px;font-size:14px;color:var(--muted)"><input id="showRev" type="checkbox" style="width:auto"> переглянуті</label></div>
+    <select id="tgChat" aria-label="Група" style="width:auto;max-width:100%;align-self:flex-start"></select>
+    <p class="sub">Бот збирає повідомлення з груп, куди його додано. Переглядайте нові й робіть із доручень задачі одним кліком.</p>
+    <div id="tgList" class="list"></div>
+  </div>
+
+  <div id="tabTeam" class="wrap" style="gap:12px" hidden>
+    <div class="toolbar"><h2 style="flex:1">Команда</h2><div class="seg" role="group" aria-label="Фільтр команди"><button type="button" data-tf="all" aria-pressed="true">Усі</button><button type="button" data-tf="reg" aria-pressed="false">Зареєстровані</button><button type="button" data-tf="tg" aria-pressed="false">Є Telegram</button><button type="button" data-tf="none" aria-pressed="false">Не підключені</button></div><button class="btn primary" type="button" id="addMemBtn" hidden>+ Учасник</button></div>
+    <p class="sub">Email і пароль відкривають доступ до пульта. Telegram привʼязується, коли людина пише боту <a href="https://t.me/ivan_moduler_bot" target="_blank" rel="noopener">@ivan_moduler_bot</a> команду <code>/iam Імʼя</code>.</p>
+    <form class="panel" id="memForm" hidden>
+      <label class="f">Імʼя<input id="mfName" required maxlength="60" placeholder="Як показувати в пульті"></label>
+      <label class="f">Роль<input id="mfRole" maxlength="80" placeholder="Напр.: Менеджер з продажу"></label>
+      <label class="f">Email для входу<input id="mfEmail" type="email" placeholder="можна додати пізніше"></label>
+      <label class="f full">Опис<textarea id="mfDesc" rows="2" placeholder="За що відповідає"></textarea></label>
+      <div class="row full"><button class="btn primary" type="submit">Додати учасника</button><button class="btn ghost" type="button" data-close="memForm">Скасувати</button></div>
+    </form>
+    <input id="teamQ" type="search" placeholder="Пошук: імʼя, роль, email">
+    <div class="mgrid" id="teamGrid"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="/pult/js/core.js"></script>
+<script src="/pult/js/tasks.js"></script>
+<script src="/pult/js/tg.js"></script>
+<script src="/pult/js/focus.js"></script>
+<script src="/pult/js/patch.js"></script>
+<script src="/pult/js/fx.js"></script>
+<script src="/pult/js/ideas.js"></script>
+<script src="/pult/js/team.js"></script>
+<script src="/pult/js/views.js"></script>
+<script src="/pult/js/estimate.js"></script>
+<script src="/pult/js/money.js"></script>
+<script src="/pult/js/ui.js"></script>
+</body>
+</html>

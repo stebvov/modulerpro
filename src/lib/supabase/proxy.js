@@ -39,12 +39,17 @@ export async function updateSession(request) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
+    // після входу повертаємо туди, куди людина йшла (напр. /pult#t/12 — хеш браузер збереже сам)
+    if (path !== "/") url.searchParams.set("next", path.startsWith("/pult") ? "/pult" : path);
     return NextResponse.redirect(url);
   }
 
   if (user && isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    const next = request.nextUrl.searchParams.get("next");
+    url.pathname = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

@@ -48,9 +48,12 @@ const TAB_GROUPS = [
   },
 ];
 
+// пульт — окремий застосунок у public/pult, тому звичайне посилання, а не вкладка
+const PULT_LINK = { display: "block", textDecoration: "none", fontWeight: 600 };
+
 export default function AppShell() {
   const { currency, setCurrency, menuGroupOrder, menuHomeGroup } = useAppData();
-  const { isAdmin, canWriteFinance, isPartner, partnerTabs } = useAuth();
+  const { isAdmin, canWriteFinance, isPartner, partnerTabs, user, profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("catalog");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -88,6 +91,11 @@ export default function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuHomeGroup, isPartner]);
 
+  // учасник команди без профілю Moduler Pro — його робоче місце пульт
+  useEffect(() => {
+    if (!loading && user && !profile) window.location.assign("/pult");
+  }, [loading, user, profile]);
+
   function selectGroup(g) {
     setActiveTab(g.tabs[0].id);
     setMobileMenuOpen(false);
@@ -107,6 +115,7 @@ export default function AppShell() {
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-brand">Moduler Pro</div>
+            <a className="mobile-drawer-link" href="/pult" style={PULT_LINK}>Пульт задач</a>
             {groups.map((g) => (
               <button
                 key={g.label}
@@ -128,6 +137,7 @@ export default function AppShell() {
               <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(true)} title="Сховати меню" aria-label="Сховати меню">⟨</button>
             </div>
             <div className="sidebar-groups">
+              <a className="sidebar-link" href="/pult" style={PULT_LINK} title="Задачі, проєкти, ідеї, напрями й команда">Пульт задач</a>
               {groups.map((g) => {
                 const [mainTab, ...restTabs] = g.tabs;
                 const isExpanded = expandedGroups.has(g.label) || restTabs.some((t) => t.id === activeTab);
