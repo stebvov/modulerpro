@@ -110,13 +110,26 @@ async function loadBiz(){
   DIRS=d.data||[];bizUnits=u.data||[];
   if(isOwner()&&!OG){const {data}=await sb.from("owner_goal").select("*").eq("id",1).maybeSingle();OG=data||{...GOAL_DEF}}
 }
+/* пульт може стартувати (boot → loadAll) ще до того, як цей файл виконано, тому ініціалізуємось
+   з кінця будь-якого loadAll через renderProjects, а свіжі напрями/відділи підтягуємо на кожному loadAll */
+let bizInitP=null;
+function bizInit(){
+  bizInitP??=(async()=>{
+    try{await loadBiz();mountBizTabs();bizBooted=true;markProjCards();
+      if(!location.hash&&!bizTab)document.querySelector('[data-tab="my"]')?.click();else renderBiz()}
+    catch(err){console.error("biz",err);bizInitP=null}
+  })();
+  return bizInitP;
+}
+function bizTick(){
+  try{markProjCards()}catch(err){console.error("biz",err)}
+  if(!bizBooted){bizInit();return}
+  if(bizTab&&!document.activeElement?.closest?.("#tabMy,#tabDirs,#tabCap"))renderBiz();
+}
 const _loadAllBiz=loadAll;
 loadAll=async function(){
   await _loadAllBiz.apply(this,arguments);
-  await loadBiz();
-  mountBizTabs();
-  if(!bizBooted){bizBooted=true;if(!location.hash)document.querySelector('[data-tab="my"]')?.click()}
-  else if(!document.activeElement?.closest?.("#tabMy,#tabDirs,#tabCap"))renderBiz();
+  if(bizBooted)try{await loadBiz();bizTick()}catch(err){console.error("biz",err)}
 };
 
 /* ---------- вкладки ---------- */
@@ -137,7 +150,8 @@ document.addEventListener("click",e=>{
   if(["my","dirs","cap"].includes(k)){document.querySelectorAll(".seg [data-tab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tab===k));window.scrollTo({top:0});["tasks","projects","tg","team"].forEach(x=>{const el=document.getElementById("tab"+x[0].toUpperCase()+x.slice(1));if(el)el.hidden=true})}
 });
 window.addEventListener("hashchange",()=>{if(/^#[tp]\//.test(location.hash))showBizTab(null)});
-function renderBiz(){
+function renderBiz(){try{renderBiz0()}catch(err){console.error("biz",err);const el=document.getElementById("tab"+(bizTab||"my")[0].toUpperCase()+(bizTab||"my").slice(1));if(el)el.innerHTML=`<div class="empty">Не вдалося показати розділ: ${esc(err.message)}</div>`}}
+function renderBiz0(){
   if(bizTab==="my")$("#tabMy").innerHTML=myHtml();
   else if(bizTab==="dirs")$("#tabDirs").innerHTML=dirsHtml();
   else if(bizTab==="cap"){if(!capData)loadCap().then(()=>{if(bizTab==="cap")$("#tabCap").innerHTML=capHtml()});$("#tabCap").innerHTML=capData?capHtml():`<div class="empty">Рахую капітал і дохід…</div>`}
@@ -401,6 +415,9 @@ document.addEventListener("change",async e=>{
 const _phBiz=renderProjHead;
 renderProjHead=function(){
   _phBiz.apply(this,arguments);
+  try{renderProjBiz()}catch(err){console.error("biz",err)}
+};
+function renderProjBiz(){
   const box=$("#projHead"),p=fProject&&!focusNum&&projects.find(x=>x.name===fProject);
   if(!p||phEdit||!box||box.hidden)return;
   if(ANL[p.name]===undefined&&!loadAnl.busy?.[p.name]){(loadAnl.busy??={})[p.name]=1;loadAnl(p.name).finally(()=>{delete loadAnl.busy[p.name];if(fProject===p.name&&!phEdit)renderProjHead()})}
@@ -409,22 +426,24 @@ renderProjHead=function(){
   const firstBlock=box.querySelector(":scope > .phdet, :scope > .est, :scope > .passport, :scope > .pnotes");
   const html=pathHtml(p);firstBlock?firstBlock.insertAdjacentHTML("beforebegin",html):box.insertAdjacentHTML("beforeend",html);
   if(p.stage!=="ops"){const est=box.querySelector(":scope > .est"),m=mktHtml(p);est?est.insertAdjacentHTML("afterend",m):(box.querySelector(":scope > .bpath")).insertAdjacentHTML("afterend",m)}
-};
+}
 /* компактний режим проєкту ховає й оцінку ринку разом з іншими деталями */
 document.head.insertAdjacentHTML("beforeend",`<style>#projHead.ph-min > .mkt{display:none!important}</style>`);
 
 /* ---------- 🧮 Фінмодель: частка засновника від валу або від чистого, план на місяць ---------- */
 const _finModelBiz=finModel;
-finModel=function(price,f,cac){
+finModel=function(price,f,cac){try{return finModelBiz(price,f,cac)}catch(err){console.error("biz",err);return _finModelBiz(price,f,cac)}};
+function finModelBiz(price,f,cac){
   const plan=num(f?.plan_units_month),opex=num(f?.opex_month);
   if(f?.founder_mode!=="net"){const m=_finModelBiz(price,f,cac);return Object.assign(m,{plan,opex})}
   const m=_finModelBiz(price,{...f,founder_pct:0},cac);if(!m.ok)return Object.assign(m,{plan,opex});
   const np=num(f.founder_net_pct)??50,base=m.mod;
   m.fnd=Math.max(0,base)*np/100;m.mod=base-m.fnd;m.fp=m.P?Math.round(m.fnd/m.P*1000)/10:0;
   return Object.assign(m,{netMode:true,np,netBase:base,plan,opex});
-};
+}
 const _wfBiz=wfHtml;
-wfHtml=function(m){
+wfHtml=function(m){try{return wfBiz(m)}catch(err){console.error("biz",err);return _wfBiz(m)}};
+function wfBiz(m){
   let h=_wfBiz(m);if(!m.ok)return h;
   if(m.netMode)h=h.replace(/Комісія засновника \(([^)]*)\) · [\d.,]+%/,`Частка засновника ($1) · ${m.np}% від чистого`);
   const gp=OG?.gross_pct??GOAL_DEF.gross_pct,npct=OG?.net_pct??GOAL_DEF.net_pct;
@@ -433,9 +452,10 @@ wfHtml=function(m){
   const pl=m.plan?`<div class="monthly"><span>📅 План: <b>${m.plan}</b> од./міс</span><span>Виручка <b>${money(m.P*m.plan)}</b></span><span>Засновнику <b>${money(m.fnd*m.plan)}</b></span><span>Модулеру${m.opex?" після постійних витрат":""} <b style="color:${m.mod*m.plan-(m.opex||0)<0?"var(--bad)":"var(--ok)"}">${money(m.mod*m.plan-(m.opex||0))}</b>/міс</span></div>`
     :`<div class="hint">Вкажіть «План продажів, од./міс» — побачите дохід засновника й Модулеру на місяць.</div>`;
   return h+cmp+pl;
-};
+}
 const _finHtmlBiz=finHtml;
-finHtml=function(p,r){
+finHtml=function(p,r){try{return finHtmlBiz(p,r)}catch(err){console.error("biz",err);return _finHtmlBiz(p,r)}};
+function finHtmlBiz(p,r){
   const h=_finHtmlBiz(p,r),f={...r.fin,...(fDraft[p.name]||{})};
   const extra=`<div class="pgrid2 fmx">
     <label>Частка засновника<select data-fp="founder_mode">${opts([["gross","% від валу (поле «Засновник»)"],["net","% від чистого результату"]],f.founder_mode||"gross")}</select></label>
@@ -443,7 +463,7 @@ finHtml=function(p,r){
     <label>План продажів, од./міс<input data-fp="plan_units_month" inputmode="decimal" value="${esc(f.plan_units_month??"")}" placeholder="напр. 2"></label>
     <label>Постійні витрати проєкту, ${curSym(MCUR)}/міс<input data-fp="opex_month" inputmode="decimal" value="${esc(f.opex_month??"")}" placeholder="команда, офіс, реклама"></label></div>`;
   return h.replace("<h4>Інші витрати з продажу</h4>",extra+"<h4>Інші витрати з продажу (податки, доставка, монтаж, партнер з проєкту…)</h4>");
-};
+}
 const _saveFinBiz=saveFin;
 saveFin=async function(name){
   const d=fDraft[name]||{},patch={};
@@ -535,11 +555,11 @@ if(typeof renderOrg==="function"){
   const _roBiz=renderOrg;
   renderOrg=function(){
     _roBiz.apply(this,arguments);
-    document.querySelectorAll("#orgBox .ou[data-unit]").forEach(el=>{
+    try{document.querySelectorAll("#orgBox .ou[data-unit]").forEach(el=>{
       const u=orgUnits.find(x=>x.id===el.dataset.unit);if(!u?.vacancy||el.querySelector(".ou-vac"))return;
       const head=team.find(m=>m.id===u.head_id);
       el.querySelector(".ou-h")?.insertAdjacentHTML("afterend",`<div class="ou-vac">🔎 ${head?`Шукаємо: ${esc(u.vacancy)} · зараз веде ${esc(head.name)}`:`Вакансія: ${esc(u.vacancy)}`}</div>`);
-    });
+    })}catch(err){console.error("biz",err)}
   };
 }
 
@@ -547,9 +567,18 @@ if(typeof renderOrg==="function"){
 const _rpBiz=renderProjects;
 renderProjects=function(){
   _rpBiz.apply(this,arguments);
+  try{bizTick()}catch(err){console.error("biz",err)}
+
+};
+
+function markProjCards(){
   document.querySelectorAll("#projGrid .pcard[data-pcard]").forEach(c=>{
     const p=projects.find(x=>x.name===c.dataset.pcard);if(!p||c.querySelector(".pdir"))return;
-    const d=dirOf(p.direction),s=stageOf(p.stage);
-    c.querySelector("h2")?.closest(".row")?.insertAdjacentHTML("afterend",`<span class="pdir">${d?esc(d.emoji+" "+d.short):"🧩 спільне"} · ${s[1]} ${esc(s[2])}</span>`);
+    const d=dirOf(p.direction),st=stageOf(p.stage);
+    c.querySelector("h2")?.closest(".row")?.insertAdjacentHTML("afterend",`<span class="pdir">${d?esc(d.emoji+" "+d.short):"🧩 спільне"} · ${st[1]} ${esc(st[2])}</span>`);
   });
-};
+}
+{const g=document.getElementById("projGrid");if(g)new MutationObserver(()=>{try{markProjCards()}catch(err){console.error("biz",err)}}).observe(g,{childList:true})}
+
+/* файл міг завантажитись уже після старту пульту */
+if(typeof booted!=="undefined"&&booted&&tasks.length)bizInit();
