@@ -1,11 +1,11 @@
 // Сторінка сайту з конструктора: дані + метадані. Використовують /site, /site/[slug], /site/modeli, /site/kejsy.
 import { notFound } from "next/navigation";
-import { getBase, getPage, getSettings, getSiteContext } from "@/lib/site/data";
+import { getBase, getPage, getSettings, getSiteContext, isIndexable } from "@/lib/site/data";
 import SiteRenderer from "./SiteRenderer";
 
-// поки сайт живе на app.moduler.pro/site — це робоча копія, пошуковикам її не показуємо
+// робочі й тестові копії (app.moduler.pro/site, new.moduler.pro) пошуковикам не показуємо — лише основний домен
 export async function siteRobots() {
-  return (await getBase()) === "/site" ? { index: false, follow: false } : undefined;
+  return (await isIndexable()) ? undefined : { index: false, follow: false };
 }
 
 export async function cmsMetadata(slug) {

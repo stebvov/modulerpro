@@ -53,6 +53,11 @@ export async function getBase() {
   return b == null ? "/site" : b;
 }
 
+// індексувати в Google лише основний домен сайту (proxy ставить x-site-index: "1")
+export async function isIndexable() {
+  return (await headers()).get("x-site-index") === "1";
+}
+
 export async function getOrigin() {
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "moduler.pro";
