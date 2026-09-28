@@ -40,17 +40,16 @@ export async function updateSession(request) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
-    // після входу повертаємо туди, куди людина йшла (напр. /pult#t/12 — хеш браузер збереже сам)
-    if (path !== "/") url.searchParams.set("next", path.startsWith("/pult") ? "/" : path);
+    // після входу повертаємо туди, куди людина йшла (розділ ?s=…; хеш браузер збереже сам)
+    const back = path.startsWith("/pult") ? "/" : path + request.nextUrl.search;
+    if (back !== "/") url.searchParams.set("next", back);
     return NextResponse.redirect(url);
   }
 
   if (user && isPublic) {
-    const url = request.nextUrl.clone();
     const next = request.nextUrl.searchParams.get("next");
-    url.pathname = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-    url.search = "";
-    return NextResponse.redirect(url);
+    const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    return NextResponse.redirect(new URL(safe, request.url));
   }
 
   return supabaseResponse;
