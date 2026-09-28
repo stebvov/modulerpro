@@ -215,7 +215,9 @@ export default function AppShell() {
             </div>
             <div className="top-bar-right">
               {inTeam && (
-                <button className="btn primary" onClick={newTask} title="Нова задача в пульті — з будь-якого розділу">+ Задача</button>
+                <button className="btn primary" onClick={newTask} title="Нова задача в пульті — з будь-якого розділу">
+                  <span className="btn-label-full">+ Задача</span><span className="btn-label-compact">+</span>
+                </button>
               )}
               <CurrencyMenu currency={currency} onChange={setCurrency} />
               <ProfileMenu onTeamProfile={inTeam ? openTeamProfile : null} />
