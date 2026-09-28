@@ -623,8 +623,17 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                         if (v.startsWith("package:")) {
                           // пакет розгортається у свої позиції (будинки, послуги, власні рядки)
                           const its = pkgs.items.filter((x) => x.package_id === v.slice(8));
-                          const rows = its.map((x) => emptyOrderItem({ selection: x.kind === "custom" ? "custom" : `${x.kind}:${x.template_id}`, label: x.label || "", unit_price: x.unit_price ?? "", quantity: x.quantity }));
+                          const rows = its.map((x) => {
+                            if (x.kind === "service") { const sv = services.find((y) => y.id === x.template_id); return emptyOrderItem({ selection: "custom", label: sv?.name || "Послуга", unit_price: sv?.base_price ?? "", quantity: x.quantity }); }
+                            return emptyOrderItem({ selection: x.kind === "custom" ? "custom" : `${x.kind}:${x.template_id}`, label: x.label || "", unit_price: x.unit_price ?? "", quantity: x.quantity });
+                          });
                           setForm((f) => ({ ...f, order_items: [...f.order_items.slice(0, i), ...rows, ...f.order_items.slice(i + 1)] }));
+                          return;
+                        }
+                        if (v.startsWith("svc:")) {
+                          // послуга з каталогу → позиція з назвою й базовою ціною (можна змінити)
+                          const sv = services.find((y) => y.id === v.slice(4));
+                          updateOrderItem(i, { selection: "custom", label: sv?.name || "", unit_price: sv?.base_price ?? "" });
                           return;
                         }
                         updateOrderItem(i, { selection: v });
@@ -644,8 +653,13 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                             {pkgs.list.map((p) => <option key={p.id} value={`package:${p.id}`}>{p.name}</option>)}
                           </optgroup>
                         )}
-                        {serviceTemplates.length > 0 && (
-                          <optgroup label="Послуги">
+                        {services.length > 0 && (
+                          <optgroup label="🛠 Послуги (каталог)">
+                            {services.map((sv) => <option key={sv.id} value={`svc:${sv.id}`}>{sv.name}{sv.base_price != null ? ` · ${curr(sv.base_price)} грн` : ""}</option>)}
+                          </optgroup>
+                        )}
+                        {row.selection.startsWith("service:") && serviceTemplates.length > 0 && (
+                          <optgroup label="Шаблон послуг (старий)">
                             {serviceTemplates.map((t) => (
                               <option key={t.id} value={`service:${t.id}`}>
                                 {t.name} · {curr(serviceTemplateUnitPrice(t.id, serviceTemplateItems, services, serviceTemplates))} грн

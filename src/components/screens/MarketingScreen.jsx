@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { GearIcon } from "@/components/Icon";
 import ChannelsModal from "@/components/modals/ChannelsModal";
@@ -19,8 +19,17 @@ import {
   toDateKey,
 } from "@/lib/marketing";
 
-export default function MarketingScreen() {
-  const { loading, error, assets, campaigns, supabase, reload, CHANNELS, CHANNEL_COLORS, CHANNEL_LABELS } = useMarketingData();
+export default function MarketingScreen({ direction }) {
+  const { loading, error, assets: allAssets, campaigns: allCampaigns, supabase, reload, CHANNELS, CHANNEL_COLORS, CHANNEL_LABELS } = useMarketingData();
+  const [scopeProjects, setScopeProjects] = useState(null);
+  useEffect(() => {
+    if (!direction) return;
+    supabase.from("task_projects").select("name").eq("direction", direction).neq("status", "done").then(({ data }) => setScopeProjects((data || []).map((x) => x.name)));
+  }, [direction, supabase]);
+  const inScope = (x) => !direction || (scopeProjects || []).includes(x.project);
+  const assets = allAssets.filter(inScope);
+  const campaigns = allCampaigns.filter(inScope);
+  const defaultProject = direction ? (scopeProjects || [])[0] || null : null;
   const [channelsOpen, setChannelsOpen] = useState(false);
   const { canWriteCatalog } = useAuth();
   const [view, setView] = useState("calendar");
@@ -231,7 +240,7 @@ export default function MarketingScreen() {
       )}
 
       {assetModal && (
-        <AssetModal
+        <AssetModal defaultProject={defaultProject}
           open
           asset={assetModal.asset}
           defaultDate={assetModal.defaultDate}
@@ -240,7 +249,7 @@ export default function MarketingScreen() {
         />
       )}
       {campaignModal && (
-        <CampaignModal
+        <CampaignModal defaultProject={defaultProject}
           open
           campaign={campaignModal.campaign}
           onClose={() => setCampaignModal(null)}

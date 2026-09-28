@@ -125,7 +125,7 @@ const STAGE_HINT={
   run:"Регулярний дохід: оренда, сервіс, повторні продажі.",
   ops:"Операційний проєкт — без етапів продажу."};
 const GOAL_DEF={goal_month_usd:1000000,gross_pct:25,net_pct:50,default_mode:"gross"};
-let DIRS=[],bizUnits=[],ANL={},anlOpen={},anlPaste=null,bizTab=null,OG=null,ASSETS=[],capData=null,dirNew=null,boqCnt={},bizBooted=false;
+let ogOpen=false,DIRS=[],bizUnits=[],ANL={},anlOpen={},anlPaste=null,bizTab=null,OG=null,ASSETS=[],capData=null,dirNew=null,boqCnt={},bizBooted=false;
 const isOwner=()=>!!me?.is_owner;
 const dirOf=k=>DIRS.find(d=>d.key===k);
 const canEditProj=p=>canManage()||finAll()||(p&&p.owner_id===me?.id);
@@ -567,7 +567,7 @@ function capHtml(){
     <td><input data-as="note" value="${esc(x.note||"")}" aria-label="Примітка"></td><td><button class="icon-btn" type="button" data-asdel="${x.id}" aria-label="Видалити актив">×</button></td></tr>`;
   return `<div class="bz-hello"><h2>💎 Капітал і дохід засновника</h2><span class="meta">Бачите лише ви. Команда бачить свої задачі й свою роль — не ціль.</span></div>
     <section class="bz-card cap-goal">
-      <div class="row" style="justify-content:space-between;align-items:baseline;gap:10px"><h3>🎯 Ціль: чистий дохід засновника</h3><span class="meta">налаштування — внизу</span></div>
+      <div class="row" style="justify-content:space-between;align-items:baseline;gap:10px"><h3>🎯 Ціль: чистий дохід засновника</h3><button type="button" class="btn sm" data-ogopen title="Налаштування цілі й частки засновника" aria-label="Налаштування цілі"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
       <div class="big">${usd(goal)}<span class="meta" style="font:500 14px var(--body)"> / міс</span></div>
       <div><div class="row" style="justify-content:space-between"><span>Факт за 30 днів: <b>${usd(fact)}</b></span><span class="meta">${(fact/goal*100).toFixed(2)}%</span></div><div class="bar"><i style="width:${pct(fact)}%"></i></div></div>
       <div><div class="row" style="justify-content:space-between"><span>🔑 Пасивний дохід з оренди власних будинків (30 днів): <b>${usd(capData.rent||0)}</b></span><span class="meta">${((capData.rent||0)/goal*100).toFixed(2)}%</span></div><div class="bar"><i style="width:${pct(capData.rent||0)}%"></i></div></div>
@@ -587,12 +587,12 @@ function capHtml(){
     <section class="bz-card"><h3>🏦 Капітал: активи · ${usd(capV)} · пасивний дохід ${usd(capI)}/міс</h3>
       <div class="tbl"><table class="capt"><thead><tr><th>Актив</th><th>Напрям</th><th class="n">Вартість</th><th class="n">Дохід/міс</th><th></th><th>Стан</th><th>Примітка</th><th></th></tr></thead><tbody>${ASSETS.map(assetRow).join("")}</tbody></table></div>
       <button class="btn sm" type="button" data-asadd style="align-self:flex-start">+ Актив</button></section>
-    <section class="bz-card"><h3>⚙️ Налаштування цілі й частки</h3>
+    ${ogOpen?`<div class="bz-modal" role="dialog" aria-label="Налаштування цілі" data-ogmodal><div class="bz-modal-box"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">⚙️ Налаштування цілі й частки</h3><button type="button" class="btn sm" data-ogclose aria-label="Закрити">✕</button></div>
       <div class="pgrid2"><label class="f">Ціль, $ чистими на місяць<input data-og="goal_month_usd" inputmode="decimal" value="${esc(OG?.goal_month_usd??"")}"></label>
       <label class="f">Моя частка від валу, %<input data-og="gross_pct" inputmode="decimal" value="${esc(OG?.gross_pct??"")}"></label>
       <label class="f">Або від чистого, %<input data-og="net_pct" inputmode="decimal" value="${esc(OG?.net_pct??"")}"></label>
       <label class="f">Для нових проєктів<select data-og="default_mode">${opts([["gross","від валу"],["net","від чистого"]],OG?.default_mode||"gross")}</select></label></div>
-      <span class="meta">Ці цифри — орієнтир для порівняння у фінмоделі кожного проєкту. Фактичний % задається в самому проєкті.</span></section>`;
+      <span class="meta">Ці цифри — орієнтир для порівняння у фінмоделі кожного проєкту. Фактичний % задається в самому проєкті.</span></div></div>`:""}`;
 }
 document.addEventListener("change",async e=>{
   const og=e.target.closest("[data-og]");if(og){const k=og.dataset.og,v=k==="default_mode"?og.value:num(og.value);if(v==null){toast("Вкажіть число");return}
@@ -608,6 +608,14 @@ document.addEventListener("click",async e=>{
   const ad=e.target.closest("[data-asdel]");if(ad){if(!ad.dataset.sure){ad.dataset.sure="1";ad.textContent="?";return}
     const {error}=await sb.from("owner_assets").delete().eq("id",ad.dataset.asdel);if(error){toast("Не видалено: "+error.message);return}await loadCap();renderBiz();return}
 });
+
+document.addEventListener("click",e=>{
+  if(e.target.closest("[data-ogopen]")){ogOpen=true;renderBiz();return}
+  if(e.target.closest("[data-ogclose]")||e.target.matches?.("[data-ogmodal]")){ogOpen=false;renderBiz()}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ogOpen){ogOpen=false;renderBiz()}});
+document.head.insertAdjacentHTML("beforeend",`<style>.bz-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;z-index:40}
+.bz-modal-box{background:var(--surface);border-radius:12px;padding:18px;width:min(620px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.2)}</style>`);
 
 /* ---------- Команда → Структура: вакансії керівників ---------- */
 if(typeof renderOrg==="function"){

@@ -41,7 +41,7 @@ function blankRow(month) {
 }
 const partyOf = (t) => (t.supplier_id ? "s:" + t.supplier_id : t.partner_id ? "p:" + t.partner_id : "");
 
-export default function Ledger() {
+export default function Ledger({ direction }) {
   const supabase = useMemo(() => createClient(), []);
   const { currency, exchangeRates, suppliers } = useAppData();
   const { canWriteFinance } = useAuth();
@@ -89,7 +89,10 @@ export default function Ledger() {
       supabase.from("deals").select("id, leads(name)").order("created_at", { ascending: false }).limit(200),
     ]).then(([c, p, sp, d]) => {
       setCats(c.data || []);
-      setProjects((p.data || []).filter((x) => x.status !== "done").map((x) => x.name));
+      const pr = (p.data || []).filter((x) => x.status !== "done" && (!direction || x.direction === direction)).map((x) => x.name);
+      setProjects(pr);
+      // розділ напряму (напр. УК): нова транзакція одразу привʼязана до його проєкту
+      if (direction && pr[0]) setDraft((d) => (d.project ? d : { ...d, project: pr[0] }));
       setPartners(sp.data || []);
       setDeals((d.data || []).map((x) => ({ id: x.id, name: x.leads?.name || "угода" })));
     });
@@ -125,19 +128,21 @@ export default function Ledger() {
 
   const view = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const f = rows.filter((t) =>
+    const inDir = (t) => !direction || projects.includes(t.project);
+    const f = rows.filter(inDir).filter((t) =>
       (!group || KIND[t.type]?.group === group) && (!fCat || t.category === fCat) && (!fProject || (fProject === "—" ? !t.project : t.project === fProject)) &&
       (!fParty || partyOf(t) === fParty) &&
       (!s || [t.category, t.note, t.project, partyName(t), KIND[t.type]?.label, String(t.amount)].join(" ").toLowerCase().includes(s)));
     const val = (t) => sort.key === "amount" ? conv(t) : sort.key === "type" ? KIND[t.type]?.short || "" : sort.key === "party" ? partyName(t) : (t[sort.key] ?? "");
     return [...f].sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * sort.dir; });
-  }, [rows, group, fCat, fProject, fParty, q, sort, conv]);
+  }, [rows, group, fCat, fProject, fParty, q, sort, conv, direction, projects]);
 
   const k = useMemo(() => {
-    const sum = (g) => rows.filter((t) => KIND[t.type]?.group === g).reduce((a, t) => a + Math.abs(conv(t)), 0);
+    const own = direction ? rows.filter((t) => projects.includes(t.project)) : rows;
+    const sum = (g) => own.filter((t) => KIND[t.type]?.group === g).reduce((a, t) => a + Math.abs(conv(t)), 0);
     const inc = sum("income"), prod = sum("prod"), opex = sum("opex"), capex = sum("capex");
     return { inc, prod, opex, capex, profit: inc - prod - opex, cash: inc - prod - opex - capex, filtered: view.reduce((a, t) => a + conv(t), 0) };
-  }, [rows, view, conv]);
+  }, [rows, view, conv, direction, projects]);
 
   function toPayload(r) {
     const party = r.party || "";

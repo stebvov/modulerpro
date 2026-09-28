@@ -9,52 +9,69 @@ import { useAuth } from "@/context/AuthContext";
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import DeleteButton from "@/components/DeleteButton";
-import { orderItemsProductionTotal, serviceTemplateUnitPrice, templateProductionCost, curr } from "@/lib/crm";
+import { templateProductionCost, curr } from "@/lib/crm";
+import { GearIcon } from "@/components/Icon";
+import TreeCategoriesPanel from "@/components/panels/TreeCategoriesPanel";
 
-export const PACKAGE_KINDS = [
-  ["town", "🏘 Котеджне містечко"], ["resort", "🌲 База відпочинку"], ["income", "💰 Дохідна нерухомість"],
-  ["turnkey", "🔑 Будинок під ключ"], ["other", "📦 Інше"],
-];
-const KIND_LABEL = Object.fromEntries(PACKAGE_KINDS);
 
 function usePackageMath() {
-  const { templates, bomItems, extraCosts, supplierPrices, services, serviceTemplates, serviceTemplateItems } = useAppData();
+  const { templates, bomItems, extraCosts, supplierPrices, services } = useAppData();
   return useMemo(() => {
     const unitPrice = (it) =>
       it.kind === "house" ? (() => { const t = templates.find((x) => x.id === it.template_id); return t && t.base_cost_per_m2 != null ? t.area_m2 * t.base_cost_per_m2 : 0; })()
-      : it.kind === "service" ? serviceTemplateUnitPrice(it.template_id, serviceTemplateItems, services, serviceTemplates)
+      : it.kind === "service" ? (Number(services.find((x) => x.id === it.template_id)?.base_price) || 0)
       : Number(it.unit_price) || 0;
     const unitCost = (it) =>
       it.kind === "house" ? (templateProductionCost(it.template_id, bomItems, extraCosts, supplierPrices) || 0)
       : Number(it.unit_cost) || 0;
     function totals(pkg, items) {
-      const price = orderItemsProductionTotal(items, { templates, services, serviceTemplateItems, serviceTemplates });
-      const cost = items.reduce((s, it) => s + unitCost(it) * (Number(it.quantity) || 0), 0);
+      const price = items.reduce((s2, it) => s2 + unitPrice(it) * (Number(it.quantity) || 0), 0);
+      const cost = items.reduce((s2, it) => s2 + unitCost(it) * (Number(it.quantity) || 0), 0);
       const final = pkg.price_override != null && pkg.price_override !== "" ? Number(pkg.price_override) : price * (1 + (Number(pkg.markup_percent) || 0) / 100);
       return { price, cost, final, margin: final - cost, pct: final ? ((final - cost) / final) * 100 : 0 };
     }
     return { unitPrice, unitCost, totals };
-  }, [templates, bomItems, extraCosts, supplierPrices, services, serviceTemplates, serviceTemplateItems]);
+  }, [templates, bomItems, extraCosts, supplierPrices, services]);
 }
 
-function PackageEditor({ pkg, items: initialItems, onClose, onSaved }) {
-  const { supabase, templates, serviceTemplates } = useAppData();
+// категорії пакетів деревом: [{value,label,depth}]
+function catTree(cats) {
+  const out = [];
+  const walk = (pid, d) => cats.filter((c) => (c.parent_id || null) === pid).forEach((c) => { out.push({ value: c.id, label: c.name, depth: d }); walk(c.id, d + 1); });
+  walk(null, 0);
+  return out;
+}
+
+function CategoriesModal({ onClose }) {
+  const { canWriteCatalog } = useAuth();
+  return (
+    <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 720 }}>
+        <TreeCategoriesPanel table="package_categories" title="Категорії пакетів" canWrite={canWriteCatalog} addPlaceholder="Нова категорія пакетів" />
+        <div className="modal-actions"><button className="btn" onClick={onClose}>Готово</button></div>
+      </div>
+    </div>
+  );
+}
+
+function PackageEditor({ pkg, items: initialItems, cats, onClose, onSaved, onCats }) {
+  const { supabase, templates, services } = useAppData();
   const { canWriteCatalog } = useAuth();
   const m = usePackageMath();
-  const [form, setForm] = useState({ name: pkg?.name || "", kind: pkg?.kind || "turnkey", description: pkg?.description || "", markup_percent: pkg?.markup_percent ?? "", price_override: pkg?.price_override ?? "", status: pkg?.status || "active" });
+  const [form, setForm] = useState({ name: pkg?.name || "", category_id: pkg?.category_id || "", description: pkg?.description || "", markup_percent: pkg?.markup_percent ?? "", price_override: pkg?.price_override ?? "", status: pkg?.status || "active" });
   const [items, setItems] = useState(() => (initialItems || []).map((x) => ({ ...x, key: x.id })));
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   const houseOpts = templates.filter((t) => t.status !== "archived").map((t) => ({ value: t.id, label: t.name, hint: t.area_m2 ? `${t.area_m2} м²` : "" }));
-  const svcOpts = serviceTemplates.map((t) => ({ value: t.id, label: t.name }));
+  const svcOpts = services.map((x) => ({ value: x.id, label: x.name, hint: x.base_price != null ? `${curr(x.base_price)} грн` : "" }));
   const t = m.totals(form, items);
   const setIt = (i, patch) => setItems((l) => l.map((x, k) => (k === i ? { ...x, ...patch } : x)));
 
   async function save() {
     if (!form.name.trim()) { setErr("Вкажіть назву пакета"); return; }
     setBusy(true); setErr("");
-    const payload = { name: form.name.trim(), kind: form.kind, description: form.description.trim() || null, status: form.status,
+    const payload = { name: form.name.trim(), category_id: form.category_id || null, description: form.description.trim() || null, status: form.status,
       markup_percent: form.markup_percent === "" ? null : Number(form.markup_percent), price_override: form.price_override === "" ? null : Number(form.price_override), updated_at: new Date().toISOString() };
     let id = pkg?.id;
     const r = id ? await supabase.from("packages").update(payload).eq("id", id) : await supabase.from("packages").insert(payload).select("id").single();
@@ -77,8 +94,11 @@ function PackageEditor({ pkg, items: initialItems, onClose, onSaved }) {
         {err && <div className="auth-error">{err}</div>}
         <div className="deal-grid">
           <div className="form-row"><label>Назва</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="напр. База відпочинку «Карпати»: 6 будинків + SPA" /></div>
-          <div className="form-row"><label>Тип пакета</label>
-            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>{PACKAGE_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+          <div className="form-row"><label>Категорія</label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <SelectSearch value={form.category_id} options={catTree(cats)} onChange={(v) => setForm({ ...form, category_id: v })} placeholder="Категорія пакета" emptyLabel="— без категорії —" width="100%" />
+              {canWriteCatalog && <button type="button" className="btn icon-btn-sq" title="Категорії пакетів" aria-label="Категорії пакетів" onClick={onCats}><GearIcon /></button>}
+            </div></div>
         </div>
         <div className="form-row"><label>Опис</label><textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Що входить, для кого, умови" /></div>
 
@@ -94,7 +114,7 @@ function PackageEditor({ pkg, items: initialItems, onClose, onSaved }) {
                       <option value="house">🏠 Будинок</option><option value="service">🛠 Послуга</option><option value="custom">✎ Своє</option>
                     </select>
                     {it.kind === "house" && <SelectSearch value={it.template_id || ""} options={houseOpts} onChange={(v) => setIt(i, { template_id: v })} placeholder="Модель будинку" width={230} />}
-                    {it.kind === "service" && <SelectSearch value={it.template_id || ""} options={svcOpts} onChange={(v) => setIt(i, { template_id: v })} placeholder="Послуга" width={230} />}
+                    {it.kind === "service" && <SelectSearch value={it.template_id || ""} options={svcOpts} onChange={(v) => setIt(i, { template_id: v })} placeholder="Послуга з каталогу" width={230} />}
                     {it.kind === "custom" && <>
                       <input value={it.label || ""} onChange={(e) => setIt(i, { label: e.target.value })} placeholder="Земля, комунікації, SPA…" style={{ width: 170 }} />
                       <input value={it.unit_price ?? ""} onChange={(e) => setIt(i, { unit_price: e.target.value })} inputMode="decimal" placeholder="ціна" style={{ width: 90 }} />
@@ -144,13 +164,19 @@ export default function PackagesScreen() {
   const m = usePackageMath();
   const [pkgs, setPkgs] = useState(null);
   const [items, setItems] = useState([]);
+  const [cats, setCats] = useState([]);
   const [q, setQ] = useState("");
-  const [kind, setKind] = useState("");
+  const [cat, setCat] = useState("");
   const [open, setOpen] = useState(null);
+  const [catsOpen, setCatsOpen] = useState(false);
 
   async function load() {
-    const [p, i] = await Promise.all([supabase.from("packages").select("*").order("sort").order("created_at"), supabase.from("package_items").select("*").order("sort")]);
-    setPkgs(p.data || []); setItems(i.data || []);
+    const [p, i, c] = await Promise.all([
+      supabase.from("packages").select("*").order("sort").order("created_at"),
+      supabase.from("package_items").select("*").order("sort"),
+      supabase.from("package_categories").select("*").order("sort_order"),
+    ]);
+    setPkgs(p.data || []); setItems(i.data || []); setCats(c.data || []);
   }
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -160,23 +186,29 @@ export default function PackagesScreen() {
 
   if (pkgs === null) return <div className="empty">Завантаження пакетів…</div>;
   const s = q.trim().toLowerCase();
-  const list = pkgs.filter((p) => (!kind || p.kind === kind) && (!s || [p.name, p.description].join(" ").toLowerCase().includes(s)));
+  // категорія з усіма вкладеними
+  const inCat = (id) => { if (!cat) return true; let x = cats.find((c) => c.id === id); while (x) { if (x.id === cat) return true; x = cats.find((c) => c.id === x.parent_id); } return false; };
+  const list = pkgs.filter((p) => inCat(p.category_id) && (!s || [p.name, p.description].join(" ").toLowerCase().includes(s)));
+  const catName = (id) => cats.find((c) => c.id === id)?.name || "без категорії";
   return (
     <div>
       <p className="note">Пакет — кілька будинків, послуги й інші позиції одним продуктом: котеджне містечко, база відпочинку, дохідна нерухомість, «будинок + фундамент + доставка + монтаж». Пакет додається в угоду CRM одним вибором.</p>
       <div className="toolbar" style={{ gap: 8, flexWrap: "wrap" }}>
-        <SearchFilter value={q} onChange={setQ} placeholder="Пошук пакета…" active={kind ? 1 : 0} onReset={() => setKind("")}>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Тип пакета"><option value="">Усі типи</option>{PACKAGE_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        <SearchFilter value={q} onChange={setQ} placeholder="Пошук пакета…" active={cat ? 1 : 0} onReset={() => setCat("")}>
+          <SelectSearch value={cat} options={catTree(cats)} onChange={setCat} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
         </SearchFilter>
-        {canWriteCatalog && <button className="btn primary" onClick={() => setOpen({ pkg: null, items: [] })}>+ Пакет</button>}
+        <div style={{ display: "flex", gap: 6 }}>
+          {canWriteCatalog && <button className="btn icon-btn-sq" title="Категорії пакетів" aria-label="Категорії пакетів" onClick={() => setCatsOpen(true)}><GearIcon /></button>}
+          {canWriteCatalog && <button className="btn primary" onClick={() => setOpen({ pkg: null, items: [] })}>+ Пакет</button>}
+        </div>
       </div>
-      <div className="grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
         {list.map((p) => {
           const its = items.filter((x) => x.package_id === p.id);
           const t = m.totals(p, its);
           return (
             <div key={p.id} className="card" style={{ padding: 14, cursor: "pointer" }} onClick={() => setOpen({ pkg: p, items: its })}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{p.name}</b><span className="badge draft">{KIND_LABEL[p.kind]}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{p.name}</b><span className="badge draft">{catName(p.category_id)}</span></div>
               {p.description && <div className="note" style={{ marginTop: 4 }}>{p.description}</div>}
               <div className="note" style={{ marginTop: 6 }}>{its.length} позицій · {its.filter((x) => x.kind === "house").reduce((a, x) => a + Number(x.quantity || 0), 0)} будинків</div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
@@ -188,7 +220,8 @@ export default function PackagesScreen() {
         })}
         {!list.length && <div className="empty">Пакетів ще немає{canWriteCatalog ? " — натисніть «+ Пакет»" : ""}.</div>}
       </div>
-      {open && <PackageEditor pkg={open.pkg} items={open.items} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); load(); }} />}
+      {open && <PackageEditor pkg={open.pkg} items={open.items} cats={cats} onCats={() => setCatsOpen(true)} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); load(); }} />}
+      {catsOpen && <CategoriesModal onClose={() => { setCatsOpen(false); load(); }} />}
     </div>
   );
 }

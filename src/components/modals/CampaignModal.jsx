@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useMarketingData } from "@/context/MarketingDataContext";
 import { CAMPAIGN_STATUSES } from "@/lib/marketing";
 
-export default function CampaignModal({ open, campaign, onClose, onSaved }) {
+export default function CampaignModal({ open, campaign, onClose, onSaved, defaultProject }) {
   const { supabase, reload, CHANNELS, CHANNEL_LABELS } = useMarketingData();
   const { canWriteCatalog } = useAuth();
   const [name, setName] = useState("");
@@ -55,7 +55,7 @@ export default function CampaignModal({ open, campaign, onClose, onSaved }) {
         const { error: e } = await supabase.from("campaigns").update(payload).eq("id", campaign.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.from("campaigns").insert([payload]);
+        const { error: e } = await supabase.from("campaigns").insert([{ ...payload, project: defaultProject || null }]);
         if (e) throw e;
       }
       await reload();

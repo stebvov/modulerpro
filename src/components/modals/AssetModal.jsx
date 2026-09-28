@@ -9,7 +9,7 @@ function toDateInputValue(iso) {
   return iso ? iso.slice(0, 10) : "";
 }
 
-export default function AssetModal({ open, asset, defaultDate, onClose, onSaved }) {
+export default function AssetModal({ open, asset, defaultDate, onClose, onSaved, defaultProject }) {
   const { supabase, templates, reload, CHANNELS, CHANNEL_LABELS } = useMarketingData();
   const { canWriteCatalog } = useAuth();
   const [title, setTitle] = useState("");
@@ -58,7 +58,7 @@ export default function AssetModal({ open, asset, defaultDate, onClose, onSaved 
         const { error: e } = await supabase.from("marketing_assets").update(payload).eq("id", asset.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.from("marketing_assets").insert([payload]);
+        const { error: e } = await supabase.from("marketing_assets").insert([{ ...payload, project: defaultProject || null }]);
         if (e) throw e;
       }
       await reload();

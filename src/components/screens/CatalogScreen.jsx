@@ -102,12 +102,16 @@ export default function CatalogScreen() {
 
   return (
     <div>
-      <div className="toolbar" style={{ marginBottom: 10 }}>
-        <div className="toolbar-left">
-          <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)}>
-            ⇄ Порівняння{compareSelection.length ? ` (${compareSelection.length})` : ""}
-          </button>
-        </div>
+      <div className="toolbar" style={{ marginBottom: 10, justifyContent: "flex-end", gap: 6 }}>
+        <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)} title="Порівняти до 3 моделей">
+          ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
+        </button>
+        {canWriteCatalog && (
+          <button className="btn icon-btn-sq" title="Категорії моделей будинків" aria-label="Категорії моделей" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+        )}
+        {canWriteCatalog && (
+          <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>
+        )}
       </div>
 
       {showCompare && <CompareScreen compareSelection={compareSelection} />}
@@ -133,9 +137,6 @@ export default function CatalogScreen() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            {canWriteCatalog && (
-              <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
-            )}
           </div>
         </div>
         <div className="filter-field">
@@ -167,9 +168,6 @@ export default function CatalogScreen() {
             <label>&nbsp;</label>
             <button className="btn small" onClick={resetFilters}>✕ Скинути фільтри</button>
           </div>
-        )}
-        {canWriteCatalog && (
-          <button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => openModal(null)}>+ Новий шаблон</button>
         )}
       </div>
 

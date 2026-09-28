@@ -39,7 +39,7 @@ export default function ServicesCatalogScreen() {
 
   return (
     <div>
-      <p className="note">Каталог послуг — використовуються для побудови шаблонів послуг і як окремі позиції в замовленні.</p>
+      <p className="note">Послуги, які ми надаємо: доставка, фундамент, монтаж, під ключ тощо. Додаються в пакети й в угоди CRM окремими позиціями.</p>
       <div className="toolbar">
         <div className="toolbar-left">
           <SearchFilter value={search} onChange={setSearch} placeholder="Пошук послуги..." />
@@ -47,13 +47,15 @@ export default function ServicesCatalogScreen() {
             <option value="">Всі категорії</option>
             {serviceCategories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
           </select>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
           {canWriteCatalog && (
-            <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
+            <button className="btn icon-btn-sq" title="Категорії послуг" aria-label="Категорії послуг" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+          )}
+          {canWriteCatalog && (
+            <button className="btn primary" onClick={() => openModal(null)}>+ Нова послуга</button>
           )}
         </div>
-        {canWriteCatalog && (
-          <button className="btn primary" onClick={() => openModal(null)}>+ Нова послуга</button>
-        )}
       </div>
 
       <div className="table-scroll">

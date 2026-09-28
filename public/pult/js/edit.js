@@ -10,9 +10,10 @@ document.head.insertAdjacentHTML("beforeend",`<style id="editCss">
 .ie:hover{border-color:var(--line);background:var(--surface)}
 .ie:focus{outline:none;border-color:var(--accent);background:var(--surface);cursor:text}
 select.ie{padding-right:4px}
-.ie-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45;border:1px solid transparent;border-radius:8px;padding:8px 10px;background:var(--sunk);cursor:text;min-height:1.45em}
-.ie-note:hover{border-color:var(--line)}
-.ie-note:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.ie-note{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;cursor:text;min-height:1.45em;width:auto!important}
+.wdc{display:inline-flex;align-items:center;gap:2px;font-size:13px;color:var(--muted);cursor:pointer}.wdc input{width:auto;min-height:0}
+.ckmv{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;margin-left:6px;vertical-align:middle}.ckmv:hover{color:var(--accent)}
+.pop [data-ckmovestart]{display:none!important}
 .ie-note:empty::before{content:attr(data-ph);color:var(--muted)}
 .ttext{border-radius:4px}
 .card-head[aria-expanded="true"] .ttext{cursor:text}
@@ -34,6 +35,26 @@ select.ie{padding-right:4px}
 .pcard .ibar{margin:2px 0}
 </style>`);
 
+/* ---------- повторення: редагується як інші поля ---------- */
+function recurInline(t){
+  const r=t.recur||"none";
+  let h=`<select class="ie" data-ierecur="${t.id}" aria-label="Повторення">${opts(Object.entries(RECUR),r)}</select>`;
+  if(r==="every_n"||r==="monthly")h+=`<span class="meta">кожні</span><input class="ie" type="number" min="1" max="365" data-ie="recur_every" data-tid="${t.id}" value="${t.recur_every||1}" style="width:56px" aria-label="Кожні N"><span class="meta">${r==="monthly"?"міс":"дн"}</span>`;
+  if(r==="weekly")h+=WD.map((d,i)=>`<label class="wdc"><input type="checkbox" data-iewd="${t.id}" value="${i+1}"${(t.recur_weekdays||[]).includes(i+1)?" checked":""}>${d}</label>`).join("");
+  return h;
+}
+document.addEventListener("change",async e=>{
+  const r=e.target.closest("[data-ierecur]");
+  if(r){const id=r.dataset.ierecur,t=tasks.find(x=>x.id===id);if(!t)return;const v=r.value;
+    const patch={recur:v,recur_weekdays:v==="weekly"?(t.recur_weekdays?.length?t.recur_weekdays:[t.due?((new Date(t.due+"T12:00:00Z").getUTCDay()+6)%7)+1:1]):null};
+    if(v!=="none"&&!t.due)patch.due=today();
+    if(await saveTaskField(id,patch)){toast("Повторення: "+RECUR[v]);r.blur();render()}return}
+  const w=e.target.closest("[data-iewd]");
+  if(w){const id=w.dataset.iewd;const days=[...document.querySelectorAll(`[data-iewd="${id}"]:checked`)].map(x=>+x.value);
+    if(!days.length){w.checked=true;toast("Потрібен хоча б один день");return}
+    if(await saveTaskField(id,{recur_weekdays:days}))toast("Дні збережено")}
+},true);
+
 /* ---------- збереження поля задачі ---------- */
 async function saveTaskField(id,patch){
   const t=tasks.find(x=>x.id===id);if(!t)return;
@@ -48,23 +69,22 @@ const _editorOrig=editor;
 editor=function(t){
   if(editId===t.id)return _editorOrig(t);
   const projOpts=projects.filter(p=>p.status!=="done"||p.name===t.project).map(p=>[p.name,p.name]);
-  const rec=recurLabel(t);
   return `<div class="edit">
     <div class="full" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;align-items:center">
       <span class="meta">Виконавець</span><span><select class="ie" data-ie="owner_id" data-tid="${t.id}" aria-label="Виконавець">${peopleOpts(t.owner_id)}</select></span>
       <span class="meta">Контролер</span><span><select class="ie" data-ie="controller_id" data-tid="${t.id}" aria-label="Контролер"><option value="">— немає</option>${peopleOpts(t.controller_id)}</select></span>
       <span class="meta">Проєкт</span><span><select class="ie" data-ie="project" data-tid="${t.id}" aria-label="Проєкт">${opts(projOpts,t.project)}</select></span>
       <span class="meta">Термін</span><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><input class="ie" type="date" data-ie="due" data-tid="${t.id}" value="${esc(t.due||"")}" aria-label="Термін"><input class="ie" type="time" data-ie="due_time" data-tid="${t.id}" value="${esc(hm(t.due_time))}" aria-label="Час"></span>
-      <span class="meta">Повторення</span><span>${rec?esc(rec):"разова"} <button type="button" class="icon-btn" data-editcard="${t.id}" title="Змінити повторення (повна форма)" style="font-size:12px">✎</button></span>
+      <span class="meta">Повторення</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${recurInline(t)}</span>
+      <span class="meta" style="align-self:start;padding-top:2px">Опис</span><div class="ie ie-note" contenteditable="plaintext-only" data-ienote="${t.id}" data-ph="додати опис, контекст, #теги…">${esc(t.note||"")}</div>
     </div>
-    <div class="full ie-note" contenteditable="plaintext-only" data-ienote="${t.id}" data-ph="Опис задачі: контекст, деталі, #теги…">${esc(t.note||"")}</div>
     ${checksBlock(t)}
     ${feedBlock(t)}
   </div>`;
 };
 document.addEventListener("change",async e=>{
   const f=e.target.closest("[data-ie]");if(!f)return;
-  const k=f.dataset.ie,id=f.dataset.tid;let v=f.value||null;
+  const k=f.dataset.ie,id=f.dataset.tid;let v=f.value||null;if(k==="recur_every")v=Math.max(1,+v||1);
   if(k==="owner_id"&&!v)return;
   if(await saveTaskField(id,{[k]:v}))toast("Збережено");
 },true);
@@ -295,3 +315,23 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]),select{min-height:
 const _renderSf=render;
 render=function(){_renderSf.apply(this,arguments);try{mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}};
 try{mountSf("q","fBtn","fCount");mountSf("projQ","pFBtn");mountSf("teamQ");mountSf("tgQ","tgFBtn");mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}
+
+/* ---------- ⇅ порядок чекпоінтів — іконкою в заголовку «Чекпоінти · N/M» ---------- */
+function mountCkMove(){
+  document.querySelectorAll("#board .card .edit h3").forEach(h=>{
+    if(!/^Чекпоінти/.test(h.textContent)||h.querySelector(".ckmv"))return;
+    const id=h.closest(".card")?.dataset.id;if(!id||(checks[id]||[]).length<2||ckMove===id)return;
+    h.insertAdjacentHTML("beforeend",`<button type="button" class="ckmv" data-ckmovestart="${id}" title="Змінити порядок чекпоінтів" aria-label="Змінити порядок чекпоінтів">⇅</button>`);
+  });
+}
+/* ---------- повернення туди, звідки відкрили задачу (Мій пульт / Капітал) ---------- */
+let backTo=null;
+document.addEventListener("click",e=>{const a=e.target.closest("#tabMy a.myt, #tabCap a.myt, #tabMy [href^='#t/'], #tabCap [href^='#t/']");if(a)backTo=a.closest("#tabCap")?"cap":"my"},true);
+function relabelBack(){if(!backTo)return;document.querySelectorAll("#board [data-unfocus]").forEach(b=>{b.textContent=backTo==="cap"?"← Капітал":"← Мій пульт"})}
+window.addEventListener("click",e=>{
+  if(!backTo||!e.target.closest("[data-unfocus]"))return;e.stopPropagation();e.preventDefault();
+  const go=backTo;backTo=null;window.history.pushState("","",location.pathname+location.search);applyHash();
+  document.querySelector(`.seg [data-tab="${go}"]`)?.click();
+},true);
+const _renderCk=render;
+render=function(){_renderCk.apply(this,arguments);try{mountCkMove();relabelBack()}catch(err){console.error("edit",err)}};

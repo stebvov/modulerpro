@@ -36,6 +36,10 @@ import TownsScreen from "@/components/screens/TownsScreen";
 import UkScreen from "@/components/screens/UkScreen";
 import RentScreen from "@/components/screens/RentScreen";
 import PackagesScreen from "@/components/screens/PackagesScreen";
+import OwnerScreen from "@/components/screens/OwnerScreen";
+import Ledger from "@/components/finance/Ledger";
+import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
+import UnitsPanel from "@/components/panels/UnitsPanel";
 
 // Екрани Moduler Pro (React). Вкладки "pult-*" показує PultFrame.
 const SCREENS = {
@@ -52,6 +56,12 @@ const SCREENS = {
   "catalog-services": () => <ServicesCatalogScreen />,
   "service-templates": () => <ServiceTemplatesScreen />,
   packages: () => <PackagesScreen />,
+  owners: () => <OwnerScreen />,
+  owner: () => <OwnerScreen />,
+  "uk-crm": () => <CrmDataProvider><CrmScreen onlySlug="uk-owners" /></CrmDataProvider>,
+  "uk-fin": () => <Ledger direction="service" />,
+  "uk-mkt": () => <MarketingDataProvider><MarketingScreen direction="service" /></MarketingDataProvider>,
+  "material-categories": () => <div style={{ display: "grid", gap: 24 }}><MaterialCategoriesPanel /><UnitsPanel /></div>,
   towns: () => <TownsScreen />,
   uk: () => <UkScreen />,
   rent: () => <RentScreen />,
@@ -88,6 +98,11 @@ export default function AppShell() {
   const { currency, setCurrency, menuGroupOrder, menuHomeGroup } = useAppData();
   const { user, profile, loading, isAdmin, canWriteFinance, isPartner, partnerTabs } = useAuth();
   const member = usePultMember(user?.email);
+  const [unitOwner, setUnitOwner] = useState(null);
+  useEffect(() => {
+    if (!user || loading || profile || member !== null) return;
+    createClient().rpc("owner_cabinet").then(({ data }) => setUnitOwner(!data?.staff && (data?.objects?.length || 0) > 0));
+  }, [user, loading, profile, member]);
   const [start] = useState(readUrl);
   const [activeTab, setActiveTab] = useState(start.s || null);
   const [pultOpened, setPultOpened] = useState(() => isPult(start.s));
@@ -110,6 +125,7 @@ export default function AppShell() {
       : need === "mgr" ? !!(member?.can_manage || member?.is_owner)
       : need === "finance" ? canWriteFinance
       : need === "admin" ? isAdmin
+      : need === "unitowner" ? unitOwner
       : true;
     let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) })).filter((x) => x.tabs.length);
     // зовнішній партнер бачить лише відкриті йому групи/розділи Moduler Pro
@@ -126,9 +142,10 @@ export default function AppShell() {
       g = next;
     }
     return g;
-  }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder]);
+  }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder, unitOwner]);
 
-  const ready = !loading && (member !== undefined || !user);
+  // власник юніта без інших прав — чекаємо перевірки його юнітів, щоб не показати «Немає доступу»
+  const ready = !loading && (member !== undefined || !user) && (!!profile || !!member || !user || unitOwner !== null);
   const allIds = groups.flatMap((g) => g.tabs.map((t) => t.id));
 
   // стартова вкладка: з адреси (?s=), інакше домашня група з налаштувань меню
