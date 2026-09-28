@@ -1,4 +1,5 @@
 "use client";
+import { GearIcon } from "@/components/Icon";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -133,7 +134,7 @@ export default function CatalogScreen() {
               ))}
             </select>
             {canWriteCatalog && (
-              <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)}>⚙</button>
+              <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
             )}
           </div>
         </div>

@@ -242,6 +242,12 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   const { canWriteCatalog, profile } = useAuth();
 
   const [savedId, setSavedId] = useState(dealId || null);
+  const [pkgs, setPkgs] = useState({ list: [], items: [] });
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([supabase.from("packages").select("id,name,kind").eq("status", "active").order("sort"), supabase.from("package_items").select("*").order("sort")])
+      .then(([p, i]) => setPkgs({ list: p.data || [], items: i.data || [] }));
+  }, [open, supabase]);
   const [tab, setTab] = useState("коментарі");
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
@@ -612,7 +618,17 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                   const { kind } = parseSelection(row.selection);
                   return (
                     <div key={row.key} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                      <select style={{ flex: "1 1 220px" }} value={row.selection} onChange={(e) => updateOrderItem(i, { selection: e.target.value })}>
+                      <select style={{ flex: "1 1 220px" }} value={row.selection} onChange={(e) => {
+                        const v = e.target.value;
+                        if (v.startsWith("package:")) {
+                          // пакет розгортається у свої позиції (будинки, послуги, власні рядки)
+                          const its = pkgs.items.filter((x) => x.package_id === v.slice(8));
+                          const rows = its.map((x) => emptyOrderItem({ selection: x.kind === "custom" ? "custom" : `${x.kind}:${x.template_id}`, label: x.label || "", unit_price: x.unit_price ?? "", quantity: x.quantity }));
+                          setForm((f) => ({ ...f, order_items: [...f.order_items.slice(0, i), ...rows, ...f.order_items.slice(i + 1)] }));
+                          return;
+                        }
+                        updateOrderItem(i, { selection: v });
+                      }}>
                         <option value="custom">— кастомна позиція (матеріал/послуга) —</option>
                         {form.request_type === "template" && templates.length > 0 && (
                           <optgroup label="Будинки">
@@ -621,6 +637,11 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                                 {t.name} · {t.area_m2} м²{t.base_cost_per_m2 != null ? ` · ${curr(t.base_cost_per_m2)} грн/м²` : " · немає ціни"}
                               </option>
                             ))}
+                          </optgroup>
+                        )}
+                        {pkgs.list.length > 0 && (
+                          <optgroup label="📦 Пакети (розгорнуться в позиції)">
+                            {pkgs.list.map((p) => <option key={p.id} value={`package:${p.id}`}>{p.name}</option>)}
                           </optgroup>
                         )}
                         {serviceTemplates.length > 0 && (

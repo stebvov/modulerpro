@@ -2,15 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { GearIcon } from "@/components/Icon";
+import ChannelsModal from "@/components/modals/ChannelsModal";
 import { useMarketingData } from "@/context/MarketingDataContext";
 import AssetModal from "@/components/modals/AssetModal";
 import CampaignModal from "@/components/modals/CampaignModal";
 import {
   ASSET_TYPE_ICONS,
   CAMPAIGN_STATUSES,
-  CHANNELS,
-  CHANNEL_COLORS,
-  CHANNEL_LABELS,
   MONTHS,
   addMonths,
   campaignStatusStyles,
@@ -21,11 +20,13 @@ import {
 } from "@/lib/marketing";
 
 export default function MarketingScreen() {
-  const { loading, error, assets, campaigns, supabase, reload } = useMarketingData();
+  const { loading, error, assets, campaigns, supabase, reload, CHANNELS, CHANNEL_COLORS, CHANNEL_LABELS } = useMarketingData();
+  const [channelsOpen, setChannelsOpen] = useState(false);
   const { canWriteCatalog } = useAuth();
   const [view, setView] = useState("calendar");
   const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
-  const [activeChannels, setActiveChannels] = useState(() => new Set(CHANNELS));
+  const [hiddenChannels, setHiddenChannels] = useState(() => new Set());
+  const activeChannels = { has: (ch) => !hiddenChannels.has(ch) };
   const [assetModal, setAssetModal] = useState(null);
   const [campaignModal, setCampaignModal] = useState(null);
 
@@ -33,9 +34,9 @@ export default function MarketingScreen() {
   const today = useMemo(() => toDateKey(new Date()), []);
 
   function toggleChannel(ch) {
-    setActiveChannels((prev) => {
+    setHiddenChannels((prev) => {
       const next = new Set(prev);
-      if (next.has(ch)) next.delete(ch); else next.add(ch);
+      if (next.has(ch)) next.delete(ch); else next.add(ch); // у наборі — сховані канали
       return next;
     });
   }
@@ -70,6 +71,9 @@ export default function MarketingScreen() {
           <button className={`seg-btn${view === "calendar" ? " active" : ""}`} onClick={() => setView("calendar")}>Контент-календар</button>
           <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Дашборд реклами</button>
         </div>
+        {canWriteCatalog && (
+          <button className="btn" onClick={() => setChannelsOpen(true)} title="Канали реклами й контенту: додати, змінити, видалити"><GearIcon /> Канали</button>
+        )}
       </div>
 
       {view === "calendar" && (
@@ -243,6 +247,7 @@ export default function MarketingScreen() {
           onSaved={() => setCampaignModal(null)}
         />
       )}
+      <ChannelsModal open={channelsOpen} onClose={() => setChannelsOpen(false)} />
     </div>
   );
 }

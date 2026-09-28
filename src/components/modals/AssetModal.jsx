@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketingData } from "@/context/MarketingDataContext";
-import { ASSET_STATUSES, ASSET_TYPE_LABELS, CHANNELS, CHANNEL_LABELS } from "@/lib/marketing";
+import { ASSET_STATUSES, ASSET_TYPE_LABELS } from "@/lib/marketing";
 
 function toDateInputValue(iso) {
   return iso ? iso.slice(0, 10) : "";
 }
 
 export default function AssetModal({ open, asset, defaultDate, onClose, onSaved }) {
-  const { supabase, templates, reload } = useMarketingData();
+  const { supabase, templates, reload, CHANNELS, CHANNEL_LABELS } = useMarketingData();
   const { canWriteCatalog } = useAuth();
   const [title, setTitle] = useState("");
   const [type, setType] = useState("фото");

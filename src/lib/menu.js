@@ -17,18 +17,24 @@ export const MENU = [
   {
     key: "catalog", label: "📚 Каталог", need: "mp",
     tabs: [
-      { id: "catalog", label: "Каталог шаблонів" },
-      { id: "materials", label: "Матеріали" },
-      { id: "suppliers", label: "Постачальники" },
-      { id: "categories", label: "Категорії" },
-      { id: "price", label: "Ціни" },
+      { id: "catalog", label: "Моделі будинків" },
+      { id: "packages", label: "📦 Пакети" },
       { id: "catalog-services", label: "Послуги" },
       { id: "service-templates", label: "Шаблони послуг" },
+      { id: "categories", label: "Категорії" },
     ],
   },
   {
     key: "production", label: "🏭 Виробництво", need: "mp",
     tabs: [{ id: "production", label: "Виробництво" }, { id: "services", label: "Відвантаження і монтаж (дод. послуги)" }],
+  },
+  {
+    key: "suppliers", label: "🏪 Постачальники", need: "mp",
+    tabs: [
+      { id: "suppliers", label: "Постачальники й контакти" },
+      { id: "materials", label: "Товари й матеріали" },
+      { id: "price", label: "Ціни постачальників" },
+    ],
   },
   {
     key: "towns", label: "🏘 Містечка й дохідна нерухомість", need: "any",

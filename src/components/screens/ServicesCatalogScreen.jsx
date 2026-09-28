@@ -1,4 +1,6 @@
 "use client";
+import SearchFilter from "@/components/SearchFilter";
+import { GearIcon } from "@/components/Icon";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -40,13 +42,13 @@ export default function ServicesCatalogScreen() {
       <p className="note">Каталог послуг — використовуються для побудови шаблонів послуг і як окремі позиції в замовленні.</p>
       <div className="toolbar">
         <div className="toolbar-left">
-          <input type="text" className="search-input" placeholder="Пошук послуги..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук послуги..." />
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="">Всі категорії</option>
             {serviceCategories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
           </select>
           {canWriteCatalog && (
-            <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)}>⚙</button>
+            <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
           )}
         </div>
         {canWriteCatalog && (

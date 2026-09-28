@@ -1,4 +1,5 @@
 "use client";
+import SearchFilter from "@/components/SearchFilter";
 
 import { Fragment, useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -66,7 +67,7 @@ export default function PriceByMaterialScreen() {
     <div className="toolbar">
       <div className="toolbar-left">
         <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-        <input type="text" className="search-input" placeholder="Пошук товару..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." />
       </div>
     </div>
   );

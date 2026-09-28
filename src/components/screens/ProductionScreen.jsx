@@ -1,4 +1,5 @@
 "use client";
+import { GearIcon } from "@/components/Icon";
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -54,7 +55,7 @@ export default function ProductionScreen() {
       <div className="section-label">
         Календар майданчиків
         {canWriteCatalog && (
-          <button className="btn small" onClick={() => setSettingsOpen(true)} title="Налаштування">⚙</button>
+          <button className="btn small" onClick={() => setSettingsOpen(true)} title="Налаштування" ><GearIcon /></button>
         )}
       </div>
       <div className="gantt-nav">

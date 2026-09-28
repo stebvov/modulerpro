@@ -524,3 +524,45 @@ th.th-filter { vertical-align: top; }
   .deal-right { overflow: visible; }
   .deal-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== Єдиний стиль кнопок, вкладок, фільтрів і полів (28.09) =====
+   Усе — прямокутники зі скругленням 8px однакової висоти; мітки/бейджі — 6px. Без «овалів». */
+:root { --r: 8px; --r-sm: 6px; --h: 32px; }
+.btn, .seg-btn, .subtab, .mobile-subtab, .currency-menu-btn, .sidebar-link, .mobile-drawer-link { border-radius: var(--r); }
+.btn, .seg-btn, .subtab { min-height: var(--h); display: inline-flex; align-items: center; justify-content: center; gap: 6px; line-height: 1.2; }
+.btn.small { min-height: 26px; border-radius: var(--r-sm); }
+.seg-btn { font-size: 13px; padding: 5px 12px; }
+.subtab { padding: 5px 14px; }
+select, input, textarea, .search-input, .chip-list { border-radius: var(--r); }
+select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { min-height: var(--h); }
+.badge, .tag, .chip, .tag-check, .role-pill { border-radius: var(--r-sm); }
+.btn svg, .seg-btn svg { flex: none; }
+.icon-btn-sq { width: var(--h); padding: 0 !important; }
+
+/* Пошук з вбудованою квадратною кнопкою фільтрів (як у KeyCRM) */
+.sf { position: relative; display: flex; align-items: center; flex: 1 1 260px; min-width: 200px; max-width: 520px; }
+.sf > svg.sf-ico { position: absolute; left: 10px; color: var(--text-muted); pointer-events: none; }
+.sf > input { width: 100%; padding-left: 32px; padding-right: 44px; }
+.sf > input.nofilter { padding-right: 10px; }
+.sf-btn { position: absolute; right: 3px; top: 3px; bottom: 3px; width: 32px; border: 0; border-radius: var(--r-sm); background: var(--bg); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sf-btn:hover { color: var(--accent); background: var(--accent-bg); }
+.sf-btn.on { background: var(--accent); color: #fff; }
+.sf-n { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+.sf-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 10px; margin: 8px 0 12px; }
+.sf-panel select { width: auto; min-width: 150px; max-width: 100%; }
+
+/* Випадний список з пошуком першим рядком */
+.ss-btn { display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; min-height: var(--h); padding: 5px 10px; border: 1px solid var(--border-strong); border-radius: var(--r); background: var(--card); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-align: left; max-width: 100%; min-width: 120px; }
+.ss-btn > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-btn:hover, .ss-btn[aria-expanded="true"] { border-color: var(--accent); }
+.ss-ph { color: var(--text-muted); }
+.ss-caret { color: var(--text-muted); font-size: 10px; flex: none; }
+.ss-pop { position: fixed; z-index: 1000; background: var(--card); border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0,0,0,.14); padding: 6px; max-width: min(420px, 92vw); }
+.ss-q { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+.ss-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; }
+.ss-opt { border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: var(--r-sm); font: inherit; font-size: 13px; color: var(--text); cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.ss-opt.hi { background: var(--accent-bg); }
+.ss-opt.on { font-weight: 600; color: var(--accent); }
+.ss-hint { color: var(--text-muted); font-size: 11.5px; }
+.ss-create { color: var(--accent); font-weight: 500; }
+.ss-empty { padding: 10px; color: var(--text-muted); font-size: 13px; }

@@ -1,4 +1,5 @@
 "use client";
+import SearchFilter from "@/components/SearchFilter";
 
 import { Fragment, useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -213,7 +214,7 @@ function Toolbar({ search, setSearch, categoryFilter, setCategoryFilter, materia
     <div className="toolbar">
       <div className="toolbar-left">
         <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-        <input type="text" className="search-input" placeholder="Пошук постачальника..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <SearchFilter value={search} onChange={setSearch} placeholder="Пошук постачальника..." />
       </div>
     </div>
   );

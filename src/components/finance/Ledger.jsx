@@ -9,6 +9,8 @@ import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { fxTo, money, toNum, todayKyiv } from "@/lib/mod";
+import SelectSearch from "@/components/SelectSearch";
+import SearchFilter from "@/components/SearchFilter";
 
 export const KINDS = [
   { type: "витрата-офіс", label: "OPEX — операційні", short: "OPEX", group: "opex", sign: -1 },
@@ -35,7 +37,7 @@ const monthName = (m) => { const t = new Date(m + "-01T12:00:00Z").toLocaleDateS
 
 function blankRow(month) {
   const today = todayKyiv();
-  return { date: today.startsWith(month) ? today : `${month}-01`, type: "витрата-офіс", amount: "", currency: "UAH", category: "", project: "", party: "", counterparty: "", note: "" };
+  return { date: today.startsWith(month) ? today : `${month}-01`, type: "витрата-офіс", amount: "", currency: "UAH", category: "", project: "", party: "", counterparty: "", note: "", deal_id: "" };
 }
 const partyOf = (t) => (t.supplier_id ? "s:" + t.supplier_id : t.partner_id ? "p:" + t.partner_id : "");
 
@@ -81,12 +83,12 @@ export default function Ledger() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("transaction_categories").select("name").order("sort_order"),
+      supabase.from("transaction_categories").select("id,name,parent_id,kind,sort_order").order("sort_order"),
       supabase.from("task_projects").select("name,status,direction").order("sort"),
       supabase.from("service_partners").select("id,name").order("name"),
       supabase.from("deals").select("id, leads(name)").order("created_at", { ascending: false }).limit(200),
     ]).then(([c, p, sp, d]) => {
-      setCats((c.data || []).map((x) => x.name));
+      setCats(c.data || []);
       setProjects((p.data || []).filter((x) => x.status !== "done").map((x) => x.name));
       setPartners(sp.data || []);
       setDeals((d.data || []).map((x) => ({ id: x.id, name: x.leads?.name || "угода" })));
@@ -97,6 +99,27 @@ export default function Ledger() {
     ...(suppliers || []).map((s) => ["s:" + s.id, "🏪 " + s.name]),
     ...partners.map((p) => ["p:" + p.id, "🛠 " + p.name]),
   ], [suppliers, partners]);
+  // категорії: лише ті, що підходять до типу транзакції (або універсальні), деревом
+  const catOptions = useCallback((type) => {
+    const g = type ? KIND[type]?.group : null;
+    const fit = (c) => !g || !c.kind || c.kind === g;
+    const out = [];
+    const walk = (parent, depth) => cats.filter((c) => (c.parent_id || null) === parent).forEach((c) => {
+      if (fit(c)) out.push({ value: c.name, label: c.name, depth });
+      walk(c.id, fit(c) ? depth + 1 : depth);
+    });
+    walk(null, 0);
+    return out;
+  }, [cats]);
+  const projOptions = projects.map((p) => ({ value: p, label: p }));
+  const dealOptions = deals.map((d) => ({ value: d.id, label: d.name }));
+  const partyOpts = partyOptions.map(([v, l]) => ({ value: v, label: l }));
+  async function createCategory(type, name) {
+    const { error: er } = await supabase.from("transaction_categories").insert({ name, kind: KIND[type]?.group || null, sort_order: cats.length + 1 });
+    if (er) { setMsg("Категорію не додано: " + er.message); return null; }
+    setCats((c) => [...c, { id: name, name, parent_id: null, kind: KIND[type]?.group || null }]);
+    return name;
+  }
   const partyName = (t) => t.suppliers?.name || t.service_partners?.name || t.counterparty || (t.deals?.leads?.name ? "🤝 " + t.deals.leads.name : "");
   const conv = useCallback((t) => (fxTo(t.amount, t.currency || "UAH", currency, exchangeRates) || 0) * (KIND[t.type]?.sign || -1), [currency, exchangeRates]);
 
@@ -162,33 +185,27 @@ export default function Ledger() {
       {label}{sort.key === key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
     </th>
   );
-  const fields = (r, set, compact) => (
+  const fields = (r, set) => (
     <>
-      <input type="date" value={r.date} onChange={(e) => set({ ...r, date: e.target.value })} style={{ width: 140 }} aria-label="Дата" />
-      <select value={r.type} onChange={(e) => set({ ...r, type: e.target.value })} style={{ width: compact ? 150 : 200 }} aria-label="Тип">
+      <input type="date" value={r.date} onChange={(e) => set({ ...r, date: e.target.value })} style={{ width: 145 }} aria-label="Дата" />
+      <select value={r.type} onChange={(e) => set({ ...r, type: e.target.value, category: catOptions(e.target.value).some((o) => o.value === r.category) ? r.category : "" })} style={{ width: 200 }} aria-label="Тип">
         {KINDS.map((x) => <option key={x.type} value={x.type}>{x.label}</option>)}
       </select>
       <input value={r.amount} onChange={(e) => set({ ...r, amount: e.target.value })} inputMode="decimal" placeholder="Сума" style={{ width: 110, textAlign: "right" }} aria-label="Сума" />
       <select value={r.currency} onChange={(e) => set({ ...r, currency: e.target.value })} style={{ width: 70 }} aria-label="Валюта">
         <option value="UAH">грн</option><option value="USD">$</option><option value="EUR">€</option>
       </select>
-      <input value={r.category} onChange={(e) => set({ ...r, category: e.target.value })} list="ledger-cats" placeholder="Категорія" style={{ width: 150 }} aria-label="Категорія" />
-      <select value={r.project} onChange={(e) => set({ ...r, project: e.target.value })} style={{ width: 170 }} aria-label="Проєкт">
-        <option value="">— проєкт —</option>
-        {projects.map((p) => <option key={p} value={p}>{p}</option>)}
-      </select>
-      <select value={r.party} onChange={(e) => set({ ...r, party: e.target.value })} style={{ width: 170 }} aria-label="Постачальник або підрядник">
-        <option value="">— постачальник / підрядник —</option>
-        {partyOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-      {!r.party && <input value={r.counterparty} onChange={(e) => set({ ...r, counterparty: e.target.value })} placeholder="або кому / від кого" style={{ width: 140 }} aria-label="Контрагент" />}
+      <SelectSearch value={r.category} options={catOptions(r.type)} onChange={(v) => set({ ...r, category: v })} placeholder="Категорія" emptyLabel="— без категорії —" width={170} ariaLabel="Категорія" onCreate={(name) => createCategory(r.type, name)} />
+      <SelectSearch value={r.project} options={projOptions} onChange={(v) => set({ ...r, project: v })} placeholder="Проєкт" emptyLabel="— без проєкту —" width={170} ariaLabel="Проєкт" />
+      <SelectSearch value={r.party} options={partyOpts} onChange={(v) => set({ ...r, party: v })} placeholder="Постачальник / підрядник" emptyLabel="— немає —" width={190} ariaLabel="Постачальник або підрядник" />
+      <SelectSearch value={r.deal_id || ""} options={dealOptions} onChange={(v) => set({ ...r, deal_id: v })} placeholder="Угода CRM" emptyLabel="— без угоди —" width={160} ariaLabel="Угода CRM" />
+      {!r.party && <input value={r.counterparty} onChange={(e) => set({ ...r, counterparty: e.target.value })} placeholder="або кому / від кого" style={{ width: 150 }} aria-label="Контрагент" />}
       <input value={r.note} onChange={(e) => set({ ...r, note: e.target.value })} placeholder="Коментар" style={{ flex: 1, minWidth: 140 }} aria-label="Коментар" />
     </>
   );
 
   return (
     <div>
-      <datalist id="ledger-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
 
       <div className="toolbar" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <div className="seg-row">
@@ -222,24 +239,16 @@ export default function Ledger() {
       )}
       {msg && <div className="note" style={{ background: "var(--accent-bg)", padding: "6px 12px", borderRadius: 8, marginBottom: 10 }}>{msg}</div>}
 
-      <div className="toolbar" style={{ gap: 6, flexWrap: "wrap" }}>
+      <div className="toolbar" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <div className="seg-row">
           {GROUPS.map(([v, l]) => <button key={v} className={`seg-btn${group === v ? " active" : ""}`} onClick={() => setGroup(v)}>{l}</button>)}
         </div>
-        <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук: категорія, коментар, контрагент, сума" style={{ flex: 1, minWidth: 200 }} />
-        <select value={fCat} onChange={(e) => setFCat(e.target.value)} style={{ width: 160 }} aria-label="Категорія">
-          <option value="">Усі категорії</option>
-          {[...new Set([...cats, ...rows.map((t) => t.category).filter(Boolean)])].map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={fProject} onChange={(e) => setFProject(e.target.value)} style={{ width: 170 }} aria-label="Проєкт">
-          <option value="">Усі проєкти</option><option value="—">Без проєкту</option>
-          {projects.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={fParty} onChange={(e) => setFParty(e.target.value)} style={{ width: 170 }} aria-label="Контрагент">
-          <option value="">Усі контрагенти</option>
-          {partyOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        {(group || fCat || fProject || fParty || q) && <button className="btn small" onClick={() => { setGroup(""); setFCat(""); setFProject(""); setFParty(""); setQ(""); }}>Скинути</button>}
+        <SearchFilter value={q} onChange={setQ} placeholder="Пошук: категорія, коментар, контрагент, сума" active={[fCat, fProject, fParty].filter(Boolean).length}
+          onReset={() => { setFCat(""); setFProject(""); setFParty(""); }}>
+          <SelectSearch value={fCat} options={catOptions(null)} onChange={setFCat} placeholder="Усі категорії" emptyLabel="Усі категорії" width={180} ariaLabel="Фільтр: категорія" />
+          <SelectSearch value={fProject} options={[{ value: "—", label: "Без проєкту" }, ...projOptions]} onChange={setFProject} placeholder="Усі проєкти" emptyLabel="Усі проєкти" width={180} ariaLabel="Фільтр: проєкт" />
+          <SelectSearch value={fParty} options={partyOpts} onChange={setFParty} placeholder="Усі контрагенти" emptyLabel="Усі контрагенти" width={190} ariaLabel="Фільтр: контрагент" />
+        </SearchFilter>
       </div>
 
       {error ? <div className="empty">Помилка: {error}</div> : loading ? <div className="empty">Завантаження…</div> : (
@@ -250,11 +259,7 @@ export default function Ledger() {
               {view.map((t) => edit?.id === t.id ? (
                 <tr key={t.id}><td colSpan={8}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                    {fields(edit, setEdit, true)}
-                    <select value={edit.deal_id || ""} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })} style={{ width: 160 }} aria-label="Угода">
-                      <option value="">— угода CRM —</option>
-                      {deals.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    {fields(edit, setEdit)}
                     <button className="btn primary small" onClick={saveEdit}>Зберегти</button>
                     <button className="btn small" onClick={() => setEdit(null)}>Скасувати</button>
                   </div>
@@ -273,7 +278,7 @@ export default function Ledger() {
                   <td style={{ maxWidth: 260, overflowWrap: "anywhere" }}>{t.note}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     {canWriteFinance && <>
-                      <button className="btn small" title="Редагувати" onClick={() => setEdit({ ...t, amount: String(t.amount), category: t.category || "", project: t.project || "", party: partyOf(t), counterparty: t.counterparty || "", note: t.note || "" })}>✎</button>{" "}
+                      <button className="btn small" title="Редагувати" onClick={() => setEdit({ ...t, amount: String(t.amount), category: t.category || "", project: t.project || "", party: partyOf(t), counterparty: t.counterparty || "", note: t.note || "", deal_id: t.deal_id || "" })}>✎</button>{" "}
                       <button className="btn small" title="Видалити" onClick={() => remove(t.id)}>{sure === t.id ? "Точно?" : "×"}</button>
                     </>}
                   </td>

@@ -239,3 +239,58 @@ document.head.insertAdjacentHTML("beforeend",`<style>.edit label.f:has(#e-tags){
 document.addEventListener("focusout",()=>setTimeout(()=>{if(!editing())afterEdit()},0));
 /* файл міг завантажитись після першого малювання пульту — перемальовуємо один раз */
 try{mountProjButtons();if(typeof booted!=="undefined"&&booted){render();renderProjects()}}catch(err){console.error("edit",err)}
+
+/* ---------- Згорнути / розгорнути всі групи задач (за людьми чи проєктами) ---------- */
+function mountCollapseAll(){
+  const bar=document.querySelector("#tabTasks .toolbar");if(!bar||bar.querySelector("[data-collall]"))return;
+  bar.insertAdjacentHTML("beforeend",`<button type="button" class="btn sm" data-collall title="Згорнути або розгорнути всі групи">⇕ Згорнути всі</button>`);
+}
+function syncCollapseAll(){
+  const b=document.querySelector("[data-collall]");if(!b)return;
+  const keys=[...document.querySelectorAll("#board .group[data-gkey]")].map(g=>g.dataset.gkey);
+  const allClosed=keys.length&&keys.every(k=>collapsed.has(k));
+  b.textContent=allClosed?"⇕ Розгорнути всі":"⇕ Згорнути всі";b.dataset.state=allClosed?"closed":"open";
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-collall]");if(!b)return;e.stopPropagation();
+  const keys=[...document.querySelectorAll("#board .group[data-gkey]")].map(g=>g.dataset.gkey);
+  if(b.dataset.state==="closed")keys.forEach(k=>collapsed.delete(k));else keys.forEach(k=>collapsed.add(k));
+  saveCollapsed();render();
+},true);
+
+/* ---------- Пошук з вбудованою квадратною кнопкою фільтрів (як у KeyCRM) ---------- */
+const FILTER_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>`;
+const SEARCH_SVG=`<svg class="sf-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
+function mountSf(inputId,btnId,countId){
+  const inp=document.getElementById(inputId);if(!inp||inp.parentElement.classList.contains("sf"))return;
+  const btn=btnId&&document.getElementById(btnId);
+  const wrap=document.createElement("span");wrap.className="sf";inp.parentElement.insertBefore(wrap,inp);
+  wrap.insertAdjacentHTML("beforeend",SEARCH_SVG);wrap.appendChild(inp);
+  if(!btn){inp.classList.add("nofilter");return}
+  const cnt=(countId&&document.getElementById(countId))||btn.querySelector("span");
+  btn.classList.add("sf-btn");btn.title="Фільтри";
+  const badge=document.createElement("span");badge.className="sf-n";badge.hidden=true;
+  [...btn.childNodes].forEach(n=>{if(n!==cnt)n.remove()});btn.insertAdjacentHTML("afterbegin",FILTER_SVG);btn.appendChild(badge);
+  if(cnt){cnt.hidden=true;const sync=()=>{const n=(cnt.textContent.match(/\d+/)||[])[0];badge.textContent=n||"";badge.hidden=!n};sync();new MutationObserver(sync).observe(cnt,{childList:true,characterData:true,subtree:true})}
+  wrap.appendChild(btn);
+}
+document.head.insertAdjacentHTML("beforeend",`<style id="unifiedCss">
+/* єдиний стиль: прямокутники зі скругленням 8px, однакова висота; мітки — 6px */
+:root{--r:8px;--r-sm:6px;--h:32px}
+.btn,.seg button,.stat,.fchip,.stg,.bz-num,.verdict,.pill,.tag,.htag,.due,.stale,.m.rec,.subtab{border-radius:var(--r-sm)!important}
+.btn,.seg button{border-radius:var(--r)!important;min-height:var(--h);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.sm{min-height:26px}
+input,select,textarea{border-radius:var(--r)!important}
+input:not([type=checkbox]):not([type=radio]):not([type=file]),select{min-height:var(--h)}
+.sf{position:relative;display:flex;align-items:center;flex:1 1 260px;min-width:200px;max-width:560px}
+.sf>.sf-ico{position:absolute;left:10px;color:var(--muted);pointer-events:none}
+.sf>input{width:100%;padding-left:32px!important;padding-right:44px!important}
+.sf>input.nofilter{padding-right:10px!important}
+.sf .sf-btn{position:absolute!important;right:3px;top:3px;bottom:3px;width:32px;min-height:0!important;padding:0!important;border:0!important;border-radius:var(--r-sm)!important;background:var(--sunk);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sf .sf-btn:hover{color:var(--accent);background:var(--info-bg)}
+.sf .sf-btn.on,.sf .sf-btn[aria-expanded="true"]{background:var(--accent)!important;color:#fff!important}
+.sf .sf-n{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font:700 10px/16px var(--body);text-align:center;padding:0 4px}
+</style>`);
+const _renderSf=render;
+render=function(){_renderSf.apply(this,arguments);try{mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}};
+try{mountSf("q","fBtn","fCount");mountSf("projQ","pFBtn");mountSf("teamQ");mountSf("tgQ","tgFBtn");mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}

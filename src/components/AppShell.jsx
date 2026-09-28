@@ -34,6 +34,7 @@ import TeamScreen from "@/components/screens/TeamScreen";
 import TownsScreen from "@/components/screens/TownsScreen";
 import UkScreen from "@/components/screens/UkScreen";
 import RentScreen from "@/components/screens/RentScreen";
+import PackagesScreen from "@/components/screens/PackagesScreen";
 
 // Екрани Moduler Pro (React). Вкладки "pult-*" показує PultFrame.
 const SCREENS = {
@@ -49,6 +50,7 @@ const SCREENS = {
   price: () => <PriceScreen />,
   "catalog-services": () => <ServicesCatalogScreen />,
   "service-templates": () => <ServiceTemplatesScreen />,
+  packages: () => <PackagesScreen />,
   towns: () => <TownsScreen />,
   uk: () => <UkScreen />,
   rent: () => <RentScreen />,

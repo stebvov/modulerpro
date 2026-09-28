@@ -1,4 +1,5 @@
 "use client";
+import SearchFilter from "@/components/SearchFilter";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -27,7 +28,7 @@ export default function ServiceTemplatesScreen() {
       <p className="note">Шаблони послуг — набори послуг, які можна одразу додати в замовлення клієнта, аналогічно шаблонам будинків.</p>
       <div className="toolbar">
         <div className="toolbar-left">
-          <input type="text" className="search-input" placeholder="Пошук шаблону..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук шаблону..." />
         </div>
         {canWriteCatalog && (
           <button className="btn primary" onClick={() => openModal(null)}>+ Новий шаблон</button>

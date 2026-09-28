@@ -1,4 +1,6 @@
 "use client";
+import SearchFilter from "@/components/SearchFilter";
+import { GearIcon } from "@/components/Icon";
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -121,7 +123,7 @@ export default function CrmScreen() {
               </button>
             );
           })}
-          <button className="btn small" title="Налаштування" onClick={() => setModal({ mode: "settings" })}>⚙</button>
+          <button className="btn small" title="Налаштування" onClick={() => setModal({ mode: "settings" })} ><GearIcon /></button>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ textAlign: "right" }}>
@@ -140,12 +142,13 @@ export default function CrmScreen() {
       </div>
 
       <div className="toolbar">
-        <div className="toolbar-left">
-          <input type="text" className="search-input" placeholder="Пошук за іменем, регіоном..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">Усі категорії</option>
-            {productCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+        <div className="toolbar-left" style={{ flex: 1, flexWrap: "wrap" }}>
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук за іменем, регіоном..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Категорія">
+              <option value="">Усі категорії</option>
+              {productCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </SearchFilter>
         </div>
       </div>
 

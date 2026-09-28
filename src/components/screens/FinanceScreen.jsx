@@ -1,4 +1,5 @@
 "use client";
+import { GearIcon } from "@/components/Icon";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -219,7 +220,7 @@ export default function FinanceScreen() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 0 }}>Звіт по категоріях</div>
                 {canWriteFinance && (
-                  <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)}>⚙</button>
+                  <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
                 )}
               </div>
               <div className="card" style={{ padding: 16, marginBottom: 20, cursor: "default" }}>

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketingData } from "@/context/MarketingDataContext";
-import { CAMPAIGN_STATUSES, CHANNELS, CHANNEL_LABELS } from "@/lib/marketing";
+import { CAMPAIGN_STATUSES } from "@/lib/marketing";
 
 export default function CampaignModal({ open, campaign, onClose, onSaved }) {
-  const { supabase, reload } = useMarketingData();
+  const { supabase, reload, CHANNELS, CHANNEL_LABELS } = useMarketingData();
   const { canWriteCatalog } = useAuth();
   const [name, setName] = useState("");
   const [channel, setChannel] = useState("instagram");
