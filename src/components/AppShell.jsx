@@ -106,9 +106,12 @@ export default function AppShell() {
       : need === "finance" ? canWriteFinance
       : need === "admin" ? isAdmin
       : true;
-    let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) }));
-    // зовнішній партнер бачить лише відкриті йому групи Moduler Pro
-    if (isPartner) g = MENU.filter((x) => (partnerTabs || new Set()).has(x.key));
+    let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) })).filter((x) => x.tabs.length);
+    // зовнішній партнер бачить лише відкриті йому групи/розділи Moduler Pro
+    if (isPartner) {
+      const allow = partnerTabs || new Set();
+      g = MENU.map((x) => ({ ...x, tabs: allow.has(x.key) ? x.tabs.filter((t) => !t.id.startsWith("pult-")) : x.tabs.filter((t) => allow.has(t.id)) })).filter((x) => x.tabs.length);
+    }
     if (menuGroupOrder?.length) {
       const idx = new Map(menuGroupOrder.map((k, i) => [k, i]));
       g = [...g].sort((a, b) => (idx.get(a.key) ?? 100 + MENU.indexOf(a)) - (idx.get(b.key) ?? 100 + MENU.indexOf(b)));
@@ -214,7 +217,7 @@ export default function AppShell() {
               <h1 className="page-title">{plainLabel(activeGroup?.tabs.length > 1 ? activeGroup.label : activeTabInfo?.label)}</h1>
             </div>
             <div className="top-bar-right">
-              {inTeam && (
+              {inTeam && isPult(activeTab) && (
                 <button className="btn primary" onClick={newTask} title="Нова задача в пульті — з будь-якого розділу">
                   <span className="btn-label-full">+ Задача</span><span className="btn-label-compact">+</span>
                 </button>

@@ -71,3 +71,20 @@ export const toNum = (v) => {
 
 export const todayKyiv = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv" }).format(new Date());
 export const nights = (a, b) => Math.max(0, Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 864e5));
+
+// засновник (task_members.is_owner) — лише він бачить ціль і капітал
+export function useIsOwner() {
+  const supabase = useMemo(() => createClient(), []);
+  const [owner, setOwner] = useState(false);
+  useEffect(() => {
+    let on = true;
+    supabase.auth.getUser().then(({ data }) => {
+      const email = data?.user?.email;
+      if (!email) return;
+      supabase.from("task_members").select("is_owner").ilike("email", email).eq("active", true).maybeSingle()
+        .then(({ data: m }) => { if (on) setOwner(!!m?.is_owner); });
+    });
+    return () => { on = false; };
+  }, [supabase]);
+  return owner;
+}

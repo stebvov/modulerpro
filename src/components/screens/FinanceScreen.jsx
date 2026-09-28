@@ -8,6 +8,8 @@ import MonthlyMarginChart from "@/components/MonthlyMarginChart";
 import CumulativeTrendChart from "@/components/CumulativeTrendChart";
 import GoalProgressBar from "@/components/GoalProgressBar";
 import TransactionModal from "@/components/modals/TransactionModal";
+import Ledger from "@/components/finance/Ledger";
+import { useIsOwner } from "@/lib/mod";
 import TransactionAttachments from "@/components/TransactionAttachments";
 import TransactionCategoriesPanel from "@/components/panels/TransactionCategoriesPanel";
 import { convert, fmtCurrency } from "@/lib/format";
@@ -20,7 +22,8 @@ export default function FinanceScreen() {
     loading, error, monthlyPnl, cumulativePnl, deals, overheadTransactions,
     allTransactions, transactionAttachments, reload, supabase,
   } = useFinanceData();
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("ledger");
+  const isOwner = useIsOwner();
   const [showCategoriesPage, setShowCategoriesPage] = useState(false);
   const [dealId, setDealId] = useState("");
   const [dealPnl, setDealPnl] = useState(null);
@@ -43,6 +46,14 @@ export default function FinanceScreen() {
     setDealPnlLoading(false);
   }
 
+  const tabs = (
+    <div className="seg-row" style={{ marginBottom: 12 }}>
+      <button className={`seg-btn${view === "ledger" ? " active" : ""}`} onClick={() => setView("ledger")}>📒 Журнал</button>
+      <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>📊 Дашборд</button>
+      <button className="seg-btn" onClick={() => setShowCategoriesPage(true)}>Категорії</button>
+    </div>
+  );
+  if (view === "ledger" && !showCategoriesPage) return <div>{tabs}<Ledger /></div>;
   if (loading) return <div className="empty">Завантаження фінансів...</div>;
   if (error) return <div className="empty">Помилка підключення: {error}</div>;
 
@@ -80,10 +91,7 @@ export default function FinanceScreen() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-        <div className="seg-row">
-          <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Дашборд</button>
-          <button className={`seg-btn${view === "transactions" ? " active" : ""}`} onClick={() => setView("transactions")}>Транзакції</button>
-        </div>
+        {tabs}
         {canWriteFinance && (
           <button className="btn primary small" onClick={() => setTxModalOpen(true)}>+ Транзакція</button>
         )}
@@ -138,7 +146,7 @@ export default function FinanceScreen() {
           ) : (
             <>
               <div className="card" style={{ padding: 20, marginBottom: 14, cursor: "default" }}>
-                <GoalProgressBar valueUsd={cumulativeUsd} />
+                {isOwner && <GoalProgressBar valueUsd={cumulativeUsd} />}
                 <div className="note" style={{ marginTop: 8 }}>
                   ≈ {fmtCurrency(lastCumulative.cumulative_net_profit, "UAH", exchangeRates)} за курсом на сьогодні
                 </div>
@@ -257,61 +265,6 @@ export default function FinanceScreen() {
               </div>
             </>
           )}
-        </>
-      )}
-
-      {view === "transactions" && (
-        <>
-          <p className="note">Усі транзакції, згруповані по місяцях — з можливістю прикріпити файл (чек, рахунок тощо).</p>
-          {!months.length && <div className="empty">Транзакцій ще немає.</div>}
-          {months.map((month) => {
-            const rows = byMonth[month];
-            const monthTotal = rows.reduce((s, t) => s + (String(t.type).startsWith("дохід") ? Number(t.amount) : -Number(t.amount)), 0);
-            return (
-              <div key={month} style={{ marginBottom: 22 }}>
-                <div className="section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>{fmtMonthLong(month + "-01")}</span>
-                  <span className="note" style={{ marginTop: 0, color: monthTotal >= 0 ? "var(--success)" : "var(--danger)" }}>
-                    {fmtCurrency(monthTotal, "UAH", exchangeRates)}
-                  </span>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Дата</th>
-                        <th>Тип</th>
-                        <th>Угода / майданчик</th>
-                        <th>Категорія</th>
-                        <th style={{ textAlign: "right" }}>Сума</th>
-                        <th>Коментар</th>
-                        <th>Файли</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((t) => {
-                        const isIncome = String(t.type).startsWith("дохід");
-                        const atts = transactionAttachments.filter((a) => a.transaction_id === t.id);
-                        return (
-                          <tr key={t.id}>
-                            <td>{new Date(t.date).toLocaleDateString("uk-UA")}</td>
-                            <td className="note">{t.type}</td>
-                            <td className="note">{t.dealLeadName || t.siteName || "—"}</td>
-                            <td className="note">{t.category || "—"}</td>
-                            <td style={{ textAlign: "right", color: isIncome ? "var(--success)" : "var(--danger)" }}>
-                              {isIncome ? "+" : "−"}{fmtCurrency(t.amount, "UAH", exchangeRates)}
-                            </td>
-                            <td className="note">{t.note || "—"}</td>
-                            <td><TransactionAttachments transactionId={t.id} attachments={atts} /></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
         </>
       )}
 
