@@ -21,7 +21,7 @@ async function mpSso(){
   if(!IN_MP)return;
   const {data}=await sb.auth.getSession();if(data?.session)return;
   const ck=Object.fromEntries(document.cookie.split(";").map(c=>{const i=c.indexOf("=");return [c.slice(0,i).trim(),decodeURIComponent(c.slice(i+1))]}));
-  const base=Object.keys(ck).find(k=>/^sb-.+-auth-token(\.0)?$/.test(k));if(!base){location.assign("/login?next=/pult");return}
+  const base=Object.keys(ck).find(k=>/^sb-.+-auth-token(\.0)?$/.test(k));if(!base){(window.top||window).location.assign("/login");return}
   const root=base.replace(/\.0$/,"");let raw=ck[root]||"";if(!raw){for(let i=0;ck[root+"."+i]!==undefined;i++)raw+=ck[root+"."+i]}
   try{
     if(raw.startsWith("base64-")){const b=raw.slice(7).replace(/-/g,"+").replace(/_/g,"/");raw=new TextDecoder().decode(Uint8Array.from(atob(b+"===".slice((b.length+3)%4)),c=>c.charCodeAt(0)))}
@@ -30,7 +30,7 @@ async function mpSso(){
     const {error}=await sb.auth.setSession({access_token:t.access_token,refresh_token:t.refresh_token});
     if(!error){location.reload();return}
   }catch(e){console.warn("mpSso",e)}
-  location.assign("/login?next=/pult");
+  (window.top||window).location.assign("/login");
 }
 if(IN_MP){
   mpSso();
@@ -41,7 +41,7 @@ if(IN_MP){
     if(!e.target.closest("[data-logout]"))return;e.stopPropagation();e.preventDefault();
     try{await sb.auth.signOut()}catch(err){}
     document.cookie.split(";").map(c=>c.split("=")[0].trim()).filter(k=>/^sb-/.test(k)).forEach(k=>{document.cookie=k+"=; Max-Age=0; path=/"});
-    location.assign("/login");
+    (window.top||window).location.assign("/login");
   },true);
   mountBack();const _laMp=loadAll;loadAll=async function(){const r=await _laMp.apply(this,arguments);mountBack();return r};
 }

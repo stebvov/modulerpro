@@ -2,21 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import { DEFAULT_HOME, MENU } from "@/lib/menu";
 
-const ALL_GROUPS = [
-  { key: "crm", label: "CRM" },
-  { key: "production", label: "Виробництво" },
-  { key: "services", label: "Послуги" },
-  { key: "marketing", label: "Маркетинг" },
-  { key: "catalog", label: "Каталог" },
-  { key: "finance", label: "Фінанси" },
-  { key: "admin", label: "Адміністрування" },
-];
+const ALL_GROUPS = MENU.map((g) => ({ key: g.key, label: g.label }));
 
 export default function MenuSettingsScreen() {
   const { supabase, menuGroupOrder, menuHomeGroup, reload } = useAppData();
   const [order, setOrder] = useState([]);
-  const [homeGroup, setHomeGroup] = useState("catalog");
+  const [homeGroup, setHomeGroup] = useState(DEFAULT_HOME);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -27,7 +20,7 @@ export default function MenuSettingsScreen() {
     const missing = known.filter((k) => !savedOrder.includes(k));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrder([...savedOrder, ...missing]);
-    setHomeGroup(menuHomeGroup || "catalog");
+    setHomeGroup(menuHomeGroup || DEFAULT_HOME);
   }, [menuGroupOrder, menuHomeGroup]);
 
   function move(idx, dir) {

@@ -76,6 +76,18 @@ document.head.insertAdjacentHTML("beforeend",`<style id="bizCss">
 .pdir{font-size:12px;color:var(--muted)}
 </style>`);
 
+/* ---------- одна система: пульт живе всередині оболонки Moduler Pro ----------
+   /pult?embed=1&tab=my — розділ у меню оболонки; відкритий напряму /pult → переходимо в оболонку */
+const EMBED=new URLSearchParams(location.search).has("embed");
+const EMBED_TAB=new URLSearchParams(location.search).get("tab")||"my";
+if(IN_MP&&!EMBED&&window.top===window){const h=location.hash||"";location.replace("/?s=pult-"+(/^#[tp]\//.test(h)?"tasks":"my")+h)}
+if(EMBED){document.body.classList.add("embed");document.head.insertAdjacentHTML("beforeend",`<style>
+body.embed{padding-top:8px}
+body.embed header.top h1,body.embed .seg[aria-label="Розділ"],body.embed .mpback{display:none!important}
+body.embed header.top{justify-content:flex-end;margin-bottom:-6px}
+</style>`)}
+const postTab=k=>{if(EMBED&&window.parent!==window)try{window.parent.postMessage({type:"pult-tab",tab:k},location.origin)}catch(e){}};
+
 const STAGES=[
   ["idea","💡","Ідея"],["digit","🔢","Оцифровка"],["market","📊","Ринок"],["econ","🧮","Економіка"],["decision","⚖️","Рішення"],
   ["pack","🎁","Упаковка"],["leads","📣","Ліди"],["sales","🤝","Продажі"],["test","✅","Перевірка гіпотези"],["build","🏗","Реалізація"],["run","♻️","Дохід і сервіс"]];
@@ -116,7 +128,8 @@ let bizInitP=null;
 function bizInit(){
   bizInitP??=(async()=>{
     try{await loadBiz();mountBizTabs();bizBooted=true;markProjCards();
-      if(!location.hash&&!bizTab)document.querySelector('[data-tab="my"]')?.click();else renderBiz()}
+      const first=EMBED?EMBED_TAB:"my";
+      if(!location.hash&&!bizTab)document.querySelector(`.seg [data-tab="${first}"]`)?.click();else renderBiz()}
     catch(err){console.error("biz",err);bizInitP=null}
   })();
   return bizInitP;
@@ -146,10 +159,10 @@ function showBizTab(k){
 }
 document.addEventListener("click",e=>{
   const tab=e.target.closest("[data-tab]");if(!tab)return;
-  const k=tab.dataset.tab;showBizTab(["my","dirs","cap"].includes(k)?k:null);
+  const k=tab.dataset.tab;showBizTab(["my","dirs","cap"].includes(k)?k:null);postTab(k);
   if(["my","dirs","cap"].includes(k)){document.querySelectorAll(".seg [data-tab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tab===k));window.scrollTo({top:0});["tasks","projects","tg","team"].forEach(x=>{const el=document.getElementById("tab"+x[0].toUpperCase()+x.slice(1));if(el)el.hidden=true})}
 });
-window.addEventListener("hashchange",()=>{if(/^#[tp]\//.test(location.hash))showBizTab(null)});
+window.addEventListener("hashchange",()=>{if(/^#[tp]\//.test(location.hash)){showBizTab(null);postTab("tasks")}});
 function renderBiz(){try{renderBiz0()}catch(err){console.error("biz",err);const el=document.getElementById("tab"+(bizTab||"my")[0].toUpperCase()+(bizTab||"my").slice(1));if(el)el.innerHTML=`<div class="empty">Не вдалося показати розділ: ${esc(err.message)}</div>`}}
 function renderBiz0(){
   if(bizTab==="my")$("#tabMy").innerHTML=myHtml();
@@ -483,8 +496,15 @@ async function loadCap(){
     sb.from("sale_payments").select("founder_fee,paid_at,sale_id,project_sales(project,currency)").gte("paid_at",new Date(Date.now()-30*864e5).toISOString().slice(0,10)),
     sb.from("owner_goal").select("*").eq("id",1).maybeSingle()]);
   ASSETS=a.data||[];OG=g.data||OG||{...GOAL_DEF};
+  /* пасивний дохід: оренда власних будинків за 30 днів мінус частка УК */
+  let rent=0;
+  try{const since=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+    const [ob,bk]=await Promise.all([sb.from("managed_objects").select("id,owner_kind,uk_share_pct").eq("owner_kind","own"),sb.from("rent_bookings").select("object_id,amount,currency,status,date_to").gte("date_to",since).neq("status","cancelled")]);
+    const own=new Map((ob.data||[]).map(o=>[o.id,o]));
+    rent=(bk.data||[]).filter(b=>own.has(b.object_id)).reduce((s,b)=>s+(toUsd(b.amount,b.currency)||0)*(1-(Number(own.get(b.object_id).uk_share_pct)||0)/100),0);
+  }catch(err){console.error("biz",err)}
   const fact=(pay.data||[]).reduce((s,x)=>s+(toUsd(x.founder_fee,x.project_sales?.currency)||0),0);
-  capData={fact,payErr:pay.error?.message||null};
+  capData={fact,rent,payErr:pay.error?.message||null};
 }
 function capHtml(){
   const goal=num(OG?.goal_month_usd)||GOAL_DEF.goal_month_usd;
@@ -513,6 +533,7 @@ function capHtml(){
       <div class="row" style="justify-content:space-between;align-items:baseline;gap:10px"><h3>🎯 Ціль: чистий дохід засновника</h3><span class="meta">налаштування — внизу</span></div>
       <div class="big">${usd(goal)}<span class="meta" style="font:500 14px var(--body)"> / міс</span></div>
       <div><div class="row" style="justify-content:space-between"><span>Факт за 30 днів: <b>${usd(fact)}</b></span><span class="meta">${(fact/goal*100).toFixed(2)}%</span></div><div class="bar"><i style="width:${pct(fact)}%"></i></div></div>
+      <div><div class="row" style="justify-content:space-between"><span>🔑 Пасивний дохід з оренди власних будинків (30 днів): <b>${usd(capData.rent||0)}</b></span><span class="meta">${((capData.rent||0)/goal*100).toFixed(2)}%</span></div><div class="bar"><i style="width:${pct(capData.rent||0)}%"></i></div></div>
       <div><div class="row" style="justify-content:space-between"><span>Прогноз за планами продажів: <b>${usd(fc)}</b>/міс</span><span class="meta">${(fc/goal*100).toFixed(2)}%</span></div><div class="bar"><i class="f" style="width:${pct(fc)}%"></i></div></div>
       <div class="hint">${fc>=goal?"Плани проєктів уже дають ціль — тепер головне виконання.":`До цілі бракує <b>${usd(goal-fc)}</b>/міс. ${rows.some(x=>x.miss.length)?`Спершу доведіть проєкти до цифр: у ${rows.filter(x=>x.miss.length).length} з ${rows.length} бракує ціни, собівартості або плану.`:"Потрібні нові проєкти або більший план продажів."}`}</div>
       ${capData.payErr?`<div class="hint bad">Оплати не завантажились: ${esc(capData.payErr)}</div>`:""}

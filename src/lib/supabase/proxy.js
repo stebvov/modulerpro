@@ -41,7 +41,7 @@ export async function updateSession(request) {
     url.pathname = "/login";
     url.search = "";
     // після входу повертаємо туди, куди людина йшла (напр. /pult#t/12 — хеш браузер збереже сам)
-    if (path !== "/") url.searchParams.set("next", path.startsWith("/pult") ? "/pult" : path);
+    if (path !== "/") url.searchParams.set("next", path.startsWith("/pult") ? "/" : path);
     return NextResponse.redirect(url);
   }
 

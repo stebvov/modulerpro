@@ -6,8 +6,8 @@
   --text: #1f1e1c;
   --text-secondary: #6b6a63;
   --text-muted: #9a988f;
-  --accent: #185fa5;
-  --accent-bg: #e6f1fb;
+  --accent: #2f6b4f;
+  --accent-bg: #e6f0ea;
   --danger: #a32d2d;
   --danger-bg: #fcebeb;
   --success: #3b6d11;
@@ -25,6 +25,7 @@ body {
   color: var(--text);
 }
 a { color: inherit; }
+.app.app-wide { max-width: none; }
 .app { max-width: 1320px; margin: 0 auto; padding: 20px 20px 60px; overflow-x: hidden; }
 /* Scroll wrapper for wide tables/calendars — keeps the horizontal scroll
    contained to the table itself instead of the whole page on mobile. */
@@ -149,7 +150,7 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .btn:hover { background: #f1efe8; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
-.btn.primary:hover { background: #124a82; }
+.btn.primary:hover { background: #24553e; }
 .btn.primary:disabled { opacity: .6; cursor: default; }
 .btn.danger { color: var(--danger); border-color: var(--danger-bg); }
 .btn.small { padding: 3px 8px; font-size: 12px; }

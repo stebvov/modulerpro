@@ -2,8 +2,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata = {
-  title: "Moduler Pro — Каталог і постачальники",
-  description: "Система управління виробництвом модульних будинків",
+  title: "Модулер — система управління",
+  description: "Від ідеї й контенту до будинку, містечка, УК та пасивного доходу",
 };
 
 // Every page needs a live Supabase session check, so there is nothing to

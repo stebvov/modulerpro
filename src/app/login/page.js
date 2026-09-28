@@ -35,27 +35,21 @@ export default function LoginPage() {
         const { data, error: upError } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/pult` },
+          options: { emailRedirectTo: window.location.origin },
         });
         if (upError) throw upError;
         if (!data.session) {
           setInfo("Перевірте пошту: прийде лист із посиланням для підтвердження. Після цього увійдіть.");
           return;
         }
-        window.location.assign(safeNext() || "/pult");
+        window.location.assign(safeNext() || "/");
         return;
       }
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
       const next = safeNext();
       if (next) {
         window.location.assign(next);
-        return;
-      }
-      // учасники команди без профілю Moduler Pro працюють лише в пульті
-      const { data: prof } = await supabase.from("profiles").select("id").eq("id", data.user.id).maybeSingle();
-      if (!prof) {
-        window.location.assign("/pult");
         return;
       }
       router.push("/");

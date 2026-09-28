@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
+import { createClient } from "@/lib/supabase/client";
+import { DEFAULT_HOME, MENU } from "@/lib/menu";
 import ProfileMenu from "@/components/ProfileMenu";
 import CurrencyMenu from "@/components/CurrencyMenu";
+import PultFrame from "@/components/PultFrame";
 import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
 import { ProductionDataProvider } from "@/context/ProductionDataContext";
@@ -27,103 +30,151 @@ import AccessGroupsScreen from "@/components/screens/AccessGroupsScreen";
 import MenuSettingsScreen from "@/components/screens/MenuSettingsScreen";
 import { TeamDataProvider } from "@/context/TeamDataContext";
 import TeamScreen from "@/components/screens/TeamScreen";
+import TownsScreen from "@/components/screens/TownsScreen";
+import UkScreen from "@/components/screens/UkScreen";
+import RentScreen from "@/components/screens/RentScreen";
 
-const TAB_GROUPS = [
-  { key: "crm", label: "CRM", tabs: [{ id: "crm", label: "CRM" }] },
-  { key: "production", label: "Виробництво", tabs: [{ id: "production", label: "Виробництво" }] },
-  { key: "services", label: "Послуги", tabs: [{ id: "services", label: "Послуги" }] },
-  { key: "marketing", label: "Маркетинг", tabs: [{ id: "marketing", label: "Маркетинг" }] },
-  {
-    key: "catalog",
-    label: "Каталог",
-    tabs: [
-      { id: "catalog", label: "Каталог шаблонів" },
-      { id: "materials", label: "Матеріали" },
-      { id: "suppliers", label: "Постачальники" },
-      { id: "categories", label: "Категорії" },
-      { id: "price", label: "Ціни" },
-      { id: "catalog-services", label: "Послуги" },
-      { id: "service-templates", label: "Шаблони послуг" },
-    ],
-  },
-];
+// Екрани Moduler Pro (React). Вкладки "pult-*" показує PultFrame.
+const SCREENS = {
+  crm: () => <CrmDataProvider><CrmScreen /></CrmDataProvider>,
+  production: () => <ProductionDataProvider><ProductionScreen /></ProductionDataProvider>,
+  services: () => <ServicesDataProvider><ServicesScreen /></ServicesDataProvider>,
+  marketing: () => <MarketingDataProvider><MarketingScreen /></MarketingDataProvider>,
+  finance: () => <FinanceDataProvider><FinanceScreen /></FinanceDataProvider>,
+  catalog: () => <CatalogScreen />,
+  materials: () => <MaterialsScreen />,
+  suppliers: () => <SuppliersScreen />,
+  categories: () => <CategoriesScreen />,
+  price: () => <PriceScreen />,
+  "catalog-services": () => <ServicesCatalogScreen />,
+  "service-templates": () => <ServiceTemplatesScreen />,
+  towns: () => <TownsScreen />,
+  uk: () => <UkScreen />,
+  rent: () => <RentScreen />,
+  users: () => <UsersScreen />,
+  team: () => <TeamDataProvider><TeamScreen /></TeamDataProvider>,
+  "access-groups": () => <AccessGroupsScreen />,
+  "menu-settings": () => <MenuSettingsScreen />,
+};
 
-// пульт — окремий застосунок у public/pult, тому звичайне посилання, а не вкладка
-const PULT_LINK = { display: "block", textDecoration: "none", fontWeight: 600 };
+const isPult = (id) => id?.startsWith("pult-");
+
+// учасник команди пульту (task_members) для поточного email: засновник, керівник, чи взагалі в команді
+function usePultMember(email) {
+  const supabase = useMemo(() => createClient(), []);
+  const [member, setMember] = useState(undefined);
+  useEffect(() => {
+    if (!email) return;
+    let on = true;
+    supabase.from("task_members").select("id,name,is_owner,can_manage,fin_all,active").ilike("email", email).eq("active", true).maybeSingle()
+      .then(({ data }) => { if (on) setMember(data || null); });
+    return () => { on = false; };
+  }, [supabase, email]);
+  return member;
+}
+
+function readUrl() {
+  if (typeof window === "undefined") return { s: null, hash: "" };
+  return { s: new URLSearchParams(window.location.search).get("s"), hash: window.location.hash || "" };
+}
 
 export default function AppShell() {
   const { currency, setCurrency, menuGroupOrder, menuHomeGroup } = useAppData();
-  const { isAdmin, canWriteFinance, isPartner, partnerTabs, user, profile, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState("catalog");
+  const { user, profile, loading, isAdmin, canWriteFinance, isPartner, partnerTabs } = useAuth();
+  const member = usePultMember(user?.email);
+  const [start] = useState(readUrl);
+  const [activeTab, setActiveTab] = useState(start.s || null);
+  const [pultOpened, setPultOpened] = useState(() => isPult(start.s));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
-  let groups = TAB_GROUPS;
-  if (isPartner) groups = groups.filter((g) => (partnerTabs || new Set()).has(g.key));
-  if (canWriteFinance) groups = [...groups, { key: "finance", label: "Фінанси", tabs: [{ id: "finance", label: "Фінанси" }] }];
-  if (isAdmin) groups = [...groups, { key: "admin", label: "Адміністрування", tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }, { id: "access-groups", label: "Ролі доступу" }, { id: "menu-settings", label: "Меню" }] }];
-  if (menuGroupOrder?.length) {
-    const orderIndex = new Map(menuGroupOrder.map((k, i) => [k, i]));
-    groups = [...groups].sort((a, b) => (orderIndex.get(a.key) ?? 999) - (orderIndex.get(b.key) ?? 999));
-  }
+  const hasMp = !!profile && !isPartner;
+  const inTeam = !!member;
+  const groups = useMemo(() => {
+    const can = (need) =>
+      need === "any" ? hasMp || inTeam
+      : need === "mp" ? hasMp
+      : need === "team" ? inTeam
+      : need === "owner" ? !!member?.is_owner
+      : need === "mgr" ? !!(member?.can_manage || member?.is_owner)
+      : need === "finance" ? canWriteFinance
+      : need === "admin" ? isAdmin
+      : true;
+    let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) }));
+    // зовнішній партнер бачить лише відкриті йому групи Moduler Pro
+    if (isPartner) g = MENU.filter((x) => (partnerTabs || new Set()).has(x.key));
+    if (menuGroupOrder?.length) {
+      const idx = new Map(menuGroupOrder.map((k, i) => [k, i]));
+      g = [...g].sort((a, b) => (idx.get(a.key) ?? 100 + MENU.indexOf(a)) - (idx.get(b.key) ?? 100 + MENU.indexOf(b)));
+    }
+    return g;
+  }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder]);
+
+  const ready = !loading && (member !== undefined || !user);
+  const allIds = groups.flatMap((g) => g.tabs.map((t) => t.id));
+
+  // стартова вкладка: з адреси (?s=), інакше домашня група з налаштувань меню
+  useEffect(() => {
+    if (!ready || (activeTab && allIds.includes(activeTab))) return;
+    const home = groups.find((g) => g.key === (menuHomeGroup || DEFAULT_HOME)) || groups[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (home) setActiveTab(home.tabs[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, groups, menuHomeGroup]);
+
+  // адреса відображає розділ — посиланням можна поділитись
+  useEffect(() => {
+    if (!activeTab) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("s", activeTab);
+    window.history.replaceState(null, "", url.pathname + url.search);
+  }, [activeTab]);
+
+  const onPultSection = useCallback((tab) => {
+    const id = "pult-" + tab;
+    setActiveTab((prev) => (prev === id ? prev : id));
+  }, []);
+
   const activeGroup = groups.find((g) => g.tabs.some((t) => t.id === activeTab)) || groups[0];
   const activeTabInfo = activeGroup?.tabs.find((t) => t.id === activeTab) || activeGroup?.tabs[0];
 
-  useEffect(() => {
-    if (!isPartner || !partnerTabs) return;
-    const allowedIds = groups.flatMap((g) => g.tabs.map((t) => t.id));
-    if (allowedIds.length && !allowedIds.includes(activeTab)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveTab(allowedIds[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPartner, partnerTabs, activeTab]);
-
-  useEffect(() => {
-    if (!menuHomeGroup || isPartner) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveTab((prev) => {
-      if (prev !== "catalog") return prev;
-      const home = groups.find((g) => g.key === menuHomeGroup);
-      return home?.tabs[0]?.id || prev;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuHomeGroup, isPartner]);
-
-  // учасник команди без профілю Moduler Pro — його робоче місце пульт
-  useEffect(() => {
-    if (!loading && user && !profile) window.location.assign("/pult");
-  }, [loading, user, profile]);
-
-  function selectGroup(g) {
-    setActiveTab(g.tabs[0].id);
+  // пульт, раз відкритий, лишається в памʼяті — повернення в нього миттєве
+  const pultAlive = pultOpened || isPult(activeTab);
+  function select(id) {
+    if (isPult(activeTab) || isPult(id)) setPultOpened(true);
+    setActiveTab(id);
     setMobileMenuOpen(false);
   }
-
-  function toggleGroupExpanded(label) {
+  function toggleGroupExpanded(key) {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) next.delete(label); else next.add(label);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
 
+  if (!ready) return <div className="full-loader"><div className="spinner" /></div>;
+  if (!groups.length) {
+    return (
+      <div className="auth-wrap"><div className="auth-card"><h1>Немає доступу</h1>
+        <p className="note">Акаунт {user?.email} ще не додано ні до команди, ні до користувачів системи. Попросіть Катю або Володимира відкрити доступ.</p>
+        <ProfileMenu /></div></div>
+    );
+  }
+
+  const Screen = activeTab && !isPult(activeTab) ? SCREENS[activeTab] : null;
+
   return (
-    <div className="app">
+    <div className={`app${isPult(activeTab) ? " app-wide" : ""}`}>
       {mobileMenuOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-drawer-brand">Moduler Pro</div>
-            <a className="mobile-drawer-link" href="/pult" style={PULT_LINK}>Пульт задач</a>
+            <div className="mobile-drawer-brand">Модулер</div>
             {groups.map((g) => (
-              <button
-                key={g.label}
-                className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`}
-                onClick={() => selectGroup(g)}
-              >
-                {g.label}
-              </button>
+              <div key={g.key}>
+                <button className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs[0].id)}>{g.label}</button>
+              </div>
             ))}
           </div>
         </div>
@@ -133,29 +184,19 @@ export default function AppShell() {
         {!sidebarCollapsed && (
           <div className="sidebar">
             <div className="sidebar-brand-row">
-              <div className="sidebar-brand">Moduler Pro</div>
+              <div className="sidebar-brand">Модулер</div>
               <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(true)} title="Сховати меню" aria-label="Сховати меню">⟨</button>
             </div>
             <div className="sidebar-groups">
-              <a className="sidebar-link" href="/pult" style={PULT_LINK} title="Задачі, проєкти, ідеї, напрями й команда">Пульт задач</a>
               {groups.map((g) => {
                 const [mainTab, ...restTabs] = g.tabs;
-                const isExpanded = expandedGroups.has(g.label) || restTabs.some((t) => t.id === activeTab);
+                const isExpanded = expandedGroups.has(g.key) || g.tabs.some((t) => t.id === activeTab);
                 return (
-                  <div className="sidebar-group" key={g.label}>
+                  <div className="sidebar-group" key={g.key}>
                     <div className="sidebar-group-row">
-                      <button
-                        className={`sidebar-link${activeTab === mainTab.id ? " active" : ""}`}
-                        onClick={() => setActiveTab(mainTab.id)}
-                      >
-                        {g.label}
-                      </button>
+                      <button className={`sidebar-link${activeTab === mainTab.id ? " active" : ""}`} onClick={() => select(mainTab.id)}>{g.label}</button>
                       {restTabs.length > 0 && (
-                        <button
-                          className="sidebar-expand-btn"
-                          onClick={() => toggleGroupExpanded(g.label)}
-                          aria-label={isExpanded ? "Згорнути" : "Розгорнути"}
-                        >
+                        <button className="sidebar-expand-btn" onClick={() => toggleGroupExpanded(g.key)} aria-label={isExpanded ? "Згорнути" : "Розгорнути"}>
                           {isExpanded ? "▾" : "▸"}
                         </button>
                       )}
@@ -163,13 +204,7 @@ export default function AppShell() {
                     {restTabs.length > 0 && isExpanded && (
                       <div className="sidebar-subgroup">
                         {restTabs.map((t) => (
-                          <button
-                            key={t.id}
-                            className={`sidebar-link sub${activeTab === t.id ? " active" : ""}`}
-                            onClick={() => setActiveTab(t.id)}
-                          >
-                            {t.label}
-                          </button>
+                          <button key={t.id} className={`sidebar-link sub${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
                         ))}
                       </div>
                     )}
@@ -198,97 +233,20 @@ export default function AppShell() {
           {activeGroup && activeGroup.tabs.length > 1 && (
             <div className="mobile-subtabs">
               {activeGroup.tabs.map((t) => (
-                <button
-                  key={t.id}
-                  className={`mobile-subtab${activeTab === t.id ? " active" : ""}`}
-                  onClick={() => setActiveTab(t.id)}
-                >
-                  {t.label}
-                </button>
+                <button key={t.id} className={`mobile-subtab${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
               ))}
             </div>
           )}
 
-          <div className={`screen${activeTab === "crm" ? " active" : ""}`}>
-            {activeTab === "crm" && (
-              <CrmDataProvider>
-                <CrmScreen />
-              </CrmDataProvider>
-            )}
-          </div>
-          <div className={`screen${activeTab === "production" ? " active" : ""}`}>
-            {activeTab === "production" && (
-              <ProductionDataProvider>
-                <ProductionScreen />
-              </ProductionDataProvider>
-            )}
-          </div>
-          <div className={`screen${activeTab === "services" ? " active" : ""}`}>
-            {activeTab === "services" && (
-              <ServicesDataProvider>
-                <ServicesScreen />
-              </ServicesDataProvider>
-            )}
-          </div>
-          <div className={`screen${activeTab === "marketing" ? " active" : ""}`}>
-            {activeTab === "marketing" && (
-              <MarketingDataProvider>
-                <MarketingScreen />
-              </MarketingDataProvider>
-            )}
-          </div>
-          <div className={`screen${activeTab === "finance" ? " active" : ""}`}>
-            {activeTab === "finance" && canWriteFinance && (
-              <FinanceDataProvider>
-                <FinanceScreen />
-              </FinanceDataProvider>
-            )}
-          </div>
-          <div className={`screen${activeTab === "catalog" ? " active" : ""}`}>
-            {activeTab === "catalog" && <CatalogScreen />}
-          </div>
-          <div className={`screen${activeTab === "materials" ? " active" : ""}`}>
-            {activeTab === "materials" && <MaterialsScreen />}
-          </div>
-          <div className={`screen${activeTab === "suppliers" ? " active" : ""}`}>
-            {activeTab === "suppliers" && <SuppliersScreen />}
-          </div>
-          <div className={`screen${activeTab === "categories" ? " active" : ""}`}>
-            {activeTab === "categories" && <CategoriesScreen />}
-          </div>
-          <div className={`screen${activeTab === "price" ? " active" : ""}`}>
-            {activeTab === "price" && <PriceScreen />}
-          </div>
-          <div className={`screen${activeTab === "catalog-services" ? " active" : ""}`}>
-            {activeTab === "catalog-services" && <ServicesCatalogScreen />}
-          </div>
-          <div className={`screen${activeTab === "service-templates" ? " active" : ""}`}>
-            {activeTab === "service-templates" && <ServiceTemplatesScreen />}
-          </div>
-          {isAdmin && (
-            <div className={`screen${activeTab === "users" ? " active" : ""}`}>
-              {activeTab === "users" && <UsersScreen />}
-            </div>
+          {inTeam && pultAlive && (
+            <PultFrame
+              section={isPult(activeTab) ? activeTab.slice(5) : null}
+              visible={isPult(activeTab)}
+              initialHash={isPult(start.s) ? start.hash : ""}
+              onSection={onPultSection}
+            />
           )}
-          {isAdmin && (
-            <div className={`screen${activeTab === "team" ? " active" : ""}`}>
-              {activeTab === "team" && (
-                <TeamDataProvider>
-                  <TeamScreen />
-                </TeamDataProvider>
-              )}
-            </div>
-          )}
-          {isAdmin && (
-            <div className={`screen${activeTab === "access-groups" ? " active" : ""}`}>
-              {activeTab === "access-groups" && <AccessGroupsScreen />}
-            </div>
-          )}
-          {isAdmin && (
-            <div className={`screen${activeTab === "menu-settings" ? " active" : ""}`}>
-              {activeTab === "menu-settings" && <MenuSettingsScreen />}
-            </div>
-          )}
+          {Screen && <div className="screen active"><Screen /></div>}
         </div>
       </div>
     </div>
