@@ -82,7 +82,7 @@ function usePultMember(email) {
   useEffect(() => {
     if (!email) return;
     let on = true;
-    supabase.from("task_members").select("id,name,is_owner,can_manage,fin_all,active").ilike("email", email).eq("active", true).maybeSingle()
+    supabase.from("task_members").select("id,name,is_owner,can_manage,fin_all,active,avatar_url").ilike("email", email).eq("active", true).maybeSingle()
       .then(({ data }) => { if (on) setMember(data || null); });
     return () => { on = false; };
   }, [supabase, email]);
@@ -250,7 +250,16 @@ export default function AppShell() {
               )}
               <button className="btn icon-btn-sq" onClick={() => setHelpOpen(true)} title="Довідка: як працює цей розділ, що означає кожне поле" aria-label="Довідка"><HelpIcon /></button>
               <CurrencyMenu currency={currency} onChange={setCurrency} />
-              <ProfileMenu onTeamProfile={inTeam ? openTeamProfile : null} />
+              {inTeam ? (
+                // аватар і профіль — з «Команди»: фото, імʼя, роль, Telegram, пароль, вихід
+                <button type="button" className="profile-menu-btn" onClick={openTeamProfile} title={`${member.name} — мій профіль у команді`} aria-label="Мій профіль у команді">
+                  {member.avatar_url
+                    ? <img className="profile-avatar" src={member.avatar_url} alt={member.name} />
+                    : <span className="profile-avatar profile-avatar-fallback">{(member.name || "?").trim().charAt(0).toUpperCase()}</span>}
+                </button>
+              ) : (
+                <ProfileMenu />
+              )}
             </div>
           </div>
 

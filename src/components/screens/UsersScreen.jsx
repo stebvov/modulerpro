@@ -27,6 +27,14 @@ export default function UsersScreen() {
   const [resetCopied, setResetCopied] = useState(false);
   const [blockBusyId, setBlockBusyId] = useState(null);
 
+  // люди команди мають доступ у своїх картках («Люди і структура»); тут — лише зовнішні логіни
+  const [teamIds, setTeamIds] = useState(null);
+  useEffect(() => {
+    supabase.rpc("profile_emails").then(({ data }) => setTeamIds(new Set((data || []).filter((x) => x.in_team).map((x) => x.id))));
+  }, [supabase, profiles]);
+  const external = teamIds ? profiles.filter((p) => !teamIds.has(p.id)) : profiles;
+  const inTeamCount = teamIds ? profiles.length - external.length : 0;
+
   useEffect(() => {
     supabase.from("partner_groups").select("*").order("sort_order").then(({ data }) => setPartnerGroups(data || []));
   }, [supabase]);
@@ -159,9 +167,9 @@ export default function UsersScreen() {
   return (
     <div>
       <p className="note">
-        Тут — лише логін і рівень доступу до CRM, виробництва, каталогу й фінансів. Людей додають і ведуть в одному місці —
-        «Команда → Люди і структура» (там же пароль для пульту й Telegram). Адмін — повний доступ; менеджер — каталог,
-        матеріали, постачальники; бухгалтер — ціни й курси; партнер — лише відкриті йому розділи.
+        Тут — лише <b>зовнішні логіни</b>: партнери й інші, кого немає в команді. Доступ людей команди (пароль, роль у CRM,
+        каталозі й фінансах, блокування) — у їхніх картках: «Команда і доступи → Люди і структура»{inTeamCount ? ` (${inTeamCount} з логіном)` : ""}.
+        Партнер бачить лише відкриті йому розділи («Ролі партнерів»).
       </p>
       {error && <div className="auth-error">{error}</div>}
       {dataError && <div className="auth-error">Помилка завантаження: {dataError}</div>}
@@ -257,7 +265,7 @@ export default function UsersScreen() {
           <tr><th>Ім&apos;я</th><th>Роль</th><th>Група доступу</th><th>Статус</th><th>Створено</th><th></th></tr>
         </thead>
         <tbody>
-          {profiles.map((p) => (
+          {external.map((p) => (
             <tr key={p.id}>
               <td>{p.full_name || "—"} {p.id === user?.id && <span className="note">(ви)</span>}</td>
               <td><span className={`role-pill ${p.role}`}>{roleLabels[p.role] || p.role}</span></td>
@@ -310,7 +318,7 @@ export default function UsersScreen() {
               </td>
             </tr>
           ))}
-          {!profiles.length && <tr><td colSpan={6} className="empty">Немає користувачів</td></tr>}
+          {!external.length && <tr><td colSpan={6} className="empty">Зовнішніх логінів немає</td></tr>}
         </tbody>
       </table>
       </div>

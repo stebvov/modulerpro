@@ -54,7 +54,7 @@ export const MENU = [
     tabs: [
       { id: "pult-team", label: "Люди і структура", need: "team" },
       { id: "team", label: "Бригади й підрядники", need: "mp" },
-      { id: "users", label: "Доступи й логіни", need: "admin" },
+      { id: "users", label: "Зовнішні логіни", need: "admin" },
       { id: "access-groups", label: "Ролі партнерів", need: "admin" },
       { id: "pult-tg", label: "Telegram-чати", need: "mgr" },
       { id: "menu-settings", label: "Меню", need: "admin" },

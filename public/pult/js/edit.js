@@ -314,7 +314,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]),select{min-height:
 </style>`);
 const _renderSf=render;
 render=function(){_renderSf.apply(this,arguments);try{mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}};
-try{mountSf("q","fBtn","fCount");mountSf("projQ","pFBtn");mountSf("teamQ");mountSf("tgQ","tgFBtn");mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}
+try{mountSf("q","fBtn","fCount");mountSf("projQ","pFBtn");mountSf("teamQ","tmFBtn");mountSf("tgQ","tgFBtn");mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}
 
 /* ---------- ⇅ порядок чекпоінтів — іконкою в заголовку «Чекпоінти · N/M» ---------- */
 function mountCkMove(){
@@ -335,3 +335,86 @@ window.addEventListener("click",e=>{
 },true);
 const _renderCk=render;
 render=function(){_renderCk.apply(this,arguments);try{mountCkMove();relabelBack()}catch(err){console.error("edit",err)}};
+
+
+/* ---------- Команда: згортання підрозділів у структурі ---------- */
+const orgCol=new Set((()=>{try{return JSON.parse(localStorage.getItem("pultOrgCol")||"[]")}catch(e){return[]}})());
+const saveOrgCol=()=>{try{localStorage.setItem("pultOrgCol",JSON.stringify([...orgCol]))}catch(e){}};
+document.head.insertAdjacentHTML("beforeend",`<style>
+.on.oc > .okids{display:none!important}
+.on.oc > .ou > :not(.ou-h){display:none!important}
+.ou-h h3{cursor:pointer;user-select:none}
+.ou-h h3 .ochev{display:inline-block;width:1em;color:var(--muted);transition:transform .15s}
+.on.oc > .ou .ou-h h3 .ochev{transform:rotate(-90deg)}
+.macc{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;border-top:1px dashed var(--line);padding-top:8px;margin-top:2px}
+.macc select{width:auto;min-height:28px;font-size:13px;padding:2px 6px}
+</style>`);
+function decorateOrg(){
+  document.querySelectorAll("#orgBox .on").forEach(n=>{
+    const u=n.querySelector(":scope > .ou");const id=u?.dataset.unit;const h=u?.querySelector(".ou-h h3");if(!id||!h)return;
+    if(!h.querySelector(".ochev"))h.insertAdjacentHTML("afterbegin",`<i class="ochev" aria-hidden="true">▾</i> `);
+    h.title="Згорнути / розгорнути підрозділ";n.classList.toggle("oc",orgCol.has(id));
+  });
+  const head=document.querySelector("#tabTeam .pagehead");
+  if(head&&!head.querySelector("[data-orgall]"))head.querySelector("#addUnitBtn")?.insertAdjacentHTML("beforebegin",`<button type="button" class="btn sm" data-orgall hidden>⇕ Згорнути всі</button>`);
+  const b=head?.querySelector("[data-orgall]");
+  if(b){const org=!document.getElementById("orgBox").hidden;b.hidden=!org;
+    const ids=[...document.querySelectorAll("#orgBox .ou[data-unit]")].map(x=>x.dataset.unit);
+    const all=ids.length&&ids.every(i=>orgCol.has(i));b.textContent=all?"⇕ Розгорнути всі":"⇕ Згорнути всі";b.dataset.state=all?"closed":"open"}
+}
+window.addEventListener("click",e=>{
+  const all=e.target.closest("[data-orgall]");
+  if(all){e.stopPropagation();const ids=[...document.querySelectorAll("#orgBox .ou[data-unit]")].map(x=>x.dataset.unit);
+    if(all.dataset.state==="closed")ids.forEach(i=>orgCol.delete(i));else ids.forEach(i=>orgCol.add(i));saveOrgCol();decorateOrg();return}
+  const h=e.target.closest("#orgBox .ou-h h3");if(!h||e.target.closest("button,a,input,select"))return;
+  const id=h.closest(".ou")?.dataset.unit;if(!id)return;e.stopPropagation();
+  orgCol.has(id)?orgCol.delete(id):orgCol.add(id);saveOrgCol();decorateOrg();
+},true);
+
+/* ---------- Команда: доступ людини — в її картці (без окремого списку «Доступи й логіни») ---------- */
+let TA=null,mpAdmin=false;
+const MP_ROLES=[["","лише пульт"],["manager","менеджер"],["accountant","бухгалтер"],["admin","адмін"],["partner","партнер"]];
+async function loadTA(){
+  const [a,r]=await Promise.all([sb.rpc("team_access"),sb.rpc("current_user_role")]);
+  TA=Object.fromEntries((a.data||[]).map(x=>[x.member_id,x]));mpAdmin=r.data==="admin";decorateAccess();
+}
+function decorateAccess(){
+  if(!TA)return;
+  document.querySelectorAll("#teamGrid .mcard").forEach(card=>{
+    const id=card.querySelector("[data-ava]")?.dataset.ava;const m=team.find(x=>x.id===id);if(!m||card.querySelector(".macc")||card.querySelector("#em-name"))return;
+    const a=TA[id];if(!m.email||m.is_ai)return;
+    const login=!a?.has_login?`<span class="due warn" title="Людина ще не має пароля">🔐 пароля немає</span>`
+      :a.blocked?`<span class="due bad">⛔ заблоковано</span>`
+      :`<span class="due ok" title="Може увійти в систему">🔐 вхід є${a.last_sign_in?` · ${fmt(a.last_sign_in.slice(0,10))}`:" · ще не входив"}</span>`;
+    const role=a?.mp_role||"";
+    const roleCtl=mpAdmin&&a?.has_login&&m.id!==me?.id
+      ?`<label class="meta" style="display:flex;gap:4px;align-items:center">CRM/каталог/фінанси: <select data-mprole="${id}" aria-label="Доступ до CRM, каталогу й фінансів">${opts(MP_ROLES,role)}</select></label>`
+      :`<span class="meta">CRM/каталог/фінанси: <b>${esc((MP_ROLES.find(x=>x[0]===role)||MP_ROLES[0])[1])}</b></span>`;
+    const block=mpAdmin&&a?.has_login&&a.user_id&&m.id!==me?.id?`<button type="button" class="btn ghost sm${a.blocked?"":" danger"}" data-mblock="${id}">${a.blocked?"Розблокувати":"Заблокувати"}</button>`:"";
+    const box=card.querySelector(".row:last-of-type")||card;
+    box.insertAdjacentHTML("afterend",`<div class="macc">${login}${roleCtl}${block}</div>`);
+  });
+}
+document.addEventListener("change",async e=>{
+  const s=e.target.closest("[data-mprole]");if(!s)return;
+  const id=s.dataset.mprole;s.disabled=true;
+  const {error}=await sb.rpc("set_member_mp_role",{p_member:id,p_role:s.value||null});
+  s.disabled=false;
+  if(error){toast(error.message.replace(/^.*?: /,""));await loadTA();renderTeam();return}
+  toast("Доступ змінено: "+(MP_ROLES.find(x=>x[0]===s.value)||MP_ROLES[0])[1]);await loadTA();renderTeam();
+});
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-mblock]");if(!b)return;e.stopPropagation();
+  const a=TA?.[b.dataset.mblock];if(!a?.user_id)return;
+  if(!b.dataset.sure){b.dataset.sure="1";b.textContent=a.blocked?"Точно розблокувати?":"Точно заблокувати?";return}
+  b.disabled=true;
+  const r=await fetch("/api/admin/set-user-status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:a.user_id,blocked:!a.blocked})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){toast(j.error||"Не вдалося");b.disabled=false;return}
+  toast(j.blocked?"Заблоковано — людина не зможе увійти":"Розблоковано");await loadTA();renderTeam();
+},true);
+const _rtAcc=renderTeam;
+renderTeam=function(){_rtAcc.apply(this,arguments);try{decorateOrg();decorateAccess()}catch(err){console.error("edit",err)}};
+const _laAcc=loadAll;
+loadAll=async function(){await _laAcc.apply(this,arguments);try{await loadTA()}catch(err){console.error("edit",err)}};
+try{if(typeof booted!=="undefined"&&booted)loadTA();mountSf("teamQ","tmFBtn")}catch(err){console.error("edit",err)}
