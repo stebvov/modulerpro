@@ -85,8 +85,8 @@ if(EMBED){document.body.classList.add("embed");document.head.insertAdjacentHTML(
 /* один стиль з оболонкою: шрифт, розміри, ширина, фон */
 body.embed{background:transparent;padding:0 2px 24px;font:14px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
 body.embed .wrap{max-width:none}
-body.embed header.top h1,body.embed .seg[aria-label="Розділ"],body.embed .mpback,body.embed #curSw,body.embed #meBtn{display:none!important}
-body.embed header.top{justify-content:flex-end;margin:0 0 -8px;min-height:0}
+body.embed header.top,body.embed .seg[aria-label="Розділ"],body.embed .mpback{display:none!important}
+body.embed #tabTeam > .toolbar > h2{visibility:hidden}
 body.embed h2{font-size:15px}
 body.embed .bz-hello h2{font:600 18px -apple-system,"Segoe UI",Roboto,sans-serif}
 body.embed .cap-goal .big{font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -100,6 +100,7 @@ body.embed .cap-goal .big{font-family:-apple-system,"Segoe UI",Roboto,sans-serif
       try{render()}catch(err){}try{renderProjects()}catch(err){}try{if(fProject&&!phEdit)renderProjHead()}catch(err){}try{renderBiz()}catch(err){}
     }
     if(e.data?.type==="open-profile")document.getElementById("meBtn")?.click();
+    if(e.data?.type==="new-task"){document.querySelector('.seg [data-tab="tasks"]')?.click();const b=document.getElementById("addBtn"),f=document.getElementById("addForm");if(b&&f&&f.hidden)b.click();document.getElementById("nTitle")?.focus()}
   });
 }
 const postTab=k=>{if(EMBED&&window.parent!==window)try{window.parent.postMessage({type:"pult-tab",tab:k},location.origin)}catch(e){}};

@@ -159,16 +159,12 @@ export default function UsersScreen() {
   return (
     <div>
       <p className="note">
-        Керування ролями користувачів. Адмін має повний доступ, менеджер керує каталогом/матеріалами/постачальниками,
-        бухгалтер керує цінами та курсами валют. Самостійна реєстрація вимкнена — новий доступ видається лише через
-        запрошення нижче.
+        Тут — лише логін і рівень доступу до CRM, виробництва, каталогу й фінансів. Людей додають і ведуть в одному місці —
+        «Команда → Люди і структура» (там же пароль для пульту й Telegram). Адмін — повний доступ; менеджер — каталог,
+        матеріали, постачальники; бухгалтер — ціни й курси; партнер — лише відкриті йому розділи.
       </p>
       {error && <div className="auth-error">{error}</div>}
-
-      <div className={`live-badge${dataError ? " error" : ""}`} style={{ marginBottom: 16 }}>
-        <span className="live-dot" />
-        <span>{dataLoading ? "Підключення..." : dataError ? "Помилка підключення: " + dataError : "Підключено до Supabase"}</span>
-      </div>
+      {dataError && <div className="auth-error">Помилка завантаження: {dataError}</div>}
 
       <div className="toolbar">
         <div className="toolbar-left" />

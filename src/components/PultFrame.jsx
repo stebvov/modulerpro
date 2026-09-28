@@ -13,7 +13,7 @@ const PultFrame = forwardRef(function PultFrame({ section, visible, initialHash,
   const post = useCallback((msg) => {
     try { ref.current?.contentWindow?.postMessage(msg, window.location.origin); } catch { /* ще вантажиться */ }
   }, []);
-  useImperativeHandle(outer, () => ({ openProfile: () => post({ type: "open-profile" }) }), [post]);
+  useImperativeHandle(outer, () => ({ openProfile: () => post({ type: "open-profile" }), newTask: () => post({ type: "new-task" }) }), [post]);
 
   // висота рамки = до низу вікна: прокрутка одна (всередині пульту), фіксовані вікна пульту видно
   useEffect(() => {

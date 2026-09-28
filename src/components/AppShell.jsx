@@ -58,6 +58,8 @@ const SCREENS = {
 };
 
 const isPult = (id) => id?.startsWith("pult-");
+// заголовок сторінки — без емодзі з меню
+const plainLabel = (s) => (s || "").replace(/^[^\p{L}\p{N}]+/u, "");
 
 // учасник команди пульту (task_members) для поточного email: засновник, керівник, чи взагалі в команді
 function usePultMember(email) {
@@ -149,6 +151,11 @@ export default function AppShell() {
     setActiveTab(id);
     setMobileMenuOpen(false);
   }
+  // «+ Задача» з будь-якого розділу: відкриваємо задачі пульту з формою
+  function newTask() {
+    select("pult-tasks");
+    setTimeout(() => pultRef.current?.newTask(), 300);
+  }
   // «Профіль у команді»: імʼя, роль, фото, Telegram — живе в пульті
   function openTeamProfile() {
     if (!inTeam) return;
@@ -168,7 +175,7 @@ export default function AppShell() {
   const Screen = activeTab && !isPult(activeTab) ? SCREENS[activeTab] : null;
 
   return (
-    <div className="app">
+    <div className={`app${isPult(activeTab) ? " pult-mode" : ""}`}>
       {mobileMenuOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
@@ -204,9 +211,12 @@ export default function AppShell() {
               {sidebarCollapsed && (
                 <button className="btn small sidebar-reopen-btn" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
               )}
-              <h1 className="page-title">{activeGroup?.tabs.length > 1 ? activeGroup.label : activeTabInfo?.label}</h1>
+              <h1 className="page-title">{plainLabel(activeGroup?.tabs.length > 1 ? activeGroup.label : activeTabInfo?.label)}</h1>
             </div>
             <div className="top-bar-right">
+              {inTeam && (
+                <button className="btn primary" onClick={newTask} title="Нова задача в пульті — з будь-якого розділу">+ Задача</button>
+              )}
               <CurrencyMenu currency={currency} onChange={setCurrency} />
               <ProfileMenu onTeamProfile={inTeam ? openTeamProfile : null} />
             </div>

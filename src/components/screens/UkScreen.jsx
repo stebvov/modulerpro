@@ -36,17 +36,17 @@ export default function UkScreen() {
   const people = [["", "—"], ...members.rows.filter((m) => m.active && !m.is_ai).map((m) => [m.id, m.name])];
   const objOpts = objects.rows.map((o) => [o.id, o.name]);
   const objCols = [
-    { key: "name", label: "Об'єкт", width: 190 },
-    { key: "location", label: "Де", width: 120 },
-    { key: "owner_kind", label: "Власник", type: "select", options: OWNER, width: 100 },
-    { key: "owner_name", label: "Імʼя власника", width: 130 },
-    { key: "owner_contact", label: "Контакт", width: 120 },
-    { key: "fee_month", label: "Підписка/міс", type: "number", width: 100, num: true },
+    { key: "name", label: "Об'єкт", width: 170 },
+    { key: "status", label: "Стан", type: "select", options: OSTATUS, width: 120 },
+    { key: "owner_kind", label: "Власник", type: "select", options: OWNER, width: 95 },
+    { key: "owner_name", label: "Імʼя власника", width: 120 },
+    { key: "fee_month", label: "Підписка/міс", type: "number", width: 90, num: true },
     { key: "currency", label: "", type: "select", options: CURS, width: 60 },
     { key: "rent_enabled", label: "Здаємо", type: "check" },
-    { key: "uk_share_pct", label: "УК з оренди, %", type: "number", width: 70, num: true },
-    { key: "status", label: "Стан", type: "select", options: OSTATUS, width: 120 },
+    { key: "uk_share_pct", label: "УК з оренди, %", type: "number", width: 60, num: true },
     { key: "manager_id", label: "Менеджер", type: "select", options: people, width: 120 },
+    { key: "location", label: "Де", width: 110 },
+    { key: "owner_contact", label: "Контакт", width: 120 },
     { key: "note", label: "Примітка", width: 150 },
   ];
   const reqCols = [

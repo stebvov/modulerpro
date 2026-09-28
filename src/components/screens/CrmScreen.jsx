@@ -249,7 +249,7 @@ export default function CrmScreen() {
                               </button>
                             )}
                             {idx < stages.length - 1 && (
-                              <button className="btn small" style={{ background: color, color: "#fff", borderColor: color }} onClick={() => moveStage(d, 1)} title="Далі">
+                              <button className="btn small primary" onClick={() => moveStage(d, 1)} title="Далі">
                                 <span className="btn-label-full">Далі →</span>
                                 <span className="btn-label-compact">→</span>
                               </button>
