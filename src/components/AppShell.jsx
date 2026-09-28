@@ -37,6 +37,9 @@ import UkScreen from "@/components/screens/UkScreen";
 import RentScreen from "@/components/screens/RentScreen";
 import PackagesScreen from "@/components/screens/PackagesScreen";
 import OwnerScreen from "@/components/screens/OwnerScreen";
+import SitePagesScreen from "@/components/site-editor/SitePagesScreen";
+import SiteCollectionScreen from "@/components/site-editor/SiteCollectionScreen";
+import SiteSettingsScreen from "@/components/site-editor/SiteSettingsScreen";
 import Ledger from "@/components/finance/Ledger";
 import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
 import UnitsPanel from "@/components/panels/UnitsPanel";
@@ -69,6 +72,10 @@ const SCREENS = {
   team: () => <TeamDataProvider><TeamScreen /></TeamDataProvider>,
   "access-groups": () => <AccessGroupsScreen />,
   "menu-settings": () => <MenuSettingsScreen />,
+  "site-pages": () => <SitePagesScreen />,
+  "site-models": () => <SiteCollectionScreen kind="models" />,
+  "site-cases": () => <SiteCollectionScreen kind="cases" />,
+  "site-settings": () => <SiteSettingsScreen />,
 };
 
 const isPult = (id) => id?.startsWith("pult-");
