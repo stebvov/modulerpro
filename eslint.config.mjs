@@ -10,6 +10,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // статичний пульт і Deno-функції Supabase живуть за своїми правилами
+    "public/pult/**",
+    "supabase/functions/**",
   ]),
 ]);
 
