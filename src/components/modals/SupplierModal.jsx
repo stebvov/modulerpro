@@ -1,4 +1,5 @@
 "use client";
+import DeleteButton from "@/components/DeleteButton";
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -169,6 +170,10 @@ export default function SupplierModal({ open, supplier, onClose, onSaved }) {
         </details>
 
         <div className="modal-actions">
+          {supplier?.id && (
+            <DeleteButton table="suppliers" id={supplier.id} what="постачальника" before={async (sb) => { await sb.from("supplier_category_links").delete().eq("supplier_id", supplier.id); await sb.from("supplier_contacts").delete().eq("supplier_id", supplier.id); }}
+              onDone={async () => { await reload(); onSaved?.(); onClose(); }} onError={setError} />
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? "Збереження..." : "Зберегти"}

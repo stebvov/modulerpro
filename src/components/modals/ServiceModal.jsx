@@ -1,4 +1,5 @@
 "use client";
+import DeleteButton from "@/components/DeleteButton";
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -82,6 +83,10 @@ export default function ServiceModal({ open, service, onClose, onSaved }) {
         </div>
 
         <div className="modal-actions">
+          {service?.id && (
+            <DeleteButton table="services" id={service.id} what="послугу"
+              onDone={async () => { await reload(); onSaved?.(); onClose(); }} onError={setError} />
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? "Збереження..." : "Зберегти"}

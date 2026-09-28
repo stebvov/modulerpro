@@ -639,5 +639,31 @@ function markProjCards(){
 }
 {const g=document.getElementById("projGrid");if(g)new MutationObserver(()=>{try{markProjCards()}catch(err){console.error("biz",err)}}).observe(g,{childList:true})}
 
+/* ---------- видалення проєкту й учасника (лише керівники; перевірки — у базі) ---------- */
+function mountDeleteBtns(){
+  if(!canManage())return;
+  document.querySelectorAll("#projGrid [data-psave]").forEach(b=>{if(b.parentElement.querySelector("[data-pdelete]"))return;
+    b.parentElement.insertAdjacentHTML("beforeend",`<span style="flex:1"></span><button class="btn ghost sm danger" type="button" data-pdelete="${esc(b.dataset.psave)}" title="Видалити проєкт назавжди (разом з нотатками, кошторисом, фінмоделлю)">🗑 Видалити</button>`)});
+  document.querySelectorAll("#teamGrid [data-msave]").forEach(b=>{if(b.parentElement.querySelector("[data-mdelete]"))return;
+    const m=team.find(x=>x.id===b.dataset.msave);if(!m||m.is_owner||m.id===me?.id)return;
+    b.parentElement.insertAdjacentHTML("beforeend",`<span style="flex:1"></span><button class="btn ghost sm danger" type="button" data-mdelete="${esc(m.id)}" title="Видалити учасника назавжди">🗑 Видалити</button>`)});
+}
+for(const id of ["projGrid","teamGrid"]){const g=document.getElementById(id);if(g)new MutationObserver(()=>{try{mountDeleteBtns()}catch(err){console.error("biz",err)}}).observe(g,{childList:true,subtree:true})}
+async function sureClick(b,label){if(b.dataset.sure)return true;b.dataset.sure="1";const t=b.textContent;b.textContent=label;setTimeout(()=>{if(document.body.contains(b)){delete b.dataset.sure;b.textContent=t}},4000);return false}
+document.addEventListener("click",async e=>{
+  const pd=e.target.closest("[data-pdelete]");
+  if(pd){e.stopPropagation();const name=pd.dataset.pdelete;
+    if(!await sureClick(pd,"Точно видалити проєкт?"))return;pd.disabled=true;
+    const {data,error}=await sb.rpc("pult_delete_project",{p_name:name});
+    if(error){pd.disabled=false;toast(error.message.replace(/^.*?: /,""));return}
+    toast(`Проєкт «${name}» видалено${data?.lots?` разом з ${data.lots} лотами`:""}`);editProj=null;if(fProject===name)fProject="";await loadAll();return}
+  const md=e.target.closest("[data-mdelete]");
+  if(md){e.stopPropagation();const id=md.dataset.mdelete,m=team.find(x=>x.id===id);
+    if(!await sureClick(md,"Точно видалити?"))return;md.disabled=true;
+    const {error}=await sb.rpc("pult_delete_member",{p_id:id});
+    if(error){md.disabled=false;toast(error.message.replace(/^.*?: /,""));return}
+    toast(`${m?.name||"Учасника"} видалено`);editMem=null;await loadAll();return}
+},true);
+
 /* файл міг завантажитись уже після старту пульту */
 if(typeof booted!=="undefined"&&booted&&tasks.length)bizInit();

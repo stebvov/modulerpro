@@ -1,4 +1,5 @@
 "use client";
+import DeleteButton from "@/components/DeleteButton";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -108,6 +109,10 @@ export default function PartnerModal({ open, partner, onClose, onSaved }) {
         </div>
 
         <div className="modal-actions">
+          {partner?.id && (
+            <DeleteButton table="service_partners" id={partner.id} what="партнера"
+              onDone={async () => { await reload(); onSaved?.(); onClose(); }} onError={setError} />
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           {canWriteCatalog && (
             <button className="btn primary" onClick={handleSave} disabled={saving}>

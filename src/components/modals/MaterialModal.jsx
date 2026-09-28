@@ -1,4 +1,5 @@
 "use client";
+import DeleteButton from "@/components/DeleteButton";
 
 import { useEffect, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -121,6 +122,10 @@ export default function MaterialModal({ open, material, defaultCategoryId, onClo
           />
         </div>
         <div className="modal-actions">
+          {material?.id && (
+            <DeleteButton table="materials" id={material.id} what="матеріал"
+              onDone={async () => { await reload(); onSaved?.(); onClose(); }} onError={setError} />
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? "Збереження..." : "Зберегти"}
