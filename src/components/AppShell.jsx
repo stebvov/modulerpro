@@ -223,7 +223,7 @@ export default function AppShell() {
               <h1 className="page-title">{plainLabel(activeGroup?.tabs.length > 1 ? activeGroup.label : activeTabInfo?.label)}</h1>
             </div>
             <div className="top-bar-right">
-              {inTeam && isPult(activeTab) && (
+              {inTeam && ["pult-my", "pult-tasks"].includes(activeTab) && (
                 <button className="btn primary" onClick={newTask} title="Нова задача в пульті — з будь-якого розділу">
                   <span className="btn-label-full">+ Задача</span><span className="btn-label-compact">+</span>
                 </button>

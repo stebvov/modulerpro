@@ -114,42 +114,122 @@ function ActivityLog({ dealId, activities, nextActionAt, nextActionNote, onEnsur
   }
 
   return (
-    <div>
+    <div className="deal-log">
       {!dealId && (
         <p className="note" style={{ marginTop: 0 }}>
           Лід ще не збережений — перший запис чи нагадування збереже його автоматично.
         </p>
       )}
-      {sorted.length > 0 && (
-        <div style={{ marginBottom: 10, maxHeight: 220, overflowY: "auto" }}>
-          {sorted.map((a) => {
-            const meta = ACTIVITY_TYPES.find((t) => t.key === a.type);
-            return (
-              <div key={a.id} style={{ borderLeft: "2px solid var(--border-strong)", paddingLeft: 10, marginBottom: 8 }}>
-                <div className="note">{meta?.icon} <b style={{ color: "var(--text)" }}>{a.type}</b> · {fmtDateTime(a.created_at)}{a.created_by ? ` · ${a.created_by}` : ""}</div>
-                <div style={{ fontSize: 13, marginTop: 2 }}>{a.note}</div>
-                {a.attachment_name && <div className="note" style={{ marginTop: 2 }}>📎 {a.attachment_name}</div>}
-              </div>
-            );
-          })}
+      <div className="deal-composer">
+        <textarea rows={2} placeholder="Коментар: про що говорили, результат…  (Ctrl+Enter — додати)" value={note} onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitActivity(); }} />
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <select style={{ width: "auto" }} value={type} onChange={(e) => setType(e.target.value)} aria-label="Тип запису">
+            {ACTIVITY_TYPES.map((t) => <option key={t.key} value={t.key}>{t.icon} {t.key}</option>)}
+          </select>
+          <label className="btn small" style={{ cursor: "pointer" }} title="Прикріпити файл">📎{file ? " " + file.name.slice(0, 18) : ""}
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ display: "none" }} />
+          </label>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="btn primary small" disabled={busy || !note.trim()} onClick={submitActivity}>Додати</button>
         </div>
-      )}
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-        <select style={{ flex: "1 1 120px" }} value={type} onChange={(e) => setType(e.target.value)}>
-          {ACTIVITY_TYPES.map((t) => <option key={t.key} value={t.key}>{t.icon} {t.key}</option>)}
-        </select>
-        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ fontSize: 11, flex: "1 1 120px", minWidth: 0 }} />
       </div>
-      <textarea style={{ minHeight: 50, resize: "vertical", marginBottom: 6, width: "100%", boxSizing: "border-box" }} placeholder="Про що говорили, результат…" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button type="button" className="btn small" disabled={busy} onClick={submitActivity} style={{ marginBottom: 14 }}>+ Додати запис</button>
-
-      <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: 10 }}>
-        <div className="note" style={{ marginBottom: 6, fontWeight: 600 }}>🔔 Наступний контакт</div>
-        <input type="datetime-local" style={{ marginBottom: 6, width: "100%", boxSizing: "border-box" }} value={naDate} onChange={(e) => setNaDate(e.target.value)} />
-        <input style={{ marginBottom: 6, width: "100%", boxSizing: "border-box" }} placeholder="Наприклад: передзвонити щодо КП" value={naNote} onChange={(e) => setNaNote(e.target.value)} />
-        <button type="button" className="btn small" disabled={busy} onClick={saveNextAction}>Зберегти нагадування</button>
+      <div className="deal-remind">
+        <span aria-hidden="true">🔔</span>
+        <input type="datetime-local" value={naDate} onChange={(e) => setNaDate(e.target.value)} aria-label="Дата наступного контакту" />
+        <input placeholder="Наступний контакт: що зробити" value={naNote} onChange={(e) => setNaNote(e.target.value)} />
+        <button type="button" className="btn small" disabled={busy} onClick={saveNextAction}>Зберегти</button>
       </div>
+      <div className="deal-feed">
+        {!sorted.length && <div className="note" style={{ textAlign: "center", padding: 16 }}>Записів ще немає.</div>}
+        {sorted.map((a) => {
+          const meta = ACTIVITY_TYPES.find((t) => t.key === a.type);
+          return (
+            <div key={a.id} className="deal-feed-item">
+              <div className="note">{meta?.icon} <b style={{ color: "var(--text)" }}>{a.type}</b> · {fmtDateTime(a.created_at)}{a.created_by ? ` · ${a.created_by}` : ""}</div>
+              <div style={{ fontSize: 13.5, marginTop: 2, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{a.note}</div>
+              {a.attachment_name && <div className="note" style={{ marginTop: 2 }}>📎 {a.attachment_name}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ✅ Задачі по ліду: задачі пульту з привʼязкою до угоди (у т.ч. автоматичні з CRM)
+function DealTasks({ dealId, onEnsureSaved }) {
+  const { supabase } = useCrmData();
+  const [tasks, setTasks] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [meId, setMeId] = useState(null);
+  const [title, setTitle] = useState("");
+  const [owner, setOwner] = useState("");
+  const [due, setDue] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      const [m, me] = await Promise.all([
+        supabase.from("task_members").select("id,name,active,is_ai").eq("active", true).order("sort"),
+        supabase.rpc("pult_me"),
+      ]);
+      if (!on) return;
+      setMembers((m.data || []).filter((x) => !x.is_ai));
+      setMeId(me.data || null);
+      if (!dealId) { setTasks([]); return; }
+      const { data, error } = await supabase.from("tasks").select("id,num,title,status,due,owner_id").eq("deal_id", dealId).order("status").order("due");
+      if (on) { setTasks(data || []); if (error) setErr(error.message); }
+    })();
+    return () => { on = false; };
+  }, [supabase, dealId]);
+
+  const nameOf = (id) => members.find((m) => m.id === id)?.name || "—";
+  async function add() {
+    if (!title.trim()) return;
+    const id = dealId || (await onEnsureSaved());
+    if (!id) return;
+    const { data, error } = await supabase.from("tasks").insert({
+      title: title.trim(), project: "Потік угод: договір → виробництво → монтаж", owner_id: owner || meId, controller_id: meId,
+      due: due || null, deal_id: id, created_by: meId, source: "crm",
+    }).select("id,num,title,status,due,owner_id").single();
+    if (error) { setErr(error.message); return; }
+    setTasks((t) => [...(t || []), data]); setTitle(""); setDue(""); setErr("");
+  }
+  async function toggle(t) {
+    const status = t.status === "done" ? "todo" : "done";
+    setTasks((l) => l.map((x) => (x.id === t.id ? { ...x, status } : x)));
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", t.id);
+    if (error) setErr(error.message);
+  }
+
+  if (!meId && tasks !== null) return <p className="note">Задачі по ліду бачать і створюють учасники команди (розділ «Команда»).</p>;
+  return (
+    <div className="deal-tasks">
+      <div className="deal-composer">
+        <input placeholder="Нова задача по ліду: що зробити (Enter — додати)" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <select value={owner} onChange={(e) => setOwner(e.target.value)} style={{ flex: "1 1 140px" }} aria-label="Виконавець">
+            <option value="">я виконую</option>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} style={{ width: 150 }} aria-label="Термін" />
+          <button type="button" className="btn primary small" onClick={add} disabled={!title.trim()}>+ Задача</button>
+        </div>
+      </div>
+      {err && <div className="auth-error">{err}</div>}
+      {tasks === null ? <div className="note">Завантаження…</div> : !tasks.length ? (
+        <div className="note" style={{ textAlign: "center", padding: 16 }}>Задач по ліду ще немає. Автоматичні задачі з&apos;являться тут, коли угода перейде на «Договір», «Готово», «Здано».</div>
+      ) : tasks.map((t) => (
+        <div key={t.id} className={`deal-task${t.status === "done" ? " done" : ""}`}>
+          <input type="checkbox" checked={t.status === "done"} onChange={() => toggle(t)} aria-label="Виконано" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <a href={`/?s=pult-tasks#t/${t.num}`} className="deal-task-title">#{t.num} {t.title}</a>
+            <div className="note">{nameOf(t.owner_id)}{t.due ? ` · до ${new Date(t.due + "T12:00:00Z").toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })}` : ""}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -162,7 +242,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   const { canWriteCatalog, profile } = useAuth();
 
   const [savedId, setSavedId] = useState(dealId || null);
-  const [tab, setTab] = useState("основне");
+  const [tab, setTab] = useState("коментарі");
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -175,7 +255,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     if (!open) return;
     // Resetting the form when the modal opens for a different record.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTab("основне");
+    setTab("коментарі");
     setError("");
     setSavedId(dealId || null);
     const dealRow = dealId ? deals.find((d) => d.id === dealId) : null;
@@ -254,7 +334,6 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   if (!open || !form) return null;
 
   const ownerOptions = teamMembers.map((m) => ({ id: m.id, label: m.name }));
-  const showExtraOpen = !!(form.lead_region || form.category_ids.length || form.lead_source !== "сайт" || form.lead_status !== "новий");
   const showOrderItems = form.request_type === "template" || form.request_type === "custom";
 
   function update(key) {
@@ -295,7 +374,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   const previewProductionTotal = showOrderItems ? orderItemsTotal : Number(form.manual_price) || 0;
 
   async function saveDeal() {
-    if (!form.lead_name.trim()) { setTab("основне"); setError("Заповни ім'я/назву клієнта."); return null; }
+    if (!form.lead_name.trim()) { setError("Заповни ім'я/назву клієнта."); return null; }
     setSaving(true);
     setError("");
     try {
@@ -427,35 +506,36 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
   }
 
   const activities = savedId ? dealActivities.filter((a) => a.deal_id === savedId) : [];
+  const stageId = currentDealRow?.stage_id;
+  async function moveTo(id) {
+    if (!savedId || id === stageId) return;
+    const { error: e } = await supabase.from("deals").update({ stage_id: id }).eq("id", savedId);
+    if (e) { setError(e.message); return; }
+    await reload();
+  }
 
+  const stageIdx = (pipeline.stages || []).findIndex((st) => st.id === stageId);
   return (
-    <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-lg">
-        <h2>{savedId ? "Редагувати угоду" : `Новий лід — ${pipeline.name}`}</h2>
-        {error && <div className="auth-error">{error}</div>}
-
-        <div className="seg-row" style={{ marginBottom: 16 }}>
-          <button type="button" className={`seg-btn${tab === "основне" ? " active" : ""}`} onClick={() => setTab("основне")}>Основне</button>
-          <button type="button" className={`seg-btn${tab === "історія" ? " active" : ""}`} onClick={() => setTab("історія")}>
-            Історія {activities.length > 0 ? `(${activities.length})` : ""}
-          </button>
+    <div className="modal-overlay open deal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal deal-card">
+        <div className="deal-head">
+          <input className="deal-title" value={form.lead_name} onChange={update("lead_name")} placeholder={`Новий лід — ${pipeline.name}: ім'я або назва клієнта`} aria-label="Ім'я / назва клієнта" />
+          <div className="deal-sum" title={showOrderItems ? "Вартість замовлення (рахується автоматично)" : "Сума"}>{curr(previewProductionTotal)} грн</div>
+          <button type="button" className="btn small" onClick={onClose} aria-label="Закрити">✕</button>
         </div>
+        {savedId && (pipeline.stages || []).length > 0 && (
+          <div className="deal-stages" role="group" aria-label="Етап угоди">
+            {pipeline.stages.map((st, i) => (
+              <button key={st.id} type="button" className={`deal-stage${i < stageIdx ? " past" : ""}${st.id === stageId ? " on" : ""}`} onClick={() => moveTo(st.id)} title={`Перевести на «${st.label}»`}>
+                {st.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {error && <div className="auth-error" style={{ margin: "0 18px" }}>{error}</div>}
 
-        {tab === "історія" ? (
-          <ActivityLog
-            dealId={savedId}
-            activities={activities}
-            nextActionAt={currentDealRow?.next_action_at}
-            nextActionNote={currentDealRow?.next_action_note}
-            onEnsureSaved={ensureSaved}
-            onReload={reload}
-          />
-        ) : (
-          <>
-            <div className="form-row">
-              <label>Ім&apos;я / назва клієнта *</label>
-              <input value={form.lead_name} onChange={update("lead_name")} />
-            </div>
+        <div className="deal-body">
+          <section className="deal-left">
             <div className="form-row">
               <label>Контакти</label>
               {form.contacts.map((c) => (
@@ -479,9 +559,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <input value={form.lead_budget_range} onChange={update("lead_budget_range")} placeholder="напр. 500 000 - 800 000 грн" />
             </div>
 
-            <details className="section-details" open={showExtraOpen}>
-              <summary>Додаткові поля</summary>
-              <div className="section-body">
+            <div className="deal-grid">
                 <div className="form-row">
                   <label>Регіон</label>
                   <input value={form.lead_region} onChange={update("lead_region")} />
@@ -509,8 +587,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
                     {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
-              </div>
-            </details>
+            </div>
 
             <div className="form-row">
               <label>Тип запиту</label>
@@ -581,22 +658,24 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               <textarea rows={2} value={form.lead_notes} onChange={update("lead_notes")} />
             </div>
 
-            <div style={{ background: "var(--accent-bg)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-              <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {showOrderItems ? "Вартість замовлення (автоматично)" : "Сума"}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>
-                {curr(previewProductionTotal)} грн
-              </div>
-            </div>
-
             {savedId && marginAlert?.is_below_threshold && (
               <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
                 ⚠ Маржа {marginAlert.margin_pct}% — нижче порогу {marginAlert.threshold_pct}%
               </div>
             )}
-          </>
-        )}
+          </section>
+          <aside className="deal-right">
+            <div className="seg-row" style={{ marginBottom: 10 }}>
+              <button type="button" className={`seg-btn${tab === "коментарі" ? " active" : ""}`} onClick={() => setTab("коментарі")}>💬 Коментарі й історія{activities.length > 0 ? ` (${activities.length})` : ""}</button>
+              <button type="button" className={`seg-btn${tab === "задачі" ? " active" : ""}`} onClick={() => setTab("задачі")}>✅ Задачі по ліду</button>
+            </div>
+            {tab === "задачі" ? (
+              <DealTasks dealId={savedId} onEnsureSaved={ensureSaved} />
+            ) : (
+              <ActivityLog dealId={savedId} activities={activities} nextActionAt={currentDealRow?.next_action_at} nextActionNote={currentDealRow?.next_action_note} onEnsureSaved={ensureSaved} onReload={reload} />
+            )}
+          </aside>
+        </div>
 
         <div className="modal-actions">
           {savedId && canWriteCatalog && (
@@ -605,11 +684,9 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
             </button>
           )}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
-          {tab === "основне" && (
-            <button className="btn primary" onClick={handleSave} disabled={saving || !canWriteCatalog}>
-              {saving ? "Збереження..." : "Зберегти"}
-            </button>
-          )}
+          <button className="btn primary" onClick={handleSave} disabled={saving || !canWriteCatalog}>
+            {saving ? "Збереження..." : "Зберегти"}
+          </button>
         </div>
       </div>
     </div>
