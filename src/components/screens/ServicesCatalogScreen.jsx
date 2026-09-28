@@ -63,7 +63,7 @@ export default function ServicesCatalogScreen() {
             {list.map((s) => {
               const cat = serviceCategories.find((c) => c.id === s.category_id);
               return (
-                <tr key={s.id}>
+                <tr key={s.id} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити й редагувати" : undefined} onClick={(e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(s); }}>
                   <td>{cat ? `${cat.icon ? cat.icon + " " : ""}${cat.name}` : "—"}</td>
                   <td>{s.icon ? `${s.icon} ` : ""}{s.name}</td>
                   <td>{s.unit}</td>

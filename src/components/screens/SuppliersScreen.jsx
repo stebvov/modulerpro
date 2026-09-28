@@ -91,7 +91,7 @@ export default function SuppliersScreen() {
             const contacts = supplierContacts.filter((c) => c.supplier_id === s.id);
             const rel = s.reliability_score || 0;
             return (
-              <tr key={s.id}>
+              <tr key={s.id} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити й редагувати" : undefined} onClick={(e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(s); }}>
                 <td>{s.name}</td>
                 <td>{cats.map((c) => <span className="tag" key={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</span>)}{!cats.length && "—"}</td>
                 <td>

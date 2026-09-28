@@ -108,7 +108,7 @@ export default function MaterialsScreen() {
           {list.map((m) => {
             const cat = materialCategories.find((c) => c.id === m.category_id);
             return (
-              <tr key={m.id}>
+              <tr key={m.id} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити й редагувати" : undefined} onClick={(e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(m); }}>
                 <td>{cat ? `${cat.icon ? cat.icon + " " : ""}${cat.name}` : "—"}</td>
                 <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
                 <td>{m.unit}</td>
