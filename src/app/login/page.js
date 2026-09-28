@@ -64,8 +64,8 @@ export default function LoginPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <h1>Moduler Pro</h1>
-        <p className="subtitle">{signUp ? "Перший вхід: створіть пароль" : "Вхід у систему і пульт задач"}</p>
+        <h1>Модулер</h1>
+        <p className="subtitle">{signUp ? "Перший вхід: створіть пароль" : "Вхід у систему управління"}</p>
         {error && <div className="auth-error">{error}</div>}
         {info && <div className="note" style={{ marginBottom: 12 }}>{info}</div>}
         <form onSubmit={handleSubmit}>

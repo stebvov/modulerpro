@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { createClient } from "@/lib/supabase/client";
@@ -86,8 +86,11 @@ export default function AppShell() {
   const [activeTab, setActiveTab] = useState(start.s || null);
   const [pultOpened, setPultOpened] = useState(() => isPult(start.s));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {
+    try { return typeof window !== "undefined" && localStorage.getItem("moduler_sidebar") === "0"; } catch { return false; }
+  });
+  const setSidebarCollapsed = (v) => { setSidebarCollapsedState(v); try { localStorage.setItem("moduler_sidebar", v ? "0" : "1"); } catch { /* приватний режим */ } };
+  const pultRef = useRef(null);
 
   const hasMp = !!profile && !isPartner;
   const inTeam = !!member;
@@ -146,12 +149,11 @@ export default function AppShell() {
     setActiveTab(id);
     setMobileMenuOpen(false);
   }
-  function toggleGroupExpanded(key) {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
+  // «Профіль у команді»: імʼя, роль, фото, Telegram — живе в пульті
+  function openTeamProfile() {
+    if (!inTeam) return;
+    select("pult-my");
+    setTimeout(() => pultRef.current?.openProfile(), 300);
   }
 
   if (!ready) return <div className="full-loader"><div className="spinner" /></div>;
@@ -166,15 +168,13 @@ export default function AppShell() {
   const Screen = activeTab && !isPult(activeTab) ? SCREENS[activeTab] : null;
 
   return (
-    <div className={`app${isPult(activeTab) ? " app-wide" : ""}`}>
+    <div className="app">
       {mobileMenuOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-brand">Модулер</div>
             {groups.map((g) => (
-              <div key={g.key}>
-                <button className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs[0].id)}>{g.label}</button>
-              </div>
+              <button key={g.key} className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs[0].id)}>{g.label}</button>
             ))}
           </div>
         </div>
@@ -182,37 +182,19 @@ export default function AppShell() {
 
       <div className="shell">
         {!sidebarCollapsed && (
-          <div className="sidebar">
+          <nav className="sidebar" aria-label="Розділи системи">
             <div className="sidebar-brand-row">
               <div className="sidebar-brand">Модулер</div>
               <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(true)} title="Сховати меню" aria-label="Сховати меню">⟨</button>
             </div>
             <div className="sidebar-groups">
-              {groups.map((g) => {
-                const [mainTab, ...restTabs] = g.tabs;
-                const isExpanded = expandedGroups.has(g.key) || g.tabs.some((t) => t.id === activeTab);
-                return (
-                  <div className="sidebar-group" key={g.key}>
-                    <div className="sidebar-group-row">
-                      <button className={`sidebar-link${activeTab === mainTab.id ? " active" : ""}`} onClick={() => select(mainTab.id)}>{g.label}</button>
-                      {restTabs.length > 0 && (
-                        <button className="sidebar-expand-btn" onClick={() => toggleGroupExpanded(g.key)} aria-label={isExpanded ? "Згорнути" : "Розгорнути"}>
-                          {isExpanded ? "▾" : "▸"}
-                        </button>
-                      )}
-                    </div>
-                    {restTabs.length > 0 && isExpanded && (
-                      <div className="sidebar-subgroup">
-                        {restTabs.map((t) => (
-                          <button key={t.id} className={`sidebar-link sub${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {groups.map((g) => (
+                <button key={g.key} className={`sidebar-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs.some((t) => t.id === activeTab) ? activeTab : g.tabs[0].id)}>
+                  {g.label}
+                </button>
+              ))}
             </div>
-          </div>
+          </nav>
         )}
 
         <div className="main-content">
@@ -222,27 +204,29 @@ export default function AppShell() {
               {sidebarCollapsed && (
                 <button className="btn small sidebar-reopen-btn" onClick={() => setSidebarCollapsed(false)} title="Показати меню">☰ Меню</button>
               )}
-              <h1 className="page-title">{activeTabInfo?.label}</h1>
+              <h1 className="page-title">{activeGroup?.tabs.length > 1 ? activeGroup.label : activeTabInfo?.label}</h1>
             </div>
             <div className="top-bar-right">
               <CurrencyMenu currency={currency} onChange={setCurrency} />
-              <ProfileMenu />
+              <ProfileMenu onTeamProfile={inTeam ? openTeamProfile : null} />
             </div>
           </div>
 
           {activeGroup && activeGroup.tabs.length > 1 && (
-            <div className="mobile-subtabs">
+            <div className="subtabs" role="tablist">
               {activeGroup.tabs.map((t) => (
-                <button key={t.id} className={`mobile-subtab${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
+                <button key={t.id} role="tab" aria-selected={activeTab === t.id} className={`subtab${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
               ))}
             </div>
           )}
 
           {inTeam && pultAlive && (
             <PultFrame
+              ref={pultRef}
               section={isPult(activeTab) ? activeTab.slice(5) : null}
               visible={isPult(activeTab)}
               initialHash={isPult(start.s) ? start.hash : ""}
+              currency={currency}
               onSection={onPultSection}
             />
           )}

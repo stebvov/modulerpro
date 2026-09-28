@@ -19,7 +19,7 @@ function avatarPath(userId, fileName) {
   return `${userId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 }
 
-export default function ProfileMenu() {
+export default function ProfileMenu({ onTeamProfile }) {
   const supabase = createClient();
   const { profile, user, role, signOut, refreshProfile } = useAuth();
   const fileInputRef = useRef(null);
@@ -161,6 +161,11 @@ export default function ProfileMenu() {
             </div>
           </div>
 
+          {onTeamProfile && (
+            <button className="btn small" style={{ width: "100%", marginTop: 12 }} onClick={() => { setOpen(false); onTeamProfile(); }}>
+              👤 Профіль у команді · Telegram
+            </button>
+          )}
           <div className="profile-menu-actions">
             <button className="btn small" onClick={() => setPasswordModalOpen(true)}>Змінити пароль</button>
             <button className="btn small" onClick={signOut}>Вийти</button>

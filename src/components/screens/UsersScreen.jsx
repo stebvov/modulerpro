@@ -89,7 +89,7 @@ export default function UsersScreen() {
     if (!inviteResult) return;
     const loginUrl = `${window.location.origin}/login`;
     const text = [
-      "Доступ до Moduler Pro",
+      "Доступ до системи Модулер",
       `Посилання: ${loginUrl}`,
       `Email: ${inviteResult.email}`,
       `Тимчасовий пароль: ${inviteResult.password}`,
@@ -124,7 +124,7 @@ export default function UsersScreen() {
     if (!resetResult) return;
     const loginUrl = `${window.location.origin}/login`;
     const text = [
-      "Доступ до Moduler Pro",
+      "Доступ до системи Модулер",
       `Посилання: ${loginUrl}`,
       `Email: ${resetResult.email}`,
       `Пароль: ${resetResult.password}`,

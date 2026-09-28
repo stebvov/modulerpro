@@ -19,18 +19,20 @@ for(const fn of ["renderTg","renderProjHead","renderProjects"]){const o=window[f
 const IN_MP=location.pathname.startsWith("/pult");
 async function mpSso(){
   if(!IN_MP)return;
-  const {data}=await sb.auth.getSession();if(data?.session)return;
+  const {data}=await sb.auth.getSession();
   const ck=Object.fromEntries(document.cookie.split(";").map(c=>{const i=c.indexOf("=");return [c.slice(0,i).trim(),decodeURIComponent(c.slice(i+1))]}));
-  const base=Object.keys(ck).find(k=>/^sb-.+-auth-token(\.0)?$/.test(k));if(!base){(window.top||window).location.assign("/login");return}
+  const base=Object.keys(ck).find(k=>/^sb-.+-auth-token(\.0)?$/.test(k));if(!base){if(!data?.session)(window.top||window).location.assign("/login");return}
   const root=base.replace(/\.0$/,"");let raw=ck[root]||"";if(!raw){for(let i=0;ck[root+"."+i]!==undefined;i++)raw+=ck[root+"."+i]}
   try{
     if(raw.startsWith("base64-")){const b=raw.slice(7).replace(/-/g,"+").replace(/_/g,"/");raw=new TextDecoder().decode(Uint8Array.from(atob(b+"===".slice((b.length+3)%4)),c=>c.charCodeAt(0)))}
     const s=JSON.parse(raw);const t=Array.isArray(s)?{access_token:s[0],refresh_token:s[1]}:s;
     if(!t.access_token||!t.refresh_token)return;
+    /* сесія пульту вже є і це той самий користувач, що в Moduler Pro — нічого не робимо */
+    if(data?.session&&(!t.user?.id||t.user.id===data.session.user?.id))return;
     const {error}=await sb.auth.setSession({access_token:t.access_token,refresh_token:t.refresh_token});
     if(!error){location.reload();return}
   }catch(e){console.warn("mpSso",e)}
-  (window.top||window).location.assign("/login");
+  if(!data?.session)(window.top||window).location.assign("/login");
 }
 if(IN_MP){
   mpSso();

@@ -25,8 +25,7 @@ body {
   color: var(--text);
 }
 a { color: inherit; }
-.app.app-wide { max-width: none; }
-.app { max-width: 1320px; margin: 0 auto; padding: 20px 20px 60px; overflow-x: hidden; }
+.app { max-width: 1480px; margin: 0 auto; padding: 20px 20px 60px; overflow-x: hidden; }
 /* Scroll wrapper for wide tables/calendars — keeps the horizontal scroll
    contained to the table itself instead of the whole page on mobile. */
 .table-scroll { overflow-x: auto; }
@@ -103,6 +102,12 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
    desktop via .hamburger-btn's base display:none and .mobile-subtabs/
    .mobile-drawer-overlay below; the left sidebar (above) is used instead. */
 .mobile-subtabs { display: none; }
+/* підрозділи групи — рядок вкладок над контентом (ліве меню лишається нерухомим) */
+.subtabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); scrollbar-width: none; }
+.subtabs::-webkit-scrollbar { display: none; }
+.subtab { flex-shrink: 0; padding: 6px 14px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--card); font-size: 13px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-family: inherit; }
+.subtab:hover { border-color: var(--accent); color: var(--accent); }
+.subtab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mobile-drawer-overlay { display: none; }
 
 @media (max-width: 900px) {

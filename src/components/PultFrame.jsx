@@ -1,42 +1,62 @@
 "use client";
 
-// Пульт (статичний застосунок public/pult) всередині оболонки Moduler Pro.
+// Пульт (статичний застосунок public/pult) всередині оболонки.
 // Один iframe живе весь сеанс: розділи перемикаються без перезавантаження, стан пульту зберігається.
-// Пульт у режимі embed ховає свою шапку й вкладки — навігація лише в меню оболонки.
-import { useEffect, useRef, useState } from "react";
+// Пульт у режимі embed ховає свою шапку, вкладки, валюту й профіль — усе це в оболонці.
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
-export default function PultFrame({ section, visible, initialHash, onSection }) {
+const PultFrame = forwardRef(function PultFrame({ section, visible, initialHash, currency, onSection }, outer) {
   const ref = useRef(null);
   const [src] = useState(() => `/pult?embed=1&tab=${encodeURIComponent(section || "my")}${initialHash || ""}`);
+  const [height, setHeight] = useState(600);
 
-  // оболонка → пульт: відкрити розділ
+  const post = useCallback((msg) => {
+    try { ref.current?.contentWindow?.postMessage(msg, window.location.origin); } catch { /* ще вантажиться */ }
+  }, []);
+  useImperativeHandle(outer, () => ({ openProfile: () => post({ type: "open-profile" }) }), [post]);
+
+  // висота рамки = до низу вікна: прокрутка одна (всередині пульту), фіксовані вікна пульту видно
+  useEffect(() => {
+    function fit() {
+      const top = ref.current?.getBoundingClientRect().top ?? 120;
+      setHeight(Math.max(420, Math.floor(window.innerHeight - top - 12)));
+    }
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [visible]);
+
+  // оболонка → пульт: розділ
   useEffect(() => {
     if (!section) return;
-    const w = ref.current?.contentWindow;
     try {
-      const b = w?.document?.querySelector(`.seg [data-tab="${section}"]`);
+      const b = ref.current?.contentWindow?.document?.querySelector(`.seg [data-tab="${section}"]`);
       if (b && b.getAttribute("aria-pressed") !== "true") b.click();
-    } catch {
-      /* пульт ще вантажиться — розділ візьметься з ?tab= */
-    }
+    } catch { /* пульт ще вантажиться — розділ візьметься з ?tab= */ }
   }, [section]);
 
-  // пульт → оболонка: людина перейшла в інший розділ усередині пульту (напр., відкрила проєкт)
+  // оболонка → пульт: валюта (одна на всю систему)
+  useEffect(() => { post({ type: "currency", currency }); }, [currency, post]);
+
+  // пульт → оболонка
   useEffect(() => {
     function onMsg(e) {
-      if (e.origin !== window.location.origin || e.data?.type !== "pult-tab") return;
-      onSection?.(e.data.tab);
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === "pult-tab") onSection?.(e.data.tab);
+      if (e.data?.type === "pult-ready") post({ type: "currency", currency });
     }
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, [onSection]);
+  }, [onSection, post, currency]);
 
   return (
     <iframe
       ref={ref}
       src={src}
       title="Пульт Модулер"
-      style={{ display: visible ? "block" : "none", width: "100%", height: "calc(100vh - 86px)", border: 0, background: "transparent" }}
+      style={{ display: visible ? "block" : "none", width: "100%", height, border: 0, background: "transparent" }}
     />
   );
-}
+});
+
+export default PultFrame;

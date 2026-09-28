@@ -90,7 +90,7 @@ function taskListTitle(){
 const MP_URL="https://app.moduler.pro";
 function mpLink(){
   const s=document.querySelector('#passport select[data-sale="deal"]');if(!s||s.nextElementSibling?.classList.contains("mplink"))return;
-  s.insertAdjacentHTML("afterend",`<a class="mplink" href="${MP_URL}" target="_blank" rel="noopener" title="Угоди (клієнт, будинок, ціна, оплати) ведуться в Moduler Pro. Створіть там — і вона зʼявиться в цьому списку">＋ угода в Moduler Pro ↗</a>`);
+  s.insertAdjacentHTML("afterend",`<a class="mplink" href="/?s=crm" target="_top" title="Угоди (клієнт, будинок, ціна, оплати) ведуться в CRM. Створіть там — і вона зʼявиться в цьому списку">＋ угода в CRM ↗</a>`);
 }
 window.addEventListener("focus",async()=>{
   if(!document.querySelector('#passport select[data-sale="deal"]'))return;

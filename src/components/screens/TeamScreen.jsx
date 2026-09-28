@@ -23,7 +23,7 @@ export default function TeamScreen() {
   const [modal, setModal] = useState(null);
 
   const filtered = useMemo(
-    () => members.filter((m) => (!roleFilter || m.role === roleFilter) && (!typeFilter || m.type === typeFilter)),
+    () => members.filter((m) => !m.from_team && (!roleFilter || m.role === roleFilter) && (!typeFilter || m.type === typeFilter)),
     [members, roleFilter, typeFilter]
   );
 
@@ -32,7 +32,7 @@ export default function TeamScreen() {
 
   return (
     <div>
-      <p className="note">Реєстр команди (люди, AI-агенти, бригади) і матриця доступу по шарах — правило UI, не окрема таблиця.</p>
+      <p className="note">Бригади, підрядники й інші виконавці, яких немає в команді. Людей команди додають і редагують в одному місці — «Команда → Люди і структура»; тут вони з&apos;являються автоматично (для «Відповідального» в угодах).</p>
 
       <div className="section-label">Команда</div>
       <div className="toolbar">
@@ -45,7 +45,7 @@ export default function TeamScreen() {
             <option value="">Тип: усі</option>
             {MEMBER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <span className="note" style={{ marginTop: 0 }}>{filtered.length} з {members.length} записів</span>
+          <span className="note" style={{ marginTop: 0 }}>{filtered.length} з {members.filter((m) => !m.from_team).length} записів</span>
         </div>
         {canWriteCatalog && (
           <button className="btn primary" onClick={() => setModal({ member: null })}>+ Додати</button>

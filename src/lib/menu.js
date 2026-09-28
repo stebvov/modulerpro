@@ -32,11 +32,19 @@ export const MENU = [
   { key: "finance", label: "💰 Фінанси", need: "finance", tabs: [{ id: "finance", label: "Фінанси" }] },
   {
     key: "team", label: "👥 Команда", need: "team",
-    tabs: [{ id: "pult-team", label: "Команда і структура" }, { id: "pult-tg", label: "Telegram-чати", need: "mgr" }],
+    tabs: [
+      { id: "pult-team", label: "Люди і структура" },
+      { id: "team", label: "Бригади й підрядники", need: "mp" },
+      { id: "pult-tg", label: "Telegram-чати", need: "mgr" },
+    ],
   },
   {
-    key: "admin", label: "⚙️ Адміністрування", need: "admin",
-    tabs: [{ id: "users", label: "Користувачі" }, { id: "team", label: "Люди та ролі" }, { id: "access-groups", label: "Ролі доступу" }, { id: "menu-settings", label: "Меню" }],
+    key: "admin", label: "⚙️ Налаштування", need: "admin",
+    tabs: [
+      { id: "users", label: "Доступи й логіни" },
+      { id: "access-groups", label: "Ролі партнерів" },
+      { id: "menu-settings", label: "Меню" },
+    ],
   },
 ];
 

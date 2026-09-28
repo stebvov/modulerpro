@@ -64,6 +64,8 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    // пульт тримає свою копію сесії в localStorage — прибираємо, щоб наступний вхід у цьому браузері не підхопив чужий акаунт
+    try { Object.keys(localStorage).filter((k) => k.startsWith("sb-")).forEach((k) => localStorage.removeItem(k)); } catch { /* приватний режим */ }
     router.push("/login");
   }, [supabase, router]);
 

@@ -81,11 +81,27 @@ document.head.insertAdjacentHTML("beforeend",`<style id="bizCss">
 const EMBED=new URLSearchParams(location.search).has("embed");
 const EMBED_TAB=new URLSearchParams(location.search).get("tab")||"my";
 if(IN_MP&&!EMBED&&window.top===window){const h=location.hash||"";location.replace("/?s=pult-"+(/^#[tp]\//.test(h)?"tasks":"my")+h)}
-if(EMBED){document.body.classList.add("embed");document.head.insertAdjacentHTML("beforeend",`<style>
-body.embed{padding-top:8px}
-body.embed header.top h1,body.embed .seg[aria-label="Розділ"],body.embed .mpback{display:none!important}
-body.embed header.top{justify-content:flex-end;margin-bottom:-6px}
-</style>`)}
+if(EMBED){document.body.classList.add("embed");document.head.insertAdjacentHTML("beforeend",`<style id="embedCss">
+/* один стиль з оболонкою: шрифт, розміри, ширина, фон */
+body.embed{background:transparent;padding:0 2px 24px;font:14px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+body.embed .wrap{max-width:none}
+body.embed header.top h1,body.embed .seg[aria-label="Розділ"],body.embed .mpback,body.embed #curSw,body.embed #meBtn{display:none!important}
+body.embed header.top{justify-content:flex-end;margin:0 0 -8px;min-height:0}
+body.embed h2{font-size:15px}
+body.embed .bz-hello h2{font:600 18px -apple-system,"Segoe UI",Roboto,sans-serif}
+body.embed .cap-goal .big{font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+</style>`);
+  /* валюта — одна на всю систему: беремо з оболонки */
+  try{const c=localStorage.getItem("moduler_currency");if(CURS.includes(c))DISP=c}catch(e){}
+  window.addEventListener("message",e=>{
+    if(e.origin!==location.origin)return;
+    if(e.data?.type==="currency"&&CURS.includes(e.data.currency)&&e.data.currency!==DISP){
+      DISP=e.data.currency;try{localStorage.setItem("pult_cur",DISP)}catch(err){}
+      try{render()}catch(err){}try{renderProjects()}catch(err){}try{if(fProject&&!phEdit)renderProjHead()}catch(err){}try{renderBiz()}catch(err){}
+    }
+    if(e.data?.type==="open-profile")document.getElementById("meBtn")?.click();
+  });
+}
 const postTab=k=>{if(EMBED&&window.parent!==window)try{window.parent.postMessage({type:"pult-tab",tab:k},location.origin)}catch(e){}};
 
 const STAGES=[
@@ -128,6 +144,7 @@ let bizInitP=null;
 function bizInit(){
   bizInitP??=(async()=>{
     try{await loadBiz();mountBizTabs();bizBooted=true;markProjCards();
+      if(EMBED&&window.parent!==window)try{window.parent.postMessage({type:"pult-ready"},location.origin)}catch(e){}
       const first=EMBED?EMBED_TAB:"my";
       if(!location.hash&&!bizTab)document.querySelector(`.seg [data-tab="${first}"]`)?.click();else renderBiz()}
     catch(err){console.error("biz",err);bizInitP=null}

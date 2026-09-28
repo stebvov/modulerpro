@@ -25,7 +25,7 @@ let mpDeals=null,payOpen=null;const saleByTask={};
 const D=v=>fmtCur(v,DISP);
 /* оплата у валюті відображення за курсом на дату оплати: k — поле у валюті оплати (amount) або у валюті договору (fees) */
 const pD=(p,k)=>fxConv((Number(p[k])||0)*(k==="amount"?Number(p.rate)||1:Number(p.sale_rate)||1),"UAH",DISP,p.paid_at);
-const pTxt=p=>`${fmt(p.paid_at||p.at)} — <b>${fmtCur(p.amount,p.currency||"UAH")}</b>${p.amount_sale!=null&&p.currency&&p.sale_currency&&p.currency!==p.sale_currency?` = ${fmtCur(p.amount_sale,p.sale_currency)}`:""}${p.source==="modulerpro"?" (з Moduler Pro)":""}`;
+const pTxt=p=>`${fmt(p.paid_at||p.at)} — <b>${fmtCur(p.amount,p.currency||"UAH")}</b>${p.amount_sale!=null&&p.currency&&p.sale_currency&&p.currency!==p.sale_currency?` = ${fmtCur(p.amount_sale,p.sale_currency)}`:""}${p.source==="modulerpro"?" (з CRM)":""}`;
 async function loadMpDeals(){const {data}=await sb.rpc("pult_mp_deals");mpDeals=data||[];}
 
 /* фінмодель: підвантажуємо оплати продажів */
@@ -48,7 +48,7 @@ function saleRow(s,pays,canFin){
   const outDone=ps.filter(p=>p.payout_task&&tasks.find(t=>t.id===p.payout_task)?.status==="done").length;
   const d=s.deal_id&&(mpDeals||[]).find(x=>x.id===s.deal_id);
   return `<div class="sale2">
-    <div><b>${fmtCur(s.amount,cur)}</b> ${s.buyer?esc(s.buyer):""}${cur!==DISP?`<span class="orig">≈ ${fxShow(s.amount,cur)} за поточним курсом</span>`:""}<small>${fmtDT(s.created_at)} · 👤 ${esc(nameOf(s.seller_id))}${s.status==="paid"?" · ✅ оплачено":""}</small>${s.deal_id?`<span class="dealchip" title="Угода Moduler Pro — оплати підтягуються автоматично">🔗 ${esc(d?dealLabel(d):"угода Moduler Pro")}</span>`:""}</div>
+    <div><b>${fmtCur(s.amount,cur)}</b> ${s.buyer?esc(s.buyer):""}${cur!==DISP?`<span class="orig">≈ ${fxShow(s.amount,cur)} за поточним курсом</span>`:""}<small>${fmtDT(s.created_at)} · 👤 ${esc(nameOf(s.seller_id))}${s.status==="paid"?" · ✅ оплачено":""}</small>${s.deal_id?`<span class="dealchip" title="Угода CRM — оплати підтягуються автоматично">🔗 ${esc(d?dealLabel(d):"угода в CRM")}</span>`:""}</div>
     <div class="paybar"><span>Оплачено <b style="color:var(--ink)">${fmtCur(paid,cur)}</b> · ${pct}%${cur!==DISP&&ps.length?` · ≈ ${D(sum("amount"))}`:""}</span><i style="--p:${pct}%"></i>
       <span class="fees">Нараховано з оплат: засновнику <b>${D(sum("founder_fee"))}</b>${sum("seller_fee")?` · продавцю <b>${D(sum("seller_fee"))}</b>`:""}${sum("mkt_fee")?` · маркетингу <b>${D(sum("mkt_fee"))}</b>`:""}${ps.length?` · виплат ${outDone}/${ps.filter(p=>p.payout_task).length}`:""}</span>${ps.length?`<span class="fees">${ps.map(pTxt).join(" · ")}</span>`:""}</div>
     <div>${canFin&&s.status!=="paid"?`<button class="btn sm" type="button" data-payopen="${s.id}">💳 + Оплата</button>`:""}</div>
@@ -63,11 +63,11 @@ salesHtml=function(p,r){
     const people=team.filter(m=>m.active&&!m.is_ai);
     const free=(mpDeals||[]).filter(d=>!d.linked);
     const form=`<div class="saleform"><select data-sale="seller" aria-label="Хто продав">${people.map(m=>`<option value="${m.id}"${m.id===me?.id?" selected":""}>${esc(m.name)}</option>`).join("")}</select><input data-sale="amount" inputmode="decimal" placeholder="Сума договору"><select data-sale="currency" aria-label="Валюта договору">${CURS.map(c=>`<option value="${c}"${c===MCUR?" selected":""}>${curSym(c)}</option>`).join("")}</select><input data-sale="buyer" placeholder="Покупець">
-      <select data-sale="deal" aria-label="Угода в Moduler Pro"><option value="">Угода Moduler Pro — не привʼязувати</option>${free.map(d=>`<option value="${d.id}">${esc(dealLabel(d))}${d.price?` · ${fmtCur(d.price,"UAH")}`:""}${Number(d.received)?` · отримано ${fmtCur(d.received,"UAH")}`:""}</option>`).join("")}</select>
+      <select data-sale="deal" aria-label="Угода в CRM"><option value="">Угода CRM — не привʼязувати</option>${free.map(d=>`<option value="${d.id}">${esc(dealLabel(d))}${d.price?` · ${fmtCur(d.price,"UAH")}`:""}${Number(d.received)?` · отримано ${fmtCur(d.received,"UAH")}`:""}</option>`).join("")}</select>
       <label class="chk"><input type="checkbox" data-sale="paidnow" style="width:auto"> вже оплачено повністю</label>
       <button class="btn sm" type="button" data-addsale="${esc(p.name)}">+ Договір</button></div>`;
     return `${launch}<div class="sales"><h4>🤝 Договори й оплати</h4>
-      ${r.sales.length?r.sales.map(s=>saleRow(s,r.payments||[],true)).join(""):`<span class="meta">Договорів ще немає. Продаж = договір; комісії рахуються з кожної оплати клієнта. Оплату вносить Оксана у своїй задачі, або вона підтягнеться з угоди Moduler Pro.</span>`}
+      ${r.sales.length?r.sales.map(s=>saleRow(s,r.payments||[],true)).join(""):`<span class="meta">Договорів ще немає. Продаж = договір; комісії рахуються з кожної оплати клієнта. Оплату вносить Оксана у своїй задачі, або вона підтягнеться з угоди CRM.</span>`}
       ${form}</div>`;
   }
   const sp=Number(r.my.seller_pct)||0,mine=r.my.my_sales||[];
@@ -96,7 +96,7 @@ addSale=async function(name){
   if(!amount||amount<=0){toast("Вкажіть суму договору");return}
   const {data,error}=await sb.rpc("pult_record_sale",{p_project:name,p_amount:amount,p_buyer:buyer||null,p_seller:g("seller")?.value||null,p_deal:g("deal")?.value||null,p_paid_now:!!g("paidnow")?.checked,p_currency:g("currency")?.value||null});
   if(error){toast("Договір не збережено: "+error.message);return}
-  toast(g("paidnow")?.checked?"🤝 Договір і оплату зафіксовано — комісії нараховано, Оксана отримала задачу на виплату":`🤝 Договір зафіксовано — Оксана отримала задачу прийняти оплату${g("deal")?.value?"; оплати з Moduler Pro підтягнуться самі":""}`);
+  toast(g("paidnow")?.checked?"🤝 Договір і оплату зафіксовано — комісії нараховано, Оксана отримала задачу на виплату":`🤝 Договір зафіксовано — Оксана отримала задачу прийняти оплату${g("deal")?.value?"; оплати з CRM підтягнуться самі":""}`);
   mpDeals=null;await Promise.all([loadFin(name),loadSalesAll()]);await loadAll();renderProjHead();
 };
 async function addPayment(saleId,root){
