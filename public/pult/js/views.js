@@ -385,4 +385,4 @@ document.addEventListener("click",async e=>{const x=e.target.closest("[data-facc
   const [k,id]=x.dataset.faccx.split(":");await finAccess(k,id,false)},true);
 
 if(booted){renderProjects();renderTg();renderTeam();render()}
-loadOrg().then(()=>{if(booted)renderTeam()});
+/* структура вантажиться разом з пультом (loadAll) — окремий запит до входу давав 401 */

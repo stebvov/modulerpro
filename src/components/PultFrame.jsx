@@ -22,9 +22,10 @@ const PultFrame = forwardRef(function PultFrame({ section, visible, initialHash,
       setHeight(Math.max(420, Math.floor(window.innerHeight - top - 12)));
     }
     fit();
+    const t = setTimeout(fit, 50); // після того як зʼявився/зник рядок підрозділів
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [visible]);
+    return () => { clearTimeout(t); window.removeEventListener("resize", fit); };
+  }, [visible, section]);
 
   // оболонка → пульт: розділ
   useEffect(() => {
