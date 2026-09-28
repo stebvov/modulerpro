@@ -286,10 +286,11 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]),select{min-height:
 .sf>.sf-ico{position:absolute;left:10px;color:var(--muted);pointer-events:none}
 .sf>input{width:100%;padding-left:32px!important;padding-right:44px!important}
 .sf>input.nofilter{padding-right:10px!important}
-.sf .sf-btn{position:absolute!important;right:3px;top:3px;bottom:3px;width:32px;min-height:0!important;padding:0!important;border:0!important;border-radius:var(--r-sm)!important;background:var(--sunk);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sf .sf-btn{position:absolute!important;right:3px;top:3px;bottom:3px;width:32px!important;min-width:0!important;max-width:32px!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;font-size:0!important;box-shadow:none!important;border:0!important;border-radius:var(--r-sm)!important;background:var(--sunk);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .sf .sf-btn:hover{color:var(--accent);background:var(--info-bg)}
 .sf .sf-btn.on,.sf .sf-btn[aria-expanded="true"]{background:var(--accent)!important;color:#fff!important}
-.sf .sf-n{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font:700 10px/16px var(--body);text-align:center;padding:0 4px}
+.sf .sf-n[hidden]{display:none!important}
+.sf .sf-n{font-size:10px!important;position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font:700 10px/16px var(--body);text-align:center;padding:0 4px}
 </style>`);
 const _renderSf=render;
 render=function(){_renderSf.apply(this,arguments);try{mountCollapseAll();syncCollapseAll()}catch(err){console.error("edit",err)}};

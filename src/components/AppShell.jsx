@@ -9,6 +9,7 @@ import ProfileMenu from "@/components/ProfileMenu";
 import CurrencyMenu from "@/components/CurrencyMenu";
 import PultFrame from "@/components/PultFrame";
 import HelpPanel from "@/components/HelpPanel";
+import { HelpIcon } from "@/components/Icon";
 import { CrmDataProvider } from "@/context/CrmDataContext";
 import CrmScreen from "@/components/screens/CrmScreen";
 import { ProductionDataProvider } from "@/context/ProductionDataContext";
@@ -230,7 +231,7 @@ export default function AppShell() {
                   <span className="btn-label-full">+ Задача</span><span className="btn-label-compact">+</span>
                 </button>
               )}
-              <button className="btn" onClick={() => setHelpOpen(true)} title="Довідка: як працює цей розділ, що означає кожне поле">❓</button>
+              <button className="btn icon-btn-sq" onClick={() => setHelpOpen(true)} title="Довідка: як працює цей розділ, що означає кожне поле" aria-label="Довідка"><HelpIcon /></button>
               <CurrencyMenu currency={currency} onChange={setCurrency} />
               <ProfileMenu onTeamProfile={inTeam ? openTeamProfile : null} />
             </div>

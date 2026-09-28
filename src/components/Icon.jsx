@@ -15,3 +15,6 @@ export function FilterIcon(p) {
 export function SearchIcon(p) {
   return <svg {...base} {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
 }
+export function HelpIcon(p) {
+  return <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.2-2.5 3.9" /><path d="M12 17.2h.01" /></svg>;
+}
