@@ -31,7 +31,7 @@ const GROUP_STYLE = {
 };
 
 const shiftMonth = (m, d) => { const [y, mo] = m.split("-").map(Number); const t = new Date(Date.UTC(y, mo - 1 + d, 1)); return t.toISOString().slice(0, 7); };
-const monthName = (m) => new Date(m + "-01T12:00:00Z").toLocaleDateString("uk-UA", { month: "long", year: "numeric" });
+const monthName = (m) => { const t = new Date(m + "-01T12:00:00Z").toLocaleDateString("uk-UA", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 function blankRow(month) {
   const today = todayKyiv();
@@ -197,7 +197,7 @@ export default function Ledger() {
         {period !== "all" && (
           <div className="row" style={{ gap: 6, alignItems: "center" }}>
             <button className="btn small" onClick={() => setMonth((m) => shiftMonth(m, period === "year" ? -12 : -1))} aria-label="Раніше">◀</button>
-            <b style={{ minWidth: 150, textAlign: "center", textTransform: period === "month" ? "capitalize" : "none" }}>{period === "month" ? monthName(month) : month.slice(0, 4) + " рік"}</b>
+            <b style={{ minWidth: 150, textAlign: "center" }}>{period === "month" ? monthName(month) : month.slice(0, 4) + " рік"}</b>
             <button className="btn small" onClick={() => setMonth((m) => shiftMonth(m, period === "year" ? 12 : 1))} aria-label="Пізніше">▶</button>
           </div>
         )}
