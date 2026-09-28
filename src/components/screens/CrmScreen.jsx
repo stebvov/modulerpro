@@ -170,7 +170,8 @@ export default function CrmScreen() {
                   const dSince = d.days_without_attention;
                   const marginAlert = marginAlerts.find((m) => m.deal_id === d.deal_id);
                   return (
-                    <div key={d.deal_id} className="card kanban-card" style={{ borderColor: overdue ? "var(--danger)" : undefined }}>
+                    <div key={d.deal_id} className="card kanban-card" style={{ borderColor: overdue ? "var(--danger)" : undefined, cursor: "pointer" }}
+                      title="Відкрити угоду" onClick={(e) => { if (!e.target.closest("button,a,input,select,.icon-x")) setModal({ mode: "edit", dealId: d.deal_id }); }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.25 }}>{d.lead_name}</div>
                         <span className="icon-x" onClick={() => setModal({ mode: "edit", dealId: d.deal_id })} title="Редагувати">✎</span>
