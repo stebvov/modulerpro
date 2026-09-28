@@ -113,8 +113,12 @@ export default function AppShell() {
       g = MENU.map((x) => ({ ...x, tabs: allow.has(x.key) ? x.tabs.filter((t) => !t.id.startsWith("pult-")) : x.tabs.filter((t) => allow.has(t.id)) })).filter((x) => x.tabs.length);
     }
     if (menuGroupOrder?.length) {
-      const idx = new Map(menuGroupOrder.map((k, i) => [k, i]));
-      g = [...g].sort((a, b) => (idx.get(a.key) ?? 100 + MENU.indexOf(a)) - (idx.get(b.key) ?? 100 + MENU.indexOf(b)));
+      // збережений порядок міняє місцями лише ті групи, що в ньому є; нові групи лишаються на своєму місці в ланцюжку
+      const saved = menuGroupOrder.filter((k) => g.some((x) => x.key === k));
+      const slots = g.map((x, i) => (saved.includes(x.key) ? i : -1)).filter((i) => i >= 0);
+      const next = [...g];
+      slots.forEach((slot, j) => { next[slot] = g.find((x) => x.key === saved[j]); });
+      g = next;
     }
     return g;
   }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder]);
