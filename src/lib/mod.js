@@ -5,20 +5,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export function useRows(table, { order = "created_at", ascending = true, filter } = {}) {
+export function useRows(table, { order = "created_at", ascending = true, filter, select = "*" } = {}) {
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const reload = useCallback(async () => {
-    let q = supabase.from(table).select("*").order(order, { ascending });
+    let q = supabase.from(table).select(select).order(order, { ascending });
     if (filter) q = filter(q);
     const { data, error: e } = await q;
     if (e) setError(e.message);
     else { setRows(data || []); setError(null); }
     setLoading(false);
-  }, [supabase, table, order, ascending, filter]);
+  }, [supabase, table, order, ascending, filter, select]);
 
   useEffect(() => {
     // Initial load; reload() sets state after the fetch resolves.

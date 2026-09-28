@@ -142,7 +142,7 @@ function bizTick(){
 const _loadAllBiz=loadAll;
 loadAll=async function(){
   await _loadAllBiz.apply(this,arguments);
-  if(bizBooted)try{await loadBiz();bizTick()}catch(err){console.error("biz",err)}
+  if(bizBooted)try{await loadBiz();EVENTS===null||loadEvents();bizTick()}catch(err){console.error("biz",err)}
 };
 
 /* ---------- вкладки ---------- */
@@ -197,8 +197,27 @@ function myHtml(){
       <section class="bz-card"><h3>🔥 Сьогодні й прострочене</h3>${list(hot,"Нічого не горить 👍")}</section>
       <section class="bz-card"><h3>➡️ Мої наступні задачі</h3>${list(next,"Відкритих задач немає.",12)}</section>
       <section class="bz-card"><h3>👁 На моєму контролі${attn.length?` · ${attn.length} потребують уваги`:""}</h3>${list(attn.length?attn:ctl,"Нічого не контролюю.",12)}</section>
+      <section class="bz-card"><h3>📰 Що сталося в Модулер</h3>${feedHtml2(12)}</section>
       <section class="bz-card"><h3>📁 Мої проєкти</h3>${myProj.length?`<div class="dproj">${myProj.map(projRow).join("")}</div>`:`<div class="bz-empty">Проєктів, де ви відповідальні, немає.</div>`}</section>
     </div>`;
+}
+
+/* ---------- 📰 Стрічка: що сталося в усьому ланцюжку (biz_events) ---------- */
+let EVENTS=null,evLoading=false;
+async function loadEvents(){
+  if(evLoading)return;evLoading=true;
+  const {data}=await sb.from("biz_events").select("*").gte("at",new Date(Date.now()-3*864e5).toISOString()).order("at",{ascending:false}).limit(60);
+  EVENTS=data||[];evLoading=false;if(bizTab==="my"||bizTab==="cap")renderBiz();
+}
+function feedHtml2(lim){
+  if(EVENTS===null){loadEvents();return `<div class="bz-empty">Завантаження…</div>`}
+  if(!EVENTS.length)return `<div class="bz-empty">За 3 дні подій у ланцюжку не було. Тут зʼявляться нові ліди, угоди, виробництво, відвантаження, продажі лотів, заявки УК і бронювання.</div>`;
+  const day=s=>{const d=new Date(s),t=new Date();const k=d.toDateString()===t.toDateString()?"сьогодні":d.toDateString()===new Date(Date.now()-864e5).toDateString()?"вчора":d.toLocaleDateString("uk-UA",{day:"2-digit",month:"2-digit"});return k};
+  let last="";
+  return EVENTS.slice(0,lim||25).map(e=>{const d=day(e.at),h=d!==last?`<div class="meta" style="font-weight:600;margin-top:4px">${d}</div>`:"";last=d;
+    const money=e.amount!=null&&finAll()?` · <b>${esc(fxShow(e.amount,e.currency||"UAH"))}</b>`:"";
+    const link=e.task_num?` <a href="#t/${e.task_num}" class="meta">#${e.task_num}</a>`:"";
+    return `${h}<div class="myt" style="grid-template-columns:auto 1fr"><span>${esc(e.icon||"•")}</span><span class="tt">${esc(e.title)}${money}${link}<span class="meta" style="display:block">${new Date(e.at).toLocaleTimeString("uk-UA",{hour:"2-digit",minute:"2-digit"})}${e.direction?` · ${esc(dirOf(e.direction)?.emoji||"")} ${esc(dirOf(e.direction)?.short||"")}`:""}</span></span></div>`}).join("");
 }
 
 /* ---------- 🧭 Напрями ---------- */
@@ -541,6 +560,7 @@ function capHtml(){
     <div class="bz-grid">
       <section class="bz-card"><h3>🧭 Прогноз за напрямами, /міс</h3><table class="capt"><tbody>${byDir.map(x=>`<tr><td>${x.d?x.d.emoji+" "+esc(x.d.name):"🧩 Спільне"}</td><td class="n">${x.n} пр.</td><td class="n"><b>${usd(x.v)}</b></td></tr>`).join("")}</tbody></table></section>
       <section class="bz-card"><h3>⚖️ Чекає вашого рішення</h3>${dec.length||ideasWait.length?dec.map(taskRow).join("")+ideasWait.map(p=>`<div class="dp"><button type="button" class="nm" data-ptasks="${esc(p.name)}">💡 ${esc(p.name)}</button><span class="stg">перевірку завершено</span></div>`).join(""):`<div class="bz-empty">Рішень, що чекають, немає.</div>`}</section>
+      <section class="bz-card"><h3>📰 Стрічка ланцюжка · 3 дні</h3>${feedHtml2(30)}</section>
       <section class="bz-card"><h3>🎉 Зроблено за тиждень · ${won.length}</h3>${won.length?won.sort((a,b)=>b.done_at.localeCompare(a.done_at)).slice(0,8).map(t=>`<a class="myt" href="#t/${t.num}"><span class="num">✓</span><span class="tt">${esc(t.title)}</span><span class="meta"><span>👤 ${esc(nameOf(t.owner_id))}</span>${t.project?`<span>📁 ${esc(t.project)}</span>`:""}</span></a>`).join(""):`<div class="bz-empty">Поки тихо.</div>`}</section>
     </div>
     <section class="bz-card"><h3>📈 Проєкти: скільки дає кожен</h3><div class="tbl"><table class="capt"><thead><tr><th>Проєкт</th><th>Етап</th><th class="n">Засновнику з 1 продажу</th><th class="n">План, од./міс</th><th class="n">Засновнику /міс</th><th>Бракує</th></tr></thead><tbody>

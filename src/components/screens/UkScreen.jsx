@@ -16,7 +16,7 @@ const UK_GOAL = 30;
 export default function UkScreen() {
   const { currency, exchangeRates } = useAppData();
   const objects = useRows("managed_objects");
-  const reqs = useRows("service_requests");
+  const reqs = useRows("service_requests", { select: "*, tasks(num,status)" });
   const members = useRows("task_members", { order: "sort" });
   const [view, setView] = useState("objects");
   const [showDone, setShowDone] = useState(false);
@@ -60,6 +60,7 @@ export default function UkScreen() {
     { key: "price", label: "Рахунок власнику", type: "number", width: 100, num: true },
     { key: "currency", label: "", type: "select", options: CURS, width: 60 },
     { key: "note", label: "Примітка", width: 150 },
+    { key: "_task", label: "Задача", render: (r) => (r.tasks?.num ? <a href={`/?s=pult-tasks#t/${r.tasks.num}`} title="Відкрити задачу в пульті">#{r.tasks.num}</a> : <span className="note">—</span>) },
   ];
   const reqRows = reqs.rows.filter((r) => showDone || !["done", "cancelled"].includes(r.status));
   const updReq = (id, patch) => reqs.update(id, patch.status ? { ...patch, done_at: patch.status === "done" ? new Date().toISOString() : null } : patch);
@@ -69,7 +70,7 @@ export default function UkScreen() {
 
   return (
     <div>
-      <p className="note">Керуюча компанія: власник не думає про будинок — оренда, прибирання, ремонт, охорона під ключ. Дохід УК = підписки + частка з оренди + маржа на заявках.</p>
+      <p className="note">Кожна заявка автоматично стає задачею в пульті виконавцю (з Telegram). Бронювання в «Оренді» саме створює заселення й прибирання. Закрили задачу — заявка виконана. Керуюча компанія: власник не думає про будинок — оренда, прибирання, ремонт, охорона під ключ. Дохід УК = підписки + частка з оренди + маржа на заявках.</p>
       <div className="ops-kpi-grid">
         <div className="ops-kpi"><div className="k-label">В управлінні</div><div className="k-value">{k.act}</div><div className="note">клієнтських {k.client} · у перемовинах {k.leads}</div></div>
         <div className="ops-kpi"><div className="k-label">Ціль Avatar: +{UK_GOAL} будинків</div><div className="k-value">{k.client} / {UK_GOAL}</div><div className="k-bar"><div className="k-bar-fill" style={{ width: `${Math.min(100, (k.client / UK_GOAL) * 100)}%` }} /></div></div>
@@ -93,7 +94,7 @@ export default function UkScreen() {
           onAdd={() => objects.insert({ name: `Будинок ${objects.rows.length + 1}`, status: "lead", owner_kind: "client" })} addLabel="+ Об'єкт" />
       ) : (
         <ModTable columns={reqCols} rows={reqRows} onUpdate={updReq} onDelete={reqs.remove}
-          onAdd={() => (objects.rows[0] ? reqs.insert({ object_id: objects.rows[0].id, title: "Нова заявка" }) : Promise.resolve("Спершу додайте об'єкт"))}
+          onAdd={async () => { if (!objects.rows[0]) return "Спершу додайте об'єкт"; const e = await reqs.insert({ object_id: objects.rows[0].id, title: "Нова заявка" }); await reqs.reload(); return e; }}
           addLabel="+ Заявка" empty="Відкритих заявок немає." />
       )}
     </div>
