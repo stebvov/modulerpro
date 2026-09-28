@@ -77,7 +77,11 @@ export default function OwnerScreen() {
     const last12 = Object.values(byMonth).filter((r) => r.m >= start12 && r.m <= cm);
     const annual = last12.reduce((a, r) => a + r.own, 0);
     const nights12 = last12.reduce((a, r) => a + r.nights, 0);
-    const monthsActive = Math.max(1, Math.min(12, last12.length || 1));
+    // середнє за всі місяці володіння в межах року (не лише місяці з бронюваннями)
+    const firstM = obj.purchased_at ? ym(obj.purchased_at) : Object.keys(byMonth).sort()[0] || cm;
+    const startM = firstM > start12 ? firstM : start12;
+    const [sy, sm] = startM.split("-").map(Number), [cy, cmo] = cm.split("-").map(Number);
+    const monthsActive = Math.max(1, Math.min(12, (cy - sy) * 12 + (cmo - sm) + 1));
     const annualized = last12.length ? (annual / monthsActive) * 12 : 0;
     const yieldPct = invest > 0 && annualized ? (annualized / invest) * 100 : null;
     const paybackYears = invest > 0 && annualized ? invest / annualized : null;
