@@ -193,11 +193,11 @@ export default function PackagesScreen() {
   return (
     <div>
       <p className="note">Пакет — кілька будинків, послуги й інші позиції одним продуктом: котеджне містечко, база відпочинку, дохідна нерухомість, «будинок + фундамент + доставка + монтаж». Пакет додається в угоду CRM одним вибором.</p>
-      <div className="toolbar" style={{ gap: 8, flexWrap: "wrap" }}>
+      <div className="toolbar">
         <SearchFilter value={q} onChange={setQ} placeholder="Пошук пакета…" active={cat ? 1 : 0} onReset={() => setCat("")}>
           <SelectSearch value={cat} options={catTree(cats)} onChange={setCat} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
         </SearchFilter>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="toolbar-actions">
           {canWriteCatalog && <button className="btn icon-btn-sq" title="Категорії пакетів" aria-label="Категорії пакетів" onClick={() => setCatsOpen(true)}><GearIcon /></button>}
           {canWriteCatalog && <button className="btn primary" onClick={() => setOpen({ pkg: null, items: [] })}>+ Пакет</button>}
         </div>

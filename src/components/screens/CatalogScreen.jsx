@@ -1,5 +1,8 @@
 "use client";
 import { GearIcon } from "@/components/Icon";
+import SearchFilter from "@/components/SearchFilter";
+import SelectSearch from "@/components/SelectSearch";
+import { treeOptions, inBranch } from "@/lib/tree";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -9,10 +12,13 @@ import TemplateModal from "@/components/modals/TemplateModal";
 import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
 import CompareScreen from "@/components/screens/CompareScreen";
 
+const STATUS_OPTIONS = [{ value: "active", label: "Активний" }, { value: "draft", label: "Чернетка" }, { value: "archived", label: "Архів" }];
+
 export default function CatalogScreen() {
   const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteCatalog } = useAuth();
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [moduleMin, setModuleMin] = useState("");
@@ -27,9 +33,11 @@ export default function CatalogScreen() {
   const [compareSelection, setCompareSelection] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
 
+  const q = search.trim().toLowerCase();
   const list = templates.filter((t) => {
+    if (q && !(t.name || "").toLowerCase().includes(q)) return false;
     if (statusFilter && t.status !== statusFilter) return false;
-    if (categoryFilter && !productCategoryLinks.some((l) => l.template_id === t.id && l.category_id === categoryFilter)) return false;
+    if (categoryFilter && !productCategoryLinks.some((l) => l.template_id === t.id && inBranch(productCategories, l.category_id, categoryFilter))) return false;
     const moduleCount = t.module_count ?? 0;
     if (moduleMin && moduleCount < parseFloat(moduleMin)) return false;
     if (moduleMax && moduleCount > parseFloat(moduleMax)) return false;
@@ -44,7 +52,7 @@ export default function CatalogScreen() {
     return true;
   });
 
-  const hasActiveFilters = statusFilter || categoryFilter || moduleMin || moduleMax || areaMin || areaMax || priceMin || priceMax;
+  const activeCount = [statusFilter, categoryFilter, moduleMin || moduleMax, areaMin || areaMax, priceMin || priceMax].filter(Boolean).length;
 
   function resetFilters() {
     setStatusFilter("");
@@ -102,77 +110,47 @@ export default function CatalogScreen() {
 
   return (
     <div>
-      <div className="toolbar" style={{ marginBottom: 10, justifyContent: "flex-end", gap: 6 }}>
-        <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)} title="Порівняти до 3 моделей">
-          ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
-        </button>
-        {canWriteCatalog && (
-          <button className="btn icon-btn-sq" title="Категорії моделей будинків" aria-label="Категорії моделей" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+      <div className="toolbar">
+        {!showCompare && (
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук моделі…" active={activeCount} onReset={resetFilters}>
+            <SelectSearch value={categoryFilter} options={treeOptions(productCategories)} onChange={setCategoryFilter} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
+            <SelectSearch value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} placeholder="Усі статуси" emptyLabel="Усі статуси" width={160} ariaLabel="Статус" />
+            <div className="sf-range"><span>Модулі</span>
+              <input type="number" min="0" placeholder="від" aria-label="Модулів від" value={moduleMin} onChange={(e) => setModuleMin(nonNegative(e.target.value))} />
+              <span>–</span>
+              <input type="number" min="0" placeholder="до" aria-label="Модулів до" value={moduleMax} onChange={(e) => setModuleMax(nonNegative(e.target.value))} />
+            </div>
+            <div className="sf-range"><span>Площа, м²</span>
+              <input type="number" min="0" placeholder="від" aria-label="Площа від" value={areaMin} onChange={(e) => setAreaMin(nonNegative(e.target.value))} />
+              <span>–</span>
+              <input type="number" min="0" placeholder="до" aria-label="Площа до" value={areaMax} onChange={(e) => setAreaMax(nonNegative(e.target.value))} />
+            </div>
+            <div className="sf-range"><span>Ціна, грн</span>
+              <input type="number" min="0" placeholder="від" aria-label="Ціна від" value={priceMin} onChange={(e) => setPriceMin(nonNegative(e.target.value))} />
+              <span>–</span>
+              <input type="number" min="0" placeholder="до" aria-label="Ціна до" value={priceMax} onChange={(e) => setPriceMax(nonNegative(e.target.value))} />
+            </div>
+          </SearchFilter>
         )}
-        {canWriteCatalog && (
-          <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>
-        )}
+        <div className="toolbar-actions">
+          <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)} title="Порівняти до 3 моделей">
+            ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
+          </button>
+          {canWriteCatalog && (
+            <button className="btn icon-btn-sq" title="Категорії моделей будинків" aria-label="Категорії моделей" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+          )}
+          {canWriteCatalog && (
+            <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>
+          )}
+        </div>
       </div>
 
       {showCompare && <CompareScreen compareSelection={compareSelection} />}
 
       {!showCompare && (
       <>
-      <div className="filters-row">
-        <div className="filter-field">
-          <label>Статус</label>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Всі статуси</option>
-            <option value="active">Активний</option>
-            <option value="draft">Чернетка</option>
-            <option value="archived">Архів</option>
-          </select>
-        </div>
-        <div className="filter-field">
-          <label>Категорія (ціль)</label>
-          <div style={{ display: "flex", gap: 4 }}>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="">Всі категорії</option>
-              {productCategories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="filter-field">
-          <label>К-сть модулів</label>
-          <div className="filter-range">
-            <input type="number" min="0" placeholder="від" value={moduleMin} onChange={(e) => setModuleMin(nonNegative(e.target.value))} />
-            <span>–</span>
-            <input type="number" min="0" placeholder="до" value={moduleMax} onChange={(e) => setModuleMax(nonNegative(e.target.value))} />
-          </div>
-        </div>
-        <div className="filter-field">
-          <label>Площа, м²</label>
-          <div className="filter-range">
-            <input type="number" min="0" placeholder="від" value={areaMin} onChange={(e) => setAreaMin(nonNegative(e.target.value))} />
-            <span>–</span>
-            <input type="number" min="0" placeholder="до" value={areaMax} onChange={(e) => setAreaMax(nonNegative(e.target.value))} />
-          </div>
-        </div>
-        <div className="filter-field">
-          <label>Ціна, грн</label>
-          <div className="filter-range">
-            <input type="number" min="0" placeholder="від" value={priceMin} onChange={(e) => setPriceMin(nonNegative(e.target.value))} />
-            <span>–</span>
-            <input type="number" min="0" placeholder="до" value={priceMax} onChange={(e) => setPriceMax(nonNegative(e.target.value))} />
-          </div>
-        </div>
-        {hasActiveFilters && (
-          <div className="filter-field">
-            <label>&nbsp;</label>
-            <button className="btn small" onClick={resetFilters}>✕ Скинути фільтри</button>
-          </div>
-        )}
-      </div>
-
       {!list.length ? (
-        <div className="empty">Немає шаблонів за цим фільтром</div>
+        <div className="empty">Немає моделей за цим пошуком і фільтром</div>
       ) : (
         <div className="grid">
           {list.map((t) => {

@@ -1,5 +1,7 @@
 "use client";
 import SearchFilter from "@/components/SearchFilter";
+import SelectSearch from "@/components/SelectSearch";
+import { treeOptions, inBranch } from "@/lib/tree";
 import { GearIcon } from "@/components/Icon";
 
 import { useMemo, useState } from "react";
@@ -80,7 +82,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
   const filtered = pipelineDeals.filter((d) => {
     const q = search.trim().toLowerCase();
     const matchesQuery = !q || (d.lead_name || "").toLowerCase().includes(q) || (d.lead_region || "").toLowerCase().includes(q);
-    const matchesCategory = !categoryFilter || categoriesOfLead(d.lead_id).some((c) => c.id === categoryFilter);
+    const matchesCategory = !categoryFilter || categoriesOfLead(d.lead_id).some((c) => inBranch(productCategories, c.id, categoryFilter));
     return matchesQuery && matchesCategory;
   });
 
@@ -146,10 +148,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
       <div className="toolbar">
         <div className="toolbar-left" style={{ flex: 1, flexWrap: "wrap" }}>
           <SearchFilter value={search} onChange={setSearch} placeholder="Пошук за іменем, регіоном..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Категорія">
-              <option value="">Усі категорії</option>
-              {productCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <SelectSearch value={categoryFilter} options={treeOptions(productCategories)} onChange={setCategoryFilter} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
           </SearchFilter>
         </div>
       </div>

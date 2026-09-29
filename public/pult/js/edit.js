@@ -261,15 +261,24 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(!editing())afterEdit
 try{mountProjButtons();if(typeof booted!=="undefined"&&booted){render();renderProjects()}}catch(err){console.error("edit",err)}
 
 /* ---------- Згорнути / розгорнути всі групи задач (за людьми чи проєктами) ---------- */
+// кнопка-іконка одразу після перемикача «Люди | Проєкти»: стрілки всередину — згорнути, назовні — розгорнути
+const COLL_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg>`;
+const EXP_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>`;
+function setCollBtn(b,closed){
+  const t=closed?"Розгорнути всі групи":"Згорнути всі групи";
+  b.innerHTML=closed?EXP_SVG:COLL_SVG;b.title=t;b.setAttribute("aria-label",t);b.dataset.state=closed?"closed":"open";
+}
 function mountCollapseAll(){
-  const bar=document.querySelector("#tabTasks .toolbar");if(!bar||bar.querySelector("[data-collall]"))return;
-  bar.insertAdjacentHTML("beforeend",`<button type="button" class="btn sm" data-collall title="Згорнути або розгорнути всі групи">⇕ Згорнути всі</button>`);
+  const bar=document.querySelector("#tabTasks .toolbar");if(!bar)return;
+  const seg=bar.querySelector(".seg");
+  let b=bar.querySelector("[data-collall]");
+  if(!b){bar.insertAdjacentHTML("beforeend",`<button type="button" class="btn icon-sq" data-collall></button>`);b=bar.querySelector("[data-collall]");setCollBtn(b,false)}
+  if(seg&&b.previousElementSibling!==seg)seg.after(b);
 }
 function syncCollapseAll(){
   const b=document.querySelector("[data-collall]");if(!b)return;
   const keys=[...document.querySelectorAll("#board .group[data-gkey]")].map(g=>g.dataset.gkey);
-  const allClosed=keys.length&&keys.every(k=>collapsed.has(k));
-  b.textContent=allClosed?"⇕ Розгорнути всі":"⇕ Згорнути всі";b.dataset.state=allClosed?"closed":"open";
+  setCollBtn(b,!!(keys.length&&keys.every(k=>collapsed.has(k))));
 }
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-collall]");if(!b)return;e.stopPropagation();
@@ -355,12 +364,14 @@ function decorateOrg(){
     if(!h.querySelector(".ochev"))h.insertAdjacentHTML("afterbegin",`<i class="ochev" aria-hidden="true">▾</i> `);
     h.title="Згорнути / розгорнути підрозділ";n.classList.toggle("oc",orgCol.has(id));
   });
-  const head=document.querySelector("#tabTeam .pagehead");
-  if(head&&!head.querySelector("[data-orgall]"))head.querySelector("#addUnitBtn")?.insertAdjacentHTML("beforebegin",`<button type="button" class="btn sm" data-orgall hidden>⇕ Згорнути всі</button>`);
-  const b=head?.querySelector("[data-orgall]");
+  // та сама кнопка-іконка — одразу після перемикача «Люди | Структура», видно лише у «Структурі»
+  const seg=document.querySelector('#tabTeam .tbar [data-tmv]')?.closest(".seg");
+  let b=document.querySelector("#tabTeam [data-orgall]");
+  if(!b&&seg){seg.insertAdjacentHTML("afterend",`<button type="button" class="btn icon-sq" data-orgall hidden></button>`);b=seg.nextElementSibling}
+  else if(b&&seg&&b.previousElementSibling!==seg)seg.after(b);
   if(b){const org=!document.getElementById("orgBox").hidden;b.hidden=!org;
     const ids=[...document.querySelectorAll("#orgBox .ou[data-unit]")].map(x=>x.dataset.unit);
-    const all=ids.length&&ids.every(i=>orgCol.has(i));b.textContent=all?"⇕ Розгорнути всі":"⇕ Згорнути всі";b.dataset.state=all?"closed":"open"}
+    setCollBtn(b,!!(ids.length&&ids.every(i=>orgCol.has(i))))}
 }
 window.addEventListener("click",e=>{
   const all=e.target.closest("[data-orgall]");
@@ -418,3 +429,19 @@ renderTeam=function(){_rtAcc.apply(this,arguments);try{decorateOrg();decorateAcc
 const _laAcc=loadAll;
 loadAll=async function(){await _laAcc.apply(this,arguments);try{await loadTA()}catch(err){console.error("edit",err)}};
 try{if(typeof booted!=="undefined"&&booted)loadTA();mountSf("teamQ","tmFBtn")}catch(err){console.error("edit",err)}
+
+/* ---------- Пошук і фільтри — як у «Продажах»: 1-й рядок — перемикачі й дії, 2-й — пошук зліва з кнопкою фільтрів, панель — біла картка ---------- */
+document.head.insertAdjacentHTML("beforeend",`<style id="sfLikeCrm">
+.tbar{row-gap:12px!important}
+.tbar .tb-r{order:10;flex:1 1 100%!important;margin-left:0!important;justify-content:flex-start}
+.btn.icon-sq{width:32px!important;min-width:32px!important;height:32px;min-height:32px!important;padding:0!important;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+.btn.icon-sq:hover{color:var(--accent)}
+.btn.icon-sq[hidden]{display:none!important}
+.sf{flex:1 1 260px;min-width:200px;max-width:520px}
+.tbar .tb-r .sf>input[type=search],.sf>input{width:100%!important;max-width:none!important;flex:1 1 auto!important;order:0!important;height:32px;min-height:32px;padding-top:4px!important;padding-bottom:4px!important;font-size:13px!important;background:var(--surface)}
+.sf .sf-btn{width:32px!important;max-width:32px!important;background:var(--bg)}
+.fpanel{background:var(--surface)!important;border:1px solid var(--line);border-radius:var(--r)!important;padding:10px!important;gap:8px!important;flex-wrap:wrap!important;align-items:center}
+.fpanel select,.fpanel input:not([type=checkbox]):not([type=radio]){flex:none!important;width:auto!important;min-width:150px!important;max-width:100%;height:32px;min-height:32px;padding:4px 8px;font-size:13px}
+.fpanel .btn{font-size:13px;min-height:32px!important}
+.fpanel label.row,.fpanel label{font-size:13px!important}
+</style>`);

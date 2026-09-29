@@ -1,5 +1,7 @@
 "use client";
 import SearchFilter from "@/components/SearchFilter";
+import SelectSearch from "@/components/SelectSearch";
+import { treeOptions, inBranch } from "@/lib/tree";
 import { GearIcon } from "@/components/Icon";
 
 import { useState } from "react";
@@ -17,10 +19,11 @@ export default function ServicesCatalogScreen() {
   const [editing, setEditing] = useState(null);
   const [showCategoriesPage, setShowCategoriesPage] = useState(false);
 
+  const q = search.trim().toLowerCase();
   const list = services.filter(
     (s) =>
-      (!search || s.name.toLowerCase().includes(search.toLowerCase())) &&
-      (!categoryFilter || s.category_id === categoryFilter)
+      (!q || [s.name, s.unit].join(" ").toLowerCase().includes(q)) &&
+      inBranch(serviceCategories, s.category_id, categoryFilter)
   );
 
   function openModal(s) {
@@ -41,14 +44,10 @@ export default function ServicesCatalogScreen() {
     <div>
       <p className="note">Послуги, які ми надаємо: доставка, фундамент, монтаж, під ключ тощо. Додаються в пакети й в угоди CRM окремими позиціями.</p>
       <div className="toolbar">
-        <div className="toolbar-left">
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук послуги..." />
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">Всі категорії</option>
-            {serviceCategories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
-          </select>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <SearchFilter value={search} onChange={setSearch} placeholder="Пошук послуги…" active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
+          <SelectSearch value={categoryFilter} options={treeOptions(serviceCategories, (c) => `${c.icon ? c.icon + " " : ""}${c.name}`)} onChange={setCategoryFilter} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
+        </SearchFilter>
+        <div className="toolbar-actions">
           {canWriteCatalog && (
             <button className="btn icon-btn-sq" title="Категорії послуг" aria-label="Категорії послуг" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
           )}
