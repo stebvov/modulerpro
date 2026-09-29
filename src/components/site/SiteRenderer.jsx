@@ -96,6 +96,38 @@ function Audience({ b, ctx }) {
   );
 }
 
+// Картки проєктів: фото зі статусом, опис, посилання. Якщо карток не ділиться на 3 — перша ширша (див. site.css).
+function Projects({ b, ctx }) {
+  const items = b.items || [];
+  const n = items.length;
+  return (
+    <Section b={b}>
+      <Head b={b} />
+      <div className={`s-grid s-grid--projects s-grid--r${n % 3}${n % 2 ? " s-grid--odd" : ""}`}>
+        {items.map((x, i) => {
+          const href = x.href ? siteHref(ctx.base, x.href) : "";
+          const Tag = href ? "a" : "div";
+          const link = href ? { href, ...(isExternal(href) ? { target: "_blank", rel: "noopener" } : {}) } : {};
+          return (
+            <Tag key={i} className="s-card s-proj" {...link}>
+              <div className="s-card__img">
+                {x.image ? <img alt={x.title || ""} loading="lazy" {...imgProps(x.image, "(min-width: 1000px) 66vw, 100vw")} /> : <div className="s-card__noimg">🏡</div>}
+                {x.badge && <span className="s-card__tag">{x.badge}</span>}
+              </div>
+              <div className="s-card__body">
+                {x.place && <div className="s-proj__place">{x.place}</div>}
+                <h3>{rich(x.title)}</h3>
+                {x.text && <p>{rich(x.text)}</p>}
+                {href && <span className="s-more">{x.cta || "Детальніше"} →</span>}
+              </div>
+            </Tag>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 function Tiers({ b }) {
   return (
     <Section b={b}>
@@ -358,6 +390,7 @@ function CtaBand({ b, ctx }) {
 const RENDER = {
   hero: Hero,
   audience: Audience,
+  projects: Projects,
   models: ({ b, ctx }) => (
     <Section b={b}>
       <Head b={b} />
@@ -417,7 +450,7 @@ const RENDER = {
   lead_form: ({ b, ctx }) => (
     <Section b={b} className="s-formsec">
       <Head b={b} center />
-      <LeadForm settings={ctx.settings || {}} goal={b.goal} />
+      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} />
     </Section>
   ),
 };

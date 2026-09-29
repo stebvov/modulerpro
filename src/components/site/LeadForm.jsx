@@ -24,9 +24,10 @@ function utm() {
   try { return sessionStorage.getItem("moduler_utm") || ""; } catch { return ""; }
 }
 
-export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel }) {
+export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel, hint, noArea }) {
   const lead = settings.lead || {};
-  const goals = lead.goals?.length ? lead.goals : DEFAULT_GOALS;
+  const baseGoals = lead.goals?.length ? lead.goals : DEFAULT_GOALS;
+  const goals = goal && !baseGoals.includes(goal) ? [goal, ...baseGoals] : baseGoals; // своя задача сторінки (проєкт, партнерство) — першою
   const areas = lead.areas?.length ? lead.areas : DEFAULT_AREAS;
   const phone = settings.contacts?.phone;
   const [state, setState] = useState("idle"); // idle | sending | done | error
@@ -77,16 +78,18 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
       </div>
       {!compact && (
         <>
-          <div className="s-form__row">
+          <div className={noArea ? "" : "s-form__row"}>
             <label className="s-field"><span>Що плануєте</span>
               <select name="goal" defaultValue={goals.includes(goal) ? goal : goals[0]}>{goals.map((g) => <option key={g}>{g}</option>)}</select>
             </label>
-            <label className="s-field"><span>Площа</span>
-              <select name="area" defaultValue={areas[0]}>{areas.map((a) => <option key={a}>{a}</option>)}</select>
-            </label>
+            {!noArea && (
+              <label className="s-field"><span>Площа</span>
+                <select name="area" defaultValue={areas[0]}>{areas.map((a) => <option key={a}>{a}</option>)}</select>
+              </label>
+            )}
           </div>
           <label className="s-field"><span>Кілька слів про задачу</span>
-            <textarea name="message" rows={3} placeholder="Для чого дім, скільки людей, чи є ділянка, орієнтовний бюджет" />
+            <textarea name="message" rows={3} placeholder={hint || "Для чого дім, скільки людей, чи є ділянка, орієнтовний бюджет"} />
           </label>
         </>
       )}

@@ -176,6 +176,20 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-card__body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .s-card__body h3 { font-family: var(--f-display); font-size: 1.15em; font-weight: 700; color: var(--ink); }
 .s-card__body p { color: var(--muted); font-size: 15px; }
+/* Проєкти: три колонки; якщо карток не ділиться на 3 — перша ширша, фото тієї ж висоти (8:3 на дві колонки, 4:1 на три) */
+@media (min-width: 1000px) {
+  .s-grid--projects { grid-template-columns: repeat(3, 1fr); }
+  .s-grid--projects.s-grid--r2 > :first-child { grid-column: span 2; }
+  .s-grid--projects.s-grid--r2 > :first-child .s-card__img { aspect-ratio: 8 / 3; }
+  .s-grid--projects.s-grid--r1 > :first-child { grid-column: 1 / -1; }
+  .s-grid--projects.s-grid--r1 > :first-child .s-card__img { aspect-ratio: 4 / 1; }
+}
+@media (min-width: 640px) and (max-width: 999px) {
+  .s-grid--projects.s-grid--odd > :first-child { grid-column: 1 / -1; }
+  .s-grid--projects.s-grid--odd > :first-child .s-card__img { aspect-ratio: 8 / 3; }
+}
+.s-proj .s-card__body p { flex: 1; }
+.s-proj__place { font-size: 14px; font-weight: 700; color: var(--moss); }
 .s-model__meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; font-weight: 700; color: var(--moss); }
 .s-model__price { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); font-size: 15px; }
 .s-model__price b { font-family: var(--f-display); font-size: 1.25em; color: var(--ink); }

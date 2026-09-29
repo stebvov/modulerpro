@@ -39,6 +39,16 @@ export const BLOCKS = {
     ] }],
     defaults: { theme: "cloud", eyebrow: "Для кого", title: "Що ви плануєте?", items: [] },
   },
+  projects: {
+    label: "Проєкти (картки з фото)", icon: "🗺",
+    hint: "Картки проєктів чи містечок: фото, статус на плашці (напр. «Старт продажів», «Реалізовано»), опис і посилання на сторінку проєкту.",
+    fields: [eyebrow, title, lead, { key: "items", label: "Проєкти", type: "list", item: "Проєкт", fields: [
+      { key: "image", label: "Фото", type: "image" }, { key: "badge", label: "Статус (плашка на фото)", type: "text" },
+      { key: "title", label: "Назва", type: "text" }, { key: "place", label: "Де (коротко)", type: "text" },
+      { key: "text", label: "Опис", type: "textarea" }, { key: "href", label: "Посилання", type: "text" }, { key: "cta", label: "Текст посилання", type: "text" },
+    ] }],
+    defaults: { theme: "light", eyebrow: "Проєкти", title: "Наші містечка", items: [] },
+  },
   models: {
     label: "Моделі (каталог)", icon: "🏡",
     hint: "Картки моделей з розділу «Сайт → Моделі». Ціна береться звідти ж. Популярні моделі показуються першими.",
@@ -223,12 +233,14 @@ export const BLOCKS = {
   lead_form: {
     label: "Форма заявки", icon: "✉️",
     hint: "Заявка потрапляє в CRM (Ліди, джерело «сайт») і в Telegram. Варіанти «Що плануєте» — у Налаштуваннях сайту.",
-    fields: [eyebrow, title, lead, { key: "goal", label: "Що плануєте — вибрано наперед", type: "text" }],
+    fields: [eyebrow, title, lead, { key: "goal", label: "Що плануєте — вибрано наперед (можна свій варіант, напр. назву проєкту)", type: "text" },
+      { key: "hint", label: "Підказка в полі «Кілька слів про задачу»", type: "text" },
+      { key: "no_area", label: "Сховати поле «Площа» (для партнерів, вакансій)", type: "bool" }],
     defaults: { theme: "dark", anchor: "contact", eyebrow: "Обговоримо ваш проєкт", title: "Розкажіть, про що ви мрієте" },
   },
 };
 
-export const BLOCK_ORDER = ["hero", "audience", "models", "choice", "calculator", "invest", "table", "team", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
+export const BLOCK_ORDER = ["hero", "audience", "projects", "models", "choice", "calculator", "invest", "table", "team", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
 
 // спільні поля кожного блоку (показуються в конструкторі внизу форми)
 export const COMMON_FIELDS = [
