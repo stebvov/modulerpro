@@ -294,7 +294,12 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
   .s-gal--grid.s-gal--n5 { grid-template-columns: repeat(4, 1fr); }
   .s-gal--grid.s-gal--n5 > :first-child { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
   .s-gal--grid.s-gal--n4 { grid-template-columns: repeat(2, 1fr); }
+  /* інша кількість не ділиться на 3 — перше фото ширше, щоб не було порожніх клітинок: 7, 10, 13 — панорама на всю ширину; 8, 11 — на дві колонки */
+  .s-gal--grid.s-gal--r1:not(.s-gal--n4) > :first-child { grid-column: 1 / -1; aspect-ratio: 21 / 9; }
+  .s-gal--grid.s-gal--r2:not(.s-gal--n5) > :first-child { grid-column: span 2; aspect-ratio: auto; }
 }
+/* телефон, дві колонки: непарна кількість — перше фото на всю ширину */
+@media (max-width: 799px) { .s-gal--grid.s-gal--odd > :first-child { grid-column: 1 / -1; } }
 .s-gal__item { border: 0; padding: 0; background: #dfe4dc; border-radius: var(--r-sm); overflow: hidden; aspect-ratio: 4 / 3; cursor: zoom-in; }
 .s-gal__item img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s; }
 .s-gal__item:hover img { transform: scale(1.05); }

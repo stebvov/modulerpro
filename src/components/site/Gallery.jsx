@@ -22,12 +22,13 @@ export default function Gallery({ images, title = "", layout = "grid" }) {
   }, [open, go]);
 
   if (!n) return null;
+  const bigFirst = n % 2 === 1 || (n % 3 !== 0 && n !== 4); // перше фото займає більше місця (див. site.css)
   return (
     <>
-      <div className={`s-gal s-gal--${layout} s-gal--n${Math.min(n, 9)}`}>
+      <div className={`s-gal s-gal--${layout} s-gal--n${Math.min(n, 9)} s-gal--r${n % 3}${n % 2 ? " s-gal--odd" : ""}`}>
         {images.map((u, i) => (
           <button key={u + i} type="button" className="s-gal__item" onClick={() => setOpen(i)} aria-label={`Фото ${i + 1}`}>
-            <img alt={title ? `${title}, фото ${i + 1}` : ""} loading="lazy" src={i === 0 && n === 5 ? u : imgSmall(u)} />
+            <img alt={title ? `${title}, фото ${i + 1}` : ""} loading="lazy" src={i === 0 && bigFirst ? u : imgSmall(u)} />
           </button>
         ))}
       </div>
