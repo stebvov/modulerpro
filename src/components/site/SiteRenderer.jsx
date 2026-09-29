@@ -238,7 +238,7 @@ function TextImage({ b, ctx }) {
         {live ? (
           <DaylightImage images={{ day: b.image, morning: b.image_morning, evening: b.image_evening, night: b.image_night }} />
         ) : (
-          b.image && <img className="s-split__img" alt="" loading="lazy" {...imgProps(b.image, "(max-width: 900px) 100vw, 50vw")} />
+          b.image && <img className={`s-split__img${b.fit === "contain" ? " s-split__img--contain" : ""}`} alt="" loading="lazy" {...imgProps(b.image, "(max-width: 900px) 100vw, 50vw")} />
         )}
       </div>
     </Section>

@@ -123,6 +123,7 @@ export const BLOCKS = {
     hint: "«Оживити порою доби»: сайт показує фото, що відповідає годині відвідувача (ранок, день, вечір, ніч), з м'якою анімацією. Відвідувач може й сам перемкнути.",
     fields: [eyebrow, title, { key: "text", label: "Текст", type: "textarea" }, { key: "image", label: "Фото (день)", type: "image" },
       { key: "side", label: "Фото", type: "select", options: [["right", "Праворуч"], ["left", "Ліворуч"]] }, cta("cta", "Кнопка"),
+      { key: "fit", label: "Як показати фото", type: "select", options: [["", "Обрізати по рамці"], ["contain", "Повністю (плани, схеми)"]] },
       { key: "daylight", label: "Оживити порою доби", type: "bool" },
       { key: "image_morning", label: "Фото вранці (необов'язково)", type: "image" },
       { key: "image_evening", label: "Фото ввечері", type: "image" },

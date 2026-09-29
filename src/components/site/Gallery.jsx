@@ -24,10 +24,10 @@ export default function Gallery({ images, title = "", layout = "grid" }) {
   if (!n) return null;
   return (
     <>
-      <div className={`s-gal s-gal--${layout}`}>
+      <div className={`s-gal s-gal--${layout} s-gal--n${Math.min(n, 9)}`}>
         {images.map((u, i) => (
           <button key={u + i} type="button" className="s-gal__item" onClick={() => setOpen(i)} aria-label={`Фото ${i + 1}`}>
-            <img alt={title ? `${title}, фото ${i + 1}` : ""} loading="lazy" src={imgSmall(u)} />
+            <img alt={title ? `${title}, фото ${i + 1}` : ""} loading="lazy" src={i === 0 && n === 5 ? u : imgSmall(u)} />
           </button>
         ))}
       </div>
