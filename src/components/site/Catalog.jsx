@@ -10,6 +10,8 @@ export default function Catalog({ kind, items, group, filters, limit, base }) {
   const labels = isModels ? SIZE_GROUPS : CASE_KINDS;
   const [f, setF] = useState("");
   let list = group ? items.filter((x) => String(x[field]) === String(group)) : items;
+  // популярні моделі — першими
+  if (isModels) list = [...list].sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0));
   const present = Object.keys(labels).filter((k) => list.some((x) => String(x[field]) === k));
   if (f) list = list.filter((x) => String(x[field]) === f);
   if (limit) list = list.slice(0, limit);

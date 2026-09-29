@@ -6,6 +6,7 @@ import Gallery from "./Gallery";
 import Catalog from "./Catalog";
 import Calculator from "./Calculator";
 import LeadForm from "./LeadForm";
+import DaylightImage from "./DaylightImage";
 
 export function Btn({ link, base, kind = "primary", className = "" }) {
   if (!link?.label) return null;
@@ -223,6 +224,7 @@ function Showroom({ b, ctx }) {
 }
 
 function TextImage({ b, ctx }) {
+  const live = b.daylight && b.image && (b.image_evening || b.image_night || b.image_morning);
   return (
     <Section b={b}>
       <div className={`s-split${b.side === "left" ? " s-split--rev" : ""}${b.image ? "" : " s-split--solo"}`}>
@@ -232,8 +234,30 @@ function TextImage({ b, ctx }) {
           {paragraphs(b.text).map((p, i) => <p key={i} className="s-lead">{rich(p)}</p>)}
           {b.cta?.label && <div className="s-actions"><Btn link={b.cta} base={ctx.base} /></div>}
         </div>
-        {b.image && <img className="s-split__img" alt="" loading="lazy" {...imgProps(b.image, "(max-width: 900px) 100vw, 50vw")} />}
+        {live ? (
+          <DaylightImage images={{ day: b.image, morning: b.image_morning, evening: b.image_evening, night: b.image_night }} />
+        ) : (
+          b.image && <img className="s-split__img" alt="" loading="lazy" {...imgProps(b.image, "(max-width: 900px) 100vw, 50vw")} />
+        )}
       </div>
+    </Section>
+  );
+}
+
+export function Choice({ b, ctx }) {
+  const side = (k, main) => (
+    <div className={`s-choice__card${main ? " s-choice__card--main" : ""}`}>
+      {main && <span className="s-choice__tag">Рекомендуємо</span>}
+      <h3>{b[`${k}_title`]}</h3>
+      {b[`${k}_text`] && <p>{rich(b[`${k}_text`])}</p>}
+      {!!b[`${k}_points`]?.length && <ul className={main ? "s-checks" : "s-checks s-checks--dark"}>{b[`${k}_points`].map((x, i) => <li key={i}>{x.text}</li>)}</ul>}
+      <div className="s-actions"><Btn link={b[`${k}_cta`]} base={ctx.base} kind={main ? "primary" : "outline"} /></div>
+    </div>
+  );
+  return (
+    <Section b={b}>
+      <Head b={b} />
+      <div className="s-choice">{side("a", true)}{side("b", false)}</div>
     </Section>
   );
 }
@@ -294,7 +318,7 @@ const RENDER = {
   models: ({ b, ctx }) => (
     <Section b={b}>
       <Head b={b} />
-      <Catalog kind="models" items={ctx.models || []} group={b.group} filters={b.filters} limit={Number(b.limit) || 0} base={ctx.base} />
+      <Catalog kind="models" items={(ctx.models || []).filter((m) => (b.kind === "all" ? true : (m.kind || "ready") === (b.kind || "ready")))} group={b.group} filters={b.filters} limit={Number(b.limit) || 0} base={ctx.base} />
       {b.cta?.label && <div className="s-center"><Btn link={b.cta} base={ctx.base} kind="outline" /></div>}
     </Section>
   ),
@@ -318,6 +342,7 @@ const RENDER = {
   faq: Faq,
   showroom: Showroom,
   text_image: TextImage,
+  choice: Choice,
   stats: Stats,
   photo_band: PhotoBand,
   gallery: ({ b }) => (

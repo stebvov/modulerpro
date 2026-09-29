@@ -68,7 +68,14 @@ export function youtubeId(s) {
 
 export const phoneHref = (p) => "tel:" + String(p || "").replace(/[^\d+]/g, "");
 export const viberHref = (p) => "viber://chat?number=" + encodeURIComponent(String(p || "").replace(/[^\d+]/g, ""));
-export const telegramHref = (t) => (!t ? null : /^https?:/.test(t) ? t : "https://t.me/" + t.replace(/^@/, ""));
+// Telegram: посилання, @нік або номер телефону (t.me/+380…)
+export const telegramHref = (t) => {
+  if (!t) return null;
+  const v = String(t).trim();
+  if (/^https?:/.test(v)) return v;
+  if (/^\+?\d[\d\s()-]{6,}$/.test(v)) return "https://t.me/+" + v.replace(/\D/g, "");
+  return "https://t.me/" + v.replace(/^@/, "");
+};
 
 // найменша ціна моделі (для «від …»)
 export function modelPriceFrom(m) {

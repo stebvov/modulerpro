@@ -14,10 +14,12 @@ import "./editor.css";
 const KINDS = {
   models: {
     table: "site_models", fields: MODEL_FIELDS, one: "модель", add: "+ Модель", path: "modeli", titleKey: "name",
-    blank: () => ({ name: "Нова модель", slug: `model-${Date.now().toString(36)}`, size_group: 1, currency: "USD", published: false, photos: [], features: [] }),
-    sub: (x) => [SIZE_GROUPS[x.size_group], x.area_m2 && `${Number(x.area_m2)} м²`, modelPriceFrom(x) ? `від ${money(modelPriceFrom(x), x.currency)}` : "без ціни"].filter(Boolean).join(" · "),
-    warn: (x) => (!modelPriceFrom(x) ? "Немає ціни — на сайті буде «порахуємо під вас»" : !x.photos?.length ? "Немає фото" : ""),
-    intro: "Каталог на сайті: картки в блоці «Моделі» і окрема сторінка кожної моделі з цінами, фото й заявкою. Ціни «від» за рівнями готовності — головне, що шукає покупець.",
+    blank: (tab) => ({ name: tab === "concept" ? "Нова розробка" : "Нова модель", kind: tab === "concept" ? "concept" : "ready", slug: `model-${Date.now().toString(36)}`, size_group: 1, currency: "USD", published: false, photos: [], plans: [], features: [], highlights: [] }),
+    sub: (x) => [x.popular && "★ популярна", SIZE_GROUPS[x.size_group], x.area_m2 && `${Number(x.area_m2)} м²`, x.kind === "concept" ? "розробка" : modelPriceFrom(x) ? `від ${money(modelPriceFrom(x), x.currency)}` : "без ціни"].filter(Boolean).join(" · "),
+    warn: (x) => (x.kind !== "concept" && !modelPriceFrom(x) ? "Немає ціни — на сайті буде «порахуємо під вас»" : !x.photos?.length ? "Немає фото" : ""),
+    tabs: [["ready", "Готові моделі"], ["concept", "Індивідуальні проєкти"], ["", "Усі"]],
+    tabOf: (x) => x.kind || "ready",
+    intro: "Готові моделі — каталог з цінами: кожна має свою сторінку-лендинг. Популярні (★) показуються першими. Індивідуальні проєкти — ваші розробки й візуалізації: окрема сторінка «Індивідуальні проєкти», щоб показати, що можливо безліч варіантів.",
   },
   cases: {
     table: "site_cases", fields: CASE_FIELDS, one: "кейс", add: "+ Кейс", path: "kejsy", titleKey: "title",
@@ -36,6 +38,7 @@ export default function SiteCollectionScreen({ kind }) {
   const [status, setStatus] = useState("");
   const [msg, setMsg] = useState("");
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState(K.tabs ? K.tabs[0][0] : "");
   const timer = useRef(null);
 
   const load = useCallback(async () => {
@@ -65,7 +68,7 @@ export default function SiteCollectionScreen({ kind }) {
   }
 
   async function add() {
-    const { data, error } = await supabase.from(K.table).insert({ ...K.blank(), sort: (rows.at(-1)?.sort || 0) + 1 }).select().single();
+    const { data, error } = await supabase.from(K.table).insert({ ...K.blank(tab), sort: (rows.at(-1)?.sort || 0) + 1 }).select().single();
     if (error) { setMsg("Не додано: " + error.message); return; }
     setRows((rs) => [...rs, data]); setSelId(data.id);
   }
@@ -80,18 +83,27 @@ export default function SiteCollectionScreen({ kind }) {
     revalidateSite();
   }
 
-  const shown = rows.filter((r) => !q || JSON.stringify([r[K.titleKey], r.location, r.tagline]).toLowerCase().includes(q.toLowerCase()));
+  const shown = rows.filter((r) => (!tab || !K.tabOf || K.tabOf(r) === tab) && (!q || JSON.stringify([r[K.titleKey], r.location, r.tagline]).toLowerCase().includes(q.toLowerCase())));
 
   return (
     <div className="se-coll">
       <LinkOptions />
       <p className="se-intro">{K.intro}</p>
+      {K.tabs && (
+        <div className="se-tabs" style={{ marginBottom: 10 }}>
+          {K.tabs.map(([k, l]) => (
+            <button key={k} type="button" className={`subtab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>
+              {l} · {rows.filter((r) => !k || K.tabOf(r) === k).length}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="toolbar">
         <div className="toolbar-left">
           <input className="se-search" placeholder="Пошук" value={q} onChange={(e) => setQ(e.target.value)} />
           <span className="note">{rows.filter((r) => r.published).length} на сайті · {rows.filter((r) => !r.published).length} приховано</span>
         </div>
-        <button type="button" className="btn primary" onClick={add}>{K.add}</button>
+        <button type="button" className="btn primary" onClick={add}>{tab === "concept" ? "+ Розробка" : K.add}</button>
       </div>
       {msg && <div className="se-msg" onClick={() => setMsg("")}>{msg}</div>}
       <div className={`se-coll__main${sel ? " has-sel" : ""}`}>
@@ -110,8 +122,8 @@ export default function SiteCollectionScreen({ kind }) {
                   </span>
                 </button>
                 <div className="se-tools se-tools--col">
-                  <button type="button" onClick={() => move(i, -1)} disabled={!i || !!q} title="Вище"><ArrowUpIcon /></button>
-                  <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1 || !!q} title="Нижче"><ArrowDownIcon /></button>
+                  <button type="button" onClick={() => move(i, -1)} disabled={!i || !!q || !!tab} title={tab ? "Порядок — на вкладці «Усі»" : "Вище"}><ArrowUpIcon /></button>
+                  <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1 || !!q || !!tab} title={tab ? "Порядок — на вкладці «Усі»" : "Нижче"}><ArrowDownIcon /></button>
                 </div>
               </div>
             );

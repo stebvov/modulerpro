@@ -399,6 +399,62 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
   body.s-body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
 }
 
+/* ── Позначки на картках ─────────────────── */
+.s-card__badge { position: absolute; right: 12px; top: 12px; background: var(--honey); color: var(--ink); padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 800; }
+.s-card__badge--concept { background: rgba(21, 33, 27, .82); color: var(--paper); font-weight: 700; }
+
+/* ── Лендинг моделі ──────────────────────── */
+.s-hero--model { min-height: min(86vh, 780px); }
+.s-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.s-facts > div { background: rgba(14, 26, 20, .55); border: 1px solid rgba(242, 238, 228, .18); border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column; min-width: 96px; }
+.s-facts span { font-size: 12px; color: #b9c9be; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.s-facts b { font-family: var(--f-display); color: var(--paper); font-size: 1.05em; }
+.s-checks--cols { margin-top: 24px; }
+@media (min-width: 800px) { .s-checks--cols { grid-template-columns: 1fr 1fr; } }
+.s-gal--plans .s-gal__item { background: #fff; border: 1px solid var(--line); }
+.s-gal--plans .s-gal__item img { object-fit: contain; padding: 6px; }
+@media (min-width: 800px) { .s-gal--plans { grid-template-columns: repeat(3, 1fr); } }
+.s-callout a { color: var(--moss); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── Готова модель чи свій проєкт ────────── */
+.s-choice { display: grid; gap: 16px; }
+@media (min-width: 900px) { .s-choice { grid-template-columns: 1.1fr 1fr; align-items: stretch; } }
+.s-choice__card { position: relative; background: var(--white); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 10px; }
+.s-choice__card h3 { font-family: var(--f-display); font-size: 1.35em; color: var(--ink); }
+.s-choice__card p { color: var(--muted); }
+.s-choice__card .s-actions { margin-top: auto; padding-top: 12px; }
+.s-choice__card--main { background: var(--pine); border-color: var(--pine); color: #d5dfd8; box-shadow: var(--shadow); }
+.s-choice__card--main h3 { color: var(--paper); }
+.s-choice__card--main p { color: #b9c9be; }
+.s-choice__tag { position: absolute; top: -12px; left: 22px; background: var(--honey); color: var(--ink); font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── Фото, що живе порою доби ────────────── */
+.s-tod { position: relative; aspect-ratio: 4 / 3; border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); background: #0d1813; isolation: isolate; }
+.s-tod__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.4s ease; animation: s-kenburns 24s ease-in-out infinite alternate; }
+.s-tod__img.on { opacity: 1; }
+@keyframes s-kenburns { from { transform: scale(1); } to { transform: scale(1.07) translate(-1%, -1%); } }
+.s-tod__tint, .s-tod__sun, .s-tod__stars { position: absolute; inset: 0; pointer-events: none; transition: opacity 1.4s ease, background 1.4s ease; }
+.s-tod__tint { mix-blend-mode: soft-light; opacity: 0; }
+.s-tod--morning .s-tod__tint { opacity: .9; background: linear-gradient(160deg, rgba(255, 190, 150, .75), rgba(255, 230, 190, .1) 60%); }
+.s-tod--evening .s-tod__tint { opacity: .8; background: linear-gradient(180deg, rgba(255, 140, 60, .5), rgba(120, 60, 120, .3)); }
+.s-tod--night .s-tod__tint { opacity: .55; background: linear-gradient(180deg, rgba(10, 20, 60, .7), rgba(0, 0, 0, 0) 70%); }
+.s-tod__sun { opacity: 0; }
+.s-tod--morning .s-tod__sun { opacity: 1; background: radial-gradient(circle at 10% 30%, rgba(255, 210, 150, .55), transparent 40%); animation: s-sunrise 14s ease-in-out infinite alternate; }
+.s-tod--day .s-tod__sun { opacity: 1; background: radial-gradient(circle at 85% 8%, rgba(255, 255, 230, .45), transparent 35%); animation: s-sunrise 18s ease-in-out infinite alternate; }
+.s-tod--evening .s-tod__sun { opacity: 1; background: radial-gradient(ellipse at 80% 70%, rgba(255, 170, 80, .45), transparent 55%); }
+.s-tod--night .s-tod__sun { opacity: 1; background: radial-gradient(ellipse at 50% 70%, rgba(255, 200, 120, .22), transparent 45%); animation: s-glow 3.5s ease-in-out infinite alternate; }
+@keyframes s-sunrise { from { transform: translate(0, 0); } to { transform: translate(4%, -3%); } }
+@keyframes s-glow { from { opacity: .6; } to { opacity: 1; } }
+.s-tod__stars { opacity: 0; }
+.s-tod--night .s-tod__stars { opacity: 1; }
+.s-tod__stars i { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 4px rgba(255, 255, 255, .9); animation: s-twinkle 2.6s ease-in-out infinite; }
+@keyframes s-twinkle { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+.s-tod__bar { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 4px; justify-content: center; }
+.s-tod__bar button { border: 0; background: rgba(14, 26, 20, .6); color: var(--paper); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; backdrop-filter: blur(6px); }
+.s-tod__bar button.on { background: var(--honey); color: var(--ink); }
+@media (max-width: 480px) { .s-tod__lbl { display: none; } .s-tod__bar button { padding: 6px 12px; font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .s-tod__img, .s-tod__sun, .s-tod__stars i { animation: none !important; } }
+
 /* ── Телефон: довгі сітки стають стрічками, що гортаються пальцем ── */
 @media (max-width: 639px) {
   .s-rail, .s-feats, .s-tiers, .s-reviews { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin: 0 calc(-1 * var(--pad)); padding: 4px var(--pad) 14px; scroll-padding: 0 var(--pad); scrollbar-width: none; }

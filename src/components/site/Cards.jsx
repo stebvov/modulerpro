@@ -9,16 +9,20 @@ export function ModelCard({ m, base }) {
       <div className="s-card__img">
         {m.photos?.[0] ? <img alt={m.name} loading="lazy" {...imgProps(m.photos[0], "(max-width: 700px) 100vw, 33vw")} /> : <div className="s-card__noimg">🏡</div>}
         <span className="s-card__tag">{SIZE_GROUPS[m.size_group]}</span>
+        {m.popular && <span className="s-card__badge">★ Популярна</span>}
+        {m.kind === "concept" && <span className="s-card__badge s-card__badge--concept">Індивідуальний проєкт</span>}
       </div>
       <div className="s-card__body">
         <h3>{m.name}</h3>
         <div className="s-model__meta">
-          {m.area_m2 && <span>{Number(m.area_m2)} м²</span>}
+          {m.area_m2 && <span>{String(Number(m.area_m2)).replace(".", ",")} м²</span>}
           {m.bedrooms != null && <span>{m.bedrooms ? `${m.bedrooms} спальн${m.bedrooms === 1 ? "я" : "і"}` : "студія"}</span>}
           {m.modules && <span>{String(m.modules).replace(".", ",")} мод.</span>}
         </div>
         {m.tagline && <p>{m.tagline}</p>}
-        <div className="s-model__price">{from ? <>від <b>{money(from, m.currency)}</b></> : <span className="s-muted">Ціну порахуємо під вас</span>}</div>
+        <div className="s-model__price">
+          {from ? <>від <b>{money(from, m.currency)}</b></> : <span className="s-muted">{m.kind === "concept" ? "Адаптуємо під вас і порахуємо" : "Ціну порахуємо під вас"}</span>}
+        </div>
       </div>
     </a>
   );

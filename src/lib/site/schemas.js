@@ -1,5 +1,5 @@
 // Поля моделей, кейсів, сторінок і налаштувань сайту — для тих самих форм, що й блоки конструктора.
-import { CASE_KINDS, SIZE_GROUPS } from "./blocks";
+import { CASE_KINDS, MODEL_KINDS, SIZE_GROUPS } from "./blocks";
 
 const UA = { а: "a", б: "b", в: "v", г: "h", ґ: "g", д: "d", е: "e", є: "ie", ж: "zh", з: "z", и: "y", і: "i", ї: "i", й: "i", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ь: "", ю: "iu", я: "ia", "'": "", "’": "" };
 export function slugify(s) {
@@ -9,6 +9,8 @@ export function slugify(s) {
 
 export const MODEL_FIELDS = [
   { key: "name", label: "Назва моделі", type: "text" },
+  { key: "kind", label: "Тип", type: "select", options: Object.entries(MODEL_KINDS) },
+  { key: "popular", label: "Популярна модель (перша в каталозі, позначка «Популярна»)", type: "bool" },
   { key: "slug", label: "Адреса сторінки (латиницею)", type: "text", hint: "moduler.pro/modeli/…" },
   { key: "tagline", label: "Коротко (під назвою)", type: "text" },
   { key: "size_group", label: "Група площі", type: "select", options: Object.entries(SIZE_GROUPS).map(([k, v]) => [Number(k), v]) },
@@ -16,14 +18,19 @@ export const MODEL_FIELDS = [
   { key: "modules", label: "Модулів", type: "number" },
   { key: "bedrooms", label: "Спалень (0 — студія, порожньо — не показувати)", type: "number" },
   { key: "dimensions", label: "Габарити", type: "text" },
+  { key: "build_time", label: "Строк виготовлення (напр. від 30 днів)", type: "text" },
   { key: "currency", label: "Валюта цін", type: "select", options: [["USD", "$ долар"], ["EUR", "€ євро"], ["UAH", "₴ гривня"]] },
   { key: "price_shell", label: "Ціна «Конструктив» від", type: "number" },
   { key: "price_prefinish", label: "Ціна «Під оздоблення» від", type: "number" },
   { key: "price_ready", label: "Ціна «Готове житло» від", type: "number" },
   { key: "description", label: "Опис (порожній рядок — новий абзац)", type: "textarea" },
+  { key: "highlights", label: "Переваги моделі (картки на лендингу)", type: "list", item: "Перевага", fields: [
+    { key: "icon", label: "Емодзі", type: "text" }, { key: "title", label: "Назва", type: "text" }, { key: "text", label: "Опис", type: "textarea" },
+  ] },
   { key: "features", label: "Що є в моделі (галочки)", type: "strings", item: "Пункт" },
-  { key: "photos", label: "Фото (перше — обкладинка)", type: "images" },
-  { key: "plan_image", label: "Планування (картинка)", type: "image" },
+  { key: "photos", label: "Фото й візуалізації (перше — обкладинка)", type: "images" },
+  { key: "plans", label: "Варіанти планування", type: "images" },
+  { key: "video", label: "Відео YouTube (необов'язково)", type: "text" },
   { key: "template_id", label: "Модель у каталозі системи (для розрахунків)", type: "template" },
   { key: "published", label: "Показувати на сайті", type: "bool" },
 ];
@@ -58,11 +65,15 @@ export const SETTINGS_SECTIONS = [
     { key: "phone", label: "Телефон (для дзвінка), +380…", type: "text" },
     { key: "phone_display", label: "Телефон як показувати", type: "text" },
     { key: "viber", label: "Viber (номер), якщо інший", type: "text" },
-    { key: "telegram", label: "Telegram (@нік або посилання) — з'явиться кнопка", type: "text" },
+    { key: "telegram", label: "Telegram: @нік, посилання або номер (порожньо — за телефоном)", type: "text" },
     { key: "instagram", label: "Instagram (нік)", type: "text" },
     { key: "facebook", label: "Facebook (посилання)", type: "text" },
     { key: "youtube", label: "YouTube (посилання)", type: "text" },
     { key: "email", label: "Email", type: "text" },
+    { key: "office", label: "Головний офіс (як показувати)", type: "text" },
+    { key: "office_url", label: "Офіс на мапі (посилання)", type: "text" },
+    { key: "office_street", label: "Офіс: вулиця й номер (для Google)", type: "text" },
+    { key: "office_city", label: "Офіс: місто", type: "text" },
     { key: "address", label: "Виробництво / адреса", type: "text" },
     { key: "address_url", label: "Посилання на мапу", type: "text" },
     { key: "showroom", label: "Шоурум", type: "text" },

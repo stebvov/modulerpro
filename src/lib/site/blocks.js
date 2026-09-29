@@ -41,14 +41,15 @@ export const BLOCKS = {
   },
   models: {
     label: "Моделі (каталог)", icon: "🏡",
-    hint: "Картки моделей з розділу «Сайт → Моделі». Ціна береться звідти ж.",
+    hint: "Картки моделей з розділу «Сайт → Моделі». Ціна береться звідти ж. Популярні моделі показуються першими.",
     fields: [eyebrow, title, lead,
-      { key: "group", label: "Які моделі", type: "select", options: [["", "Усі"], ["1", "до 30 м²"], ["2", "30–50 м²"], ["3", "50–100 м²"], ["4", "100+ м²"]] },
+      { key: "kind", label: "Що показувати", type: "select", options: [["ready", "Готові моделі"], ["concept", "Індивідуальні проєкти (розробки)"], ["all", "Усе разом"]] },
+      { key: "group", label: "Площа", type: "select", options: [["", "Усі"], ["1", "до 30 м²"], ["2", "30–50 м²"], ["3", "50–100 м²"], ["4", "100+ м²"]] },
       { key: "filters", label: "Показати фільтр за площею", type: "bool" },
       { key: "limit", label: "Скільки показати (0 — усі)", type: "number" },
       cta("cta", "Кнопка під каталогом"),
     ],
-    defaults: { theme: "light", eyebrow: "Каталог", title: "Готові моделі під ваші задачі", filters: true, limit: 0 },
+    defaults: { theme: "light", kind: "ready", eyebrow: "Каталог", title: "Готові моделі під ваші задачі", filters: true, limit: 0 },
   },
   calculator: {
     label: "Калькулятор вартості", icon: "🧮",
@@ -119,9 +120,32 @@ export const BLOCKS = {
   },
   text_image: {
     label: "Текст + фото", icon: "🖼",
-    fields: [eyebrow, title, { key: "text", label: "Текст", type: "textarea" }, { key: "image", label: "Фото", type: "image" },
-      { key: "side", label: "Фото", type: "select", options: [["right", "Праворуч"], ["left", "Ліворуч"]] }, cta("cta", "Кнопка")],
+    hint: "«Оживити порою доби»: сайт показує фото, що відповідає годині відвідувача (ранок, день, вечір, ніч), з м'якою анімацією. Відвідувач може й сам перемкнути.",
+    fields: [eyebrow, title, { key: "text", label: "Текст", type: "textarea" }, { key: "image", label: "Фото (день)", type: "image" },
+      { key: "side", label: "Фото", type: "select", options: [["right", "Праворуч"], ["left", "Ліворуч"]] }, cta("cta", "Кнопка"),
+      { key: "daylight", label: "Оживити порою доби", type: "bool" },
+      { key: "image_morning", label: "Фото вранці (необов'язково)", type: "image" },
+      { key: "image_evening", label: "Фото ввечері", type: "image" },
+      { key: "image_night", label: "Фото вночі (зі світлом у вікнах)", type: "image" },
+    ],
     defaults: { theme: "light", side: "right" },
+  },
+  choice: {
+    label: "Готова модель чи свій проєкт", icon: "⚖️",
+    hint: "Два шляхи поруч: готова модель (швидше й дешевше) та індивідуальний проєкт. Кожен зі своєю кнопкою.",
+    fields: [eyebrow, title, lead,
+      { key: "a_title", label: "Ліворуч: назва", type: "text" }, { key: "a_text", label: "Ліворуч: опис", type: "textarea" },
+      { key: "a_points", label: "Ліворуч: пункти", type: "list", item: "Пункт", fields: [{ key: "text", label: "Текст", type: "text" }] },
+      cta("a_cta", "Ліворуч: кнопка"),
+      { key: "b_title", label: "Праворуч: назва", type: "text" }, { key: "b_text", label: "Праворуч: опис", type: "textarea" },
+      { key: "b_points", label: "Праворуч: пункти", type: "list", item: "Пункт", fields: [{ key: "text", label: "Текст", type: "text" }] },
+      cta("b_cta", "Праворуч: кнопка"),
+    ],
+    defaults: {
+      theme: "cloud", eyebrow: "Як обрати", title: "Готова модель чи *свій проєкт*?",
+      a_title: "Готова модель", a_text: "Найшвидший і найвигідніший шлях.", a_points: [], a_cta: { label: "Обрати модель", href: "/modeli" },
+      b_title: "Індивідуальний проєкт", b_text: "Коли потрібне щось своє.", b_points: [], b_cta: { label: "Дивитися розробки", href: "/proekty" },
+    },
   },
   stats: {
     label: "Цифри", icon: "🔢",
@@ -161,7 +185,7 @@ export const BLOCKS = {
   },
 };
 
-export const BLOCK_ORDER = ["hero", "audience", "models", "calculator", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
+export const BLOCK_ORDER = ["hero", "audience", "models", "choice", "calculator", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
 
 // спільні поля кожного блоку (показуються в конструкторі внизу форми)
 export const COMMON_FIELDS = [
@@ -176,4 +200,5 @@ export function newBlock(type) {
 
 export const SIZE_GROUPS = { 1: "до 30 м²", 2: "30–50 м²", 3: "50–100 м²", 4: "100+ м²" };
 export const CASE_KINDS = { private: "Приватні доми", business: "Бізнес", social: "Соціальні", town: "Містечка" };
+export const MODEL_KINDS = { ready: "Готова модель", concept: "Індивідуальний проєкт" };
 export const LEVELS = [["shell", "Конструктив"], ["prefinish", "Під оздоблення"], ["ready", "Готове житло"]];

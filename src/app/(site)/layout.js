@@ -35,7 +35,9 @@ export default async function SiteLayout({ children }) {
     url: origin + (base || "/"),
     logo: settings.brand?.logo ? new URL(settings.brand.logo, origin).href : undefined,
     telephone: c.phone,
-    address: c.address ? { "@type": "PostalAddress", addressLocality: c.address, addressCountry: "UA" } : undefined,
+    address: c.office_street
+      ? { "@type": "PostalAddress", streetAddress: c.office_street, addressLocality: c.office_city || "Київ", addressCountry: "UA" }
+      : undefined,
     sameAs: [c.instagram && `https://instagram.com/${c.instagram.replace(/^@/, "")}`, c.facebook, c.youtube].filter(Boolean),
     areaServed: ["UA", "EU"],
   };
