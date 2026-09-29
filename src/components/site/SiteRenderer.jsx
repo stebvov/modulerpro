@@ -7,6 +7,7 @@ import Catalog from "./Catalog";
 import Calculator from "./Calculator";
 import LeadForm from "./LeadForm";
 import DaylightImage from "./DaylightImage";
+import InvestCalc from "./InvestCalc";
 
 export function Btn({ link, base, kind = "primary", className = "" }) {
   if (!link?.label) return null;
@@ -262,6 +263,48 @@ export function Choice({ b, ctx }) {
   );
 }
 
+function Table({ b }) {
+  const split = (t) => String(t || "").split("|").map((x) => x.trim());
+  const head = split(b.head);
+  return (
+    <Section b={b}>
+      <Head b={b} />
+      <div className="s-table-wrap">
+        <table className="s-table">
+          <thead><tr>{head.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+          <tbody>
+            {(b.rows || []).map((r, i) => (
+              <tr key={i} className={r.highlight ? "hl" : ""}>{split(r.cells).map((c, j) => (j ? <td key={j} data-label={head[j]}>{c}</td> : <th key={j} scope="row">{c}</th>))}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {b.note && <p className="s-note">{rich(b.note)}</p>}
+    </Section>
+  );
+}
+
+function Team({ b }) {
+  return (
+    <Section b={b}>
+      <Head b={b} />
+      <div className="s-team">
+        {(b.items || []).map((p, i) => (
+          <figure key={i} className="s-person">
+            {p.photo && <img alt={p.name} loading="lazy" {...imgProps(p.photo, "(max-width: 700px) 100vw, 33vw")} />}
+            <figcaption>
+              {p.role && <span className="s-person__role">{p.role}</span>}
+              <b>{p.name}</b>
+              {p.text && <p>{rich(p.text)}</p>}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      {b.note && <div className="s-callout">{rich(b.note)}</div>}
+    </Section>
+  );
+}
+
 function Stats({ b }) {
   return (
     <Section b={b} className="s-sec--tight">
@@ -343,6 +386,14 @@ const RENDER = {
   showroom: Showroom,
   text_image: TextImage,
   choice: Choice,
+  invest: ({ b }) => (
+    <Section b={b}>
+      <Head b={b} />
+      <InvestCalc b={b} />
+    </Section>
+  ),
+  table: Table,
+  team: Team,
   stats: Stats,
   photo_band: PhotoBand,
   gallery: ({ b }) => (

@@ -147,6 +147,48 @@ export const BLOCKS = {
       b_title: "Індивідуальний проєкт", b_text: "Коли потрібне щось своє.", b_points: [], b_cta: { label: "Дивитися розробки", href: "/proekty" },
     },
   },
+  invest: {
+    label: "Інвест-калькулятор", icon: "📈",
+    hint: "Дохід = середній чек за ніч × 365 × завантаження × частка інвестора. Змініть параметри — сторінка перерахує все сама.",
+    fields: [eyebrow, title, lead,
+      { key: "price", label: "Ціна входу (будинок під ключ)", type: "number" },
+      { key: "currency", label: "Валюта", type: "select", options: [["USD", "$ долар"], ["EUR", "€ євро"], ["UAH", "₴ гривня"]] },
+      { key: "night", label: "Середній чек за ніч", type: "number" },
+      { key: "share", label: "Частка інвестора від виручки, %", type: "number" },
+      { key: "payout", label: "Як виплачується (напр. щокварталу)", type: "text" },
+      { key: "occupancy", label: "Завантаження за замовчуванням, %", type: "number" },
+      { key: "scenarios", label: "Сценарії (кнопки)", type: "list", item: "Сценарій", fields: [
+        { key: "name", label: "Назва", type: "text" }, { key: "occupancy", label: "Завантаження, %", type: "number" }, { key: "note", label: "Пояснення", type: "text" },
+      ] },
+      { key: "years", label: "Горизонт розрахунку, років", type: "number" },
+      { key: "note", label: "Застереження під розрахунком", type: "textarea" },
+      cta("cta", "Кнопка"),
+    ],
+    defaults: { theme: "dark", anchor: "calc", title: "Скільки заробляє *ваш будинок*", price: 59900, currency: "USD", night: 178, share: 50, occupancy: 40, years: 10, scenarios: [] },
+  },
+  table: {
+    label: "Таблиця порівняння", icon: "📊",
+    hint: "Перший рядок — заголовки. Рядок, позначений «Виділити», підсвічується (наприклад, ваша пропозиція).",
+    fields: [eyebrow, title, lead,
+      { key: "head", label: "Заголовки колонок (через | )", type: "text" },
+      { key: "rows", label: "Рядки", type: "list", item: "Рядок", fields: [
+        { key: "cells", label: "Клітинки (через | )", type: "text" }, { key: "highlight", label: "Виділити", type: "bool" },
+      ] },
+      { key: "note", label: "Примітка під таблицею", type: "textarea" },
+    ],
+    defaults: { theme: "light", head: "Інструмент | Дохідність | Актив", rows: [] },
+  },
+  team: {
+    label: "Команда / люди", icon: "👥",
+    fields: [eyebrow, title, lead,
+      { key: "items", label: "Люди", type: "list", item: "Людина", fields: [
+        { key: "photo", label: "Фото", type: "image" }, { key: "name", label: "Ім'я", type: "text" },
+        { key: "role", label: "Роль", type: "text" }, { key: "text", label: "Опис", type: "textarea" },
+      ] },
+      { key: "note", label: "Рядок під командою", type: "textarea" },
+    ],
+    defaults: { theme: "cloud", eyebrow: "Хто за проєктом", title: "Команда", items: [] },
+  },
   stats: {
     label: "Цифри", icon: "🔢",
     fields: [{ key: "items", label: "Цифри", type: "list", item: "Цифра", fields: [{ key: "value", label: "Число", type: "text" }, { key: "label", label: "Підпис", type: "text" }] }],
@@ -159,7 +201,7 @@ export const BLOCKS = {
   },
   gallery: {
     label: "Галерея фото", icon: "🗂",
-    fields: [eyebrow, title, { key: "images", label: "Фото", type: "images" }],
+    fields: [eyebrow, title, lead, { key: "images", label: "Фото", type: "images" }],
     defaults: { theme: "light", images: [] },
   },
   video: {
@@ -185,7 +227,7 @@ export const BLOCKS = {
   },
 };
 
-export const BLOCK_ORDER = ["hero", "audience", "models", "choice", "calculator", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
+export const BLOCK_ORDER = ["hero", "audience", "models", "choice", "calculator", "invest", "table", "team", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
 
 // спільні поля кожного блоку (показуються в конструкторі внизу форми)
 export const COMMON_FIELDS = [

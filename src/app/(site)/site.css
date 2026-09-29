@@ -455,11 +455,58 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 @media (max-width: 480px) { .s-tod__lbl { display: none; } .s-tod__bar button { padding: 6px 12px; font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { .s-tod__img, .s-tod__sun, .s-tod__stars i { animation: none !important; } }
 
+/* ── Інвест-калькулятор ──────────────────── */
+.s-inv { display: grid; gap: 18px; }
+@media (min-width: 1000px) { .s-inv { grid-template-columns: 1.2fr 1fr; align-items: start; } }
+.s-inv__in { background: rgba(242, 238, 228, .06); border: 1px solid rgba(242, 238, 228, .14); border-radius: 16px; padding: 22px; display: grid; gap: 18px; }
+.s-sec--light .s-inv__in, .s-sec--cloud .s-inv__in { background: var(--white); border-color: var(--line); }
+.s-inv__sc { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.s-inv__sc button { text-align: left; border: 1.5px solid rgba(242, 238, 228, .25); background: transparent; color: inherit; border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.s-inv__sc button b { font-size: 15px; }
+.s-inv__sc button small { font-size: 12px; opacity: .75; }
+.s-inv__sc button.on { background: var(--honey); border-color: var(--honey); color: var(--ink); }
+.s-inv__slider span { color: inherit; }
+.s-sec--dark .s-inv__slider { color: #d5dfd8; }
+.s-inv__slider b { font-family: var(--f-display); color: var(--honey-2); font-size: 1.15em; }
+.s-sec--light .s-inv__slider b, .s-sec--cloud .s-inv__slider b { color: var(--pine); }
+.s-inv__note { font-size: 14px; opacity: .85; }
+.s-inv__params { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 15px; }
+.s-inv__params li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed rgba(242, 238, 228, .18); padding-bottom: 6px; }
+.s-sec--light .s-inv__params li, .s-sec--cloud .s-inv__params li { border-color: var(--line); }
+.s-inv__out { background: var(--honey); color: var(--ink); border-radius: 16px; padding: 24px; display: grid; gap: 10px; position: sticky; top: 84px; }
+.s-inv__out .s-calc__label { color: var(--pine-2); }
+.s-inv__out .s-calc__sum { color: var(--ink); }
+.s-inv__out .s-calc__note { color: rgba(21, 33, 27, .7); }
+.s-inv__out .s-btn--primary { background: var(--pine); color: var(--paper) !important; }
+.s-inv__kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.s-inv__kpi > div { background: rgba(255, 255, 255, .35); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; }
+.s-inv__kpi b { font-family: var(--f-display); font-size: 1.1em; }
+.s-inv__kpi span { font-size: 12px; opacity: .8; }
+
+/* ── Таблиця порівняння ──────────────────── */
+.s-table-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--line); background: var(--white); }
+.s-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 640px; }
+.s-table th, .s-table td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); color: var(--text); }
+.s-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--cloud); }
+.s-table tbody th { font-weight: 700; color: var(--ink); }
+.s-table tr.hl th, .s-table tr.hl td { background: var(--pine); color: var(--paper); border-color: var(--pine); font-weight: 700; }
+.s-table tr:last-child th, .s-table tr:last-child td { border-bottom: 0; }
+
+/* ── Команда ─────────────────────────────── */
+.s-team { display: grid; gap: 16px; }
+@media (min-width: 700px) { .s-team { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); } }
+.s-person { margin: 0; background: var(--white); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
+.s-person img { width: 100%; aspect-ratio: 4 / 4.4; object-fit: cover; object-position: top; }
+.s-person figcaption { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 4px; }
+.s-person b { font-family: var(--f-display); font-size: 1.15em; color: var(--ink); }
+.s-person__role { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--moss); }
+.s-person p { color: var(--muted); font-size: 15px; }
+
 /* ── Телефон: довгі сітки стають стрічками, що гортаються пальцем ── */
 @media (max-width: 639px) {
-  .s-rail, .s-feats, .s-tiers, .s-reviews { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin: 0 calc(-1 * var(--pad)); padding: 4px var(--pad) 14px; scroll-padding: 0 var(--pad); scrollbar-width: none; }
+  .s-rail, .s-feats, .s-tiers, .s-reviews, .s-team { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin: 0 calc(-1 * var(--pad)); padding: 4px var(--pad) 14px; scroll-padding: 0 var(--pad); scrollbar-width: none; }
   .s-rail::-webkit-scrollbar, .s-feats::-webkit-scrollbar, .s-tiers::-webkit-scrollbar, .s-reviews::-webkit-scrollbar { display: none; }
-  .s-rail > *, .s-feats > *, .s-tiers > *, .s-reviews > * { flex: 0 0 84%; scroll-snap-align: start; }
+  .s-rail > *, .s-feats > *, .s-tiers > *, .s-reviews > *, .s-team > * { flex: 0 0 84%; scroll-snap-align: start; }
   .s-aud { gap: 10px; }
   .s-aud__card { display: grid; grid-template-columns: 40px 1fr; column-gap: 12px; row-gap: 2px; padding: 16px; align-items: start; }
   .s-aud__icon { grid-row: span 3; font-size: 28px; }
