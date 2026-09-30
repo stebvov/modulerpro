@@ -2,6 +2,7 @@
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import { treeOptions, inBranch } from "@/lib/tree";
+import { flagOf } from "@/lib/site/leadMeta";
 import { GearIcon } from "@/components/Icon";
 
 import { useMemo, useState } from "react";
@@ -213,7 +214,14 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                           )
                         )}
                       </div>
-                      <div className="note" style={{ marginTop: 2 }}>{d.lead_region}</div>
+                      <div className="note" style={{ marginTop: 2 }}>
+                        {d.lead_cc && <>{flagOf(d.lead_cc)} </>}{d.lead_region}
+                        {(d.lead_device || d.lead_channel) && (
+                          <span title="Заявка з сайту: пристрій і джерело (деталі — в картці угоди)">
+                            {d.lead_region ? " · " : ""}{d.lead_device ? (d.lead_device === "Комп'ютер" ? "💻" : "📱") : ""}{d.lead_channel ? ` ${d.lead_channel}` : ""}
+                          </span>
+                        )}
+                      </div>
                       {d.lead_phone && <div className="note" style={{ marginTop: 2 }}>{d.lead_phone}</div>}
                       {services.length > 0 && (
                         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>

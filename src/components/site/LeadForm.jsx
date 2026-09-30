@@ -1,8 +1,10 @@
 "use client";
 // Форма заявки: ім'я, телефон, де зручно спілкуватись, задача. Заявка → leads (джерело «сайт») → CRM і Telegram.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { phoneHref } from "@/lib/site/format";
+import { visitorMeta } from "@/lib/site/visitor";
+import { buildLeadMeta } from "@/lib/site/leadMeta";
 
 let client;
 const sb = () => (client ||= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } }));
@@ -33,6 +35,7 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
   const [state, setState] = useState("idle"); // idle | sending | done | error
   const [err, setErr] = useState("");
   const [via, setVia] = useState(VIA[0]);
+  const startedAt = useRef(null); // коли людина почала заповнювати — щоб бачити «бот за 1 секунду» і реальний час
 
   async function submit(e) {
     e.preventDefault();
@@ -41,9 +44,19 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
     if (!String(p.name || "").trim()) { e.currentTarget.name.focus(); return; }
     if (String(p.phone || "").replace(/\D/g, "").length < 9) { setErr("Перевірте номер телефону"); e.currentTarget.phone.focus(); return; }
     setState("sending"); setErr("");
-    const { data, error } = await sb().rpc("site_submit_lead", {
-      p: { ...p, contact_via: via, model: model || "", calc: calc || "", page: location.pathname, utm: utm() },
-    });
+    const fields = { ...p, contact_via: via, model: model || "", calc: calc || "", page: location.pathname, utm: utm() };
+    let meta = null;
+    try { meta = await visitorMeta({ formStartedAt: startedAt.current, form: { kind: compact ? "коротка" : "повна", model: model || undefined, calc: calc || undefined } }); } catch { /* без деталей теж приймаємо */ }
+    // основний шлях — через сервер сайту (додає країну, місто, пристрій); якщо він недоступний — напряму в базу, як раніше
+    let data = null, error = null;
+    try {
+      const r = await fetch("/api/site/lead", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...fields, meta }) });
+      if (r.status < 500) data = await r.json(); else throw new Error(String(r.status));
+    } catch {
+      let m = null;
+      try { m = meta ? buildLeadMeta(meta, null) : null; } catch { /* */ }
+      ({ data, error } = await sb().rpc("site_submit_lead", { p: { ...fields, ...(m ? { meta: m } : {}) } }));
+    }
     if (error || !data?.ok) {
       setState("error");
       setErr(data?.error || "Не вдалося надіслати. Зателефонуйте нам, будь ласка.");
@@ -64,7 +77,7 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
   }
 
   return (
-    <form className={`s-form${compact ? " s-form--compact" : ""}`} onSubmit={submit} noValidate>
+    <form className={`s-form${compact ? " s-form--compact" : ""}`} onSubmit={submit} onFocus={() => { startedAt.current ||= Date.now(); }} noValidate>
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="s-hp" aria-hidden />
       <div className="s-form__row">
         <label className="s-field"><span>Як вас звати</span><input name="name" autoComplete="name" placeholder="Ім'я" required /></label>

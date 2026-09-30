@@ -1,7 +1,9 @@
 "use client";
 // Шапка сайту (меню-бургер на телефоні, тінь при прокрутці) + запам'ятовування UTM для заявок + плавна поява секцій.
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { phoneHref, siteHref } from "@/lib/site/format";
+import { trackVisit } from "@/lib/site/visitor";
 
 export function SiteHeader({ settings, base }) {
   const [open, setOpen] = useState(false);
@@ -44,6 +46,10 @@ export function SiteHeader({ settings, base }) {
 }
 
 export function SiteScripts() {
+  const pathname = usePathname();
+  // перегляди сторінок і джерело візиту — лише в браузері відвідувача, ідуть разом із заявкою (lib/site/visitor.js)
+  useEffect(() => { trackVisit(location.pathname); }, [pathname]);
+
   useEffect(() => {
     // UTM з реклами — зберігаємо на сесію, щоб заявка знала джерело
     try {

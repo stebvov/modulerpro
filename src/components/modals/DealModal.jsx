@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCrmData } from "@/context/CrmDataContext";
 import SearchCombobox from "@/components/SearchCombobox";
+import LeadSourcePanel from "@/components/LeadSourcePanel";
 import {
   CONTACT_TYPES,
   ACTIVITY_TYPES,
@@ -555,6 +556,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
               ))}
               <button type="button" className="btn small self-left" onClick={() => setForm((f) => ({ ...f, contacts: [...f.contacts, emptyContact()] }))}>+ Контакт</button>
             </div>
+
+            <LeadSourcePanel meta={currentLead?.site_meta} />
 
             <div className="form-row">
               <label>Опис</label>
