@@ -84,7 +84,7 @@ export default function TrackRuleModal({ open, material, groups, onClose, onSave
           <div className="tag-checks">
             {groups.map((g) => (
               <label className="tag-check" key={g}>
-                <input type="checkbox" checked={f.groups.includes(g)} onChange={() => toggleGroup(g)} /> {groupLabel(g)}
+                <input type="checkbox" style={{ width: "auto" }} checked={f.groups.includes(g)} onChange={() => toggleGroup(g)} /> {groupLabel(g)}
               </label>
             ))}
             {!groups.length && <span className="note" style={{ marginTop: 0 }}>Ще немає жодного джерела — додай сторінки магазинів у «Джерелах».</span>}

@@ -6,7 +6,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { daysAgo, isStale } from "@/lib/format";
+import { daysAgo, isStale, linkify } from "@/lib/format";
 import { getCategoryAndDescendantIds, flattenCategoryOrder } from "@/lib/categoryOrder";
 import { attrChips, fmtPrice } from "@/lib/market";
 import SearchFilter from "@/components/SearchFilter";
@@ -83,7 +83,7 @@ export default function MarketPricesScreen() {
   const list = materials
     .filter(
       (m) =>
-        (!onlyTracked || m.parse_rule) &&
+        (!onlyTracked || m.parse_rule || m.spec) &&
         (!search || m.name.toLowerCase().includes(search.toLowerCase())) &&
         (!allowedCategoryIds || allowedCategoryIds.includes(m.category_id))
     )
@@ -122,7 +122,7 @@ export default function MarketPricesScreen() {
         <div className="toolbar-left">
           <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
           <SearchFilter value={search} onChange={setSearch} placeholder="Пошук матеріалу..." active={onlyTracked ? 0 : 1} onReset={() => setOnlyTracked(true)}>
-            <label className="tag-check"><input type="checkbox" checked={!onlyTracked} onChange={(e) => setOnlyTracked(!e.target.checked)} /> показати й ті, що не відстежуються</label>
+            <label className="tag-check"><input type="checkbox" checked={!onlyTracked} onChange={(e) => setOnlyTracked(!e.target.checked)} /> показати весь довідник матеріалів</label>
           </SearchFilter>
         </div>
         <div className="toolbar-actions">
@@ -151,9 +151,10 @@ export default function MarketPricesScreen() {
             {!list.length && <tr><td colSpan={cols} className="empty">Нічого не знайдено</td></tr>}
             {list.map((m, idx) => {
               const cells = activeStores.map((s) => priceOf(m.id, s.id));
-              const found = cells.filter(Boolean);
+              // найкраща — серед усіх постачальників, зокрема з ціною, внесеною вручну (вікна, двері)
+              const found = supplierPrices.filter((p) => p.material_id === m.id);
               const best = found.length ? Math.min(...found.map((p) => Number(p.price))) : null;
-              const bestStore = best != null ? activeStores[cells.findIndex((p) => p && Number(p.price) === best)] : null;
+              const bestStore = best != null ? suppliers.find((s) => s.id === found.find((p) => Number(p.price) === best).supplier_id) : null;
               const freshest = found.length ? found.map((p) => p.updated_at).sort().pop() : null;
               const cat = materialCategories.find((c) => c.id === m.category_id);
               const header = cat && list[idx - 1]?.category_id !== cat.id;
@@ -202,7 +203,14 @@ export default function MarketPricesScreen() {
                         {!offers[m.id] ? (
                           <div className="empty">Завантаження…</div>
                         ) : !rows.length ? (
-                          <div className="empty">{m.parse_rule ? "Парсер поки нічого не знайшов за цим правилом." : "Цей матеріал парсер не шукає — ціну вносять вручну в «Цінах постачальників»."}</div>
+                          <div className="empty">
+                            {m.parse_rule ? "Парсер поки нічого не знайшов за цим правилом." : "Цей матеріал парсер не шукає — ціну вносять вручну в «Цінах постачальників»."}
+                            {found.filter((p) => p.source !== "parsing").map((p) => (
+                              <div key={p.id} className="note-preview" style={{ textAlign: "left" }}>
+                                <b>{suppliers.find((s) => s.id === p.supplier_id)?.name}: {fmtPrice(p.price)} грн / {m.unit}</b> · {dateOnly(p.updated_at)}<br />{linkify(p.note)}
+                              </div>
+                            ))}
+                          </div>
                         ) : (
                           <table>
                             <thead>
