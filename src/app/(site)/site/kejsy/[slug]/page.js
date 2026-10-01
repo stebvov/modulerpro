@@ -2,7 +2,7 @@
 import { notFound } from "next/navigation";
 import { getBase, getCases, getSettings } from "@/lib/site/data";
 import { CASE_KINDS } from "@/lib/site/blocks";
-import { caseKinds, imgProps, paragraphs, rich, siteHref } from "@/lib/site/format";
+import { caseKinds, imgProps, paragraphs, richLinks, siteHref } from "@/lib/site/format";
 import { siteRobots } from "@/components/site/CmsPage";
 import { CaseCard } from "@/components/site/Cards";
 import Gallery from "@/components/site/Gallery";
@@ -49,12 +49,12 @@ export default async function CasePage({ params }) {
         <div className="s-wrap">
           {(c.task || c.solution || c.quote) && (
             <div className="s-story">
-              {c.task && <div><h3>Задача</h3>{paragraphs(c.task).map((p, i) => <p key={i}>{rich(p)}</p>)}</div>}
-              {c.solution && <div><h3>Що зробили</h3>{paragraphs(c.solution).map((p, i) => <p key={i}>{rich(p)}</p>)}</div>}
-              {c.quote && <blockquote className="s-quote">«{c.quote}»{c.quote_author && <cite>— {c.quote_author}</cite>}</blockquote>}
+              {c.task && <div><h3>Задача</h3>{paragraphs(c.task).map((p, i) => <p key={i}>{richLinks(p)}</p>)}</div>}
+              {c.solution && <div><h3>Що зробили</h3>{paragraphs(c.solution).map((p, i) => <p key={i}>{richLinks(p)}</p>)}</div>}
+              {c.quote && <blockquote className="s-quote">«{richLinks(c.quote)}»{c.quote_author && <cite>— {c.quote_author}</cite>}</blockquote>}
             </div>
           )}
-          <Gallery images={photos} title={c.title} />
+          <Gallery images={photos} title={c.title} captions={c.photo_captions} />
         </div>
       </section>
 

@@ -8,22 +8,34 @@ export function nbsp(s) {
   return glue(glue(String(s))).replace(/[ \t]+([—–])[ \t]/g, " $1 ");
 }
 
-export function rich(text) {
+// links: true — адреси в тексті (https://…, www.…) стають посиланнями, що відкриваються в новій вкладці
+export function rich(text, { links = false } = {}) {
   if (!text) return null;
   const out = [];
   nbsp(text).split("\n").forEach((line, li) => {
     if (li) out.push(createElement("br", { key: `br${li}` }));
-    const re = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+    const re = links ? /\*\*([^*]+)\*\*|\*([^*]+)\*|((?:https?:\/\/|www\.)[^\s<>"«»]+)/g : /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
     let last = 0, m, i = 0;
     while ((m = re.exec(line))) {
       if (m.index > last) out.push(line.slice(last, m.index));
-      out.push(m[1] ? createElement("strong", { key: `s${li}-${i++}` }, m[1]) : createElement("em", { key: `e${li}-${i++}` }, m[2]));
+      if (m[3]) {
+        // крапка, кома чи дужка одразу після адреси — це вже текст, а не частина посилання
+        const url = m[3].replace(/[.,;:!?)\]]+$/, "");
+        const label = url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+        out.push(createElement("a", { key: `a${li}-${i++}`, className: "s-link", href: url.startsWith("www.") ? `https://${url}` : url, target: "_blank", rel: "noopener noreferrer" }, label.length > 60 ? label.slice(0, 57) + "…" : label));
+        re.lastIndex = m.index + url.length;
+      } else {
+        out.push(m[1] ? createElement("strong", { key: `s${li}-${i++}` }, m[1]) : createElement("em", { key: `e${li}-${i++}` }, m[2]));
+      }
       last = re.lastIndex;
     }
     if (last < line.length) out.push(line.slice(last));
   });
   return createElement(Fragment, null, ...out);
 }
+export const richLinks = (text) => rich(text, { links: true });
+// текст без розмітки *акценту* — для підписів і alt
+export const plain = (text) => String(text || "").replace(/\*+/g, "");
 
 // абзаци: порожній рядок розділяє
 export function paragraphs(text) {

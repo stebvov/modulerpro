@@ -220,7 +220,7 @@ function Faq({ b }) {
           {(b.items || []).map((x, i) => (
             <details key={i} className="s-acc__item" name={`faq-${b.id}`}>
               <summary>{x.q}<span className="s-acc__plus" aria-hidden>+</span></summary>
-              <div className="s-acc__a">{paragraphs(x.a).map((p, j) => <p key={j}>{rich(p)}</p>)}</div>
+              <div className="s-acc__a">{paragraphs(x.a).map((p, j) => <p key={j}>{rich(p, { links: true })}</p>)}</div>
             </details>
           ))}
         </div>
@@ -264,7 +264,7 @@ function TextImage({ b, ctx }) {
         <div>
           {b.eyebrow && <div className="s-eyebrow">{b.eyebrow}</div>}
           {b.title && <h2 className="s-title">{rich(b.title)}</h2>}
-          {paragraphs(b.text).map((p, i) => <p key={i} className="s-lead">{rich(p)}</p>)}
+          {paragraphs(b.text).map((p, i) => <p key={i} className="s-lead">{rich(p, { links: true })}</p>)}
           {b.cta?.label && <div className="s-actions"><Btn link={b.cta} base={ctx.base} /></div>}
         </div>
         {live ? (
@@ -432,7 +432,7 @@ const RENDER = {
   gallery: ({ b }) => (
     <Section b={b}>
       <Head b={b} />
-      <Gallery images={b.images || []} title={b.title} layout={b.layout === "plans" ? "plans" : "grid"} />
+      <Gallery images={b.images || []} title={b.title} layout={b.layout === "plans" ? "plans" : "grid"} captions={b.captions} />
     </Section>
   ),
   video: ({ b }) => {

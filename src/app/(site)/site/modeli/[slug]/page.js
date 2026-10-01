@@ -119,7 +119,7 @@ export default async function ModelPage({ params }) {
             <div className="s-head">
               <div className="s-eyebrow">Про модель</div>
               <h2 className="s-title">Чому обирають <em>{m.name}</em></h2>
-              {paragraphs(m.description).map((p, i) => <p key={i} className="s-lead">{rich(p)}</p>)}
+              {paragraphs(m.description).map((p, i) => <p key={i} className="s-lead">{rich(p, { links: true })}</p>)}
             </div>
             {!!m.highlights?.length && (
               <div className={`s-feats s-cols-${Math.min(4, Math.max(2, m.highlights.length))}`}>
@@ -139,7 +139,7 @@ export default async function ModelPage({ params }) {
         <section id="gallery" className="s-sec s-sec--cloud">
           <div className="s-wrap">
             <div className="s-head"><div className="s-eyebrow">{concept ? "Візуалізації" : "Фото й візуалізації"}</div><h2 className="s-title">Роздивіться <em>ближче</em></h2></div>
-            <Gallery images={photos} title={m.name} />
+            <Gallery images={photos} title={m.name} captions={m.photo_captions} />
           </div>
         </section>
       )}
@@ -152,7 +152,7 @@ export default async function ModelPage({ params }) {
               <h2 className="s-title">{plans.length > 1 ? <>Варіанти <em>планування</em></> : <>Як усе <em>влаштовано</em></>}</h2>
               <p className="s-lead">Планування адаптуємо під вашу родину: кількість спалень, кухня, гардеробна, тераса.</p>
             </div>
-            <Gallery images={plans} title={`Планування ${m.name}`} layout="plans" />
+            <Gallery images={plans} title={`Планування ${m.name}`} layout="plans" captions={m.photo_captions} />
           </div>
         </section>
       )}

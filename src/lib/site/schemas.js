@@ -28,8 +28,8 @@ export const MODEL_FIELDS = [
     { key: "icon", label: "Емодзі", type: "text" }, { key: "title", label: "Назва", type: "text" }, { key: "text", label: "Опис", type: "textarea" },
   ] },
   { key: "features", label: "Що є в моделі (галочки)", type: "strings", item: "Пункт" },
-  { key: "photos", label: "Фото й візуалізації (перше — обкладинка)", type: "images" },
-  { key: "plans", label: "Варіанти планування", type: "images" },
+  { key: "photos", label: "Фото й візуалізації (перше — обкладинка)", type: "images", captions: "photo_captions" },
+  { key: "plans", label: "Варіанти планування", type: "images", captions: "photo_captions" },
   { key: "video", label: "Відео YouTube (необов'язково)", type: "text" },
   { key: "template_id", label: "Модель у каталозі системи (для розрахунків)", type: "template" },
   { key: "published", label: "Показувати на сайті", type: "bool" },
@@ -46,7 +46,7 @@ export const CASE_FIELDS = [
   { key: "solution", label: "Що зробили", type: "textarea" },
   { key: "quote", label: "Слова власника (лише справжні, з дозволу)", type: "textarea" },
   { key: "quote_author", label: "Хто сказав", type: "text" },
-  { key: "photos", label: "Фото (перше — обкладинка)", type: "images" },
+  { key: "photos", label: "Фото (перше — обкладинка)", type: "images", captions: "photo_captions" },
   { key: "published", label: "Показувати на сайті", type: "bool" },
 ];
 

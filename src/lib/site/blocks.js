@@ -212,7 +212,7 @@ export const BLOCKS = {
   },
   gallery: {
     label: "Галерея фото", icon: "🗂",
-    fields: [eyebrow, title, lead, { key: "images", label: "Фото", type: "images" },
+    fields: [eyebrow, title, lead, { key: "images", label: "Фото", type: "images", captions: "captions" },
       { key: "layout", label: "Як показати", type: "select", options: [["", "Фото — заповнити клітинку"], ["plans", "Плани й схеми — показати повністю"]] }],
     defaults: { theme: "light", images: [] },
   },

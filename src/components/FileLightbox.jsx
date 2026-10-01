@@ -1,10 +1,16 @@
 "use client";
 
+// Кнопки «×» і стрілки — як у перегляді фото на сайті; знизу ескізи всіх фото.
 import { useEffect, useRef } from "react";
 
 export default function FileLightbox({ photos, index, onClose, onNavigate }) {
   const touchStartX = useRef(null);
+  const thumbs = useRef(null);
   const open = index != null && !!photos[index];
+
+  useEffect(() => {
+    if (open) thumbs.current?.children[index]?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [open, index]);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +55,15 @@ export default function FileLightbox({ photos, index, onClose, onNavigate }) {
       <div className="lightbox-content" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <img src={photo.url} alt={photo.name || ""} />
         {photos.length > 1 && <div className="lightbox-counter">{index + 1} / {photos.length}</div>}
+        {photos.length > 1 && (
+          <div className="lightbox-thumbs" ref={thumbs}>
+            {photos.map((p, i) => (
+              <button key={p.id || p.url} type="button" className={`lightbox-thumb${i === index ? " on" : ""}`} onClick={() => onNavigate(i)} aria-label={`Фото ${i + 1}`}>
+                <img src={p.url} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {photos.length > 1 && (
         <button

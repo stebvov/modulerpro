@@ -144,3 +144,48 @@
 .se-tools button.danger, .se-imgs__tools button.danger { color: var(--danger); }
 .se-block.hidden .se-block__name small::after { content: " · приховано"; }
 .se-multi { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 0; }
+
+/* Перегляд фото в конструкторі: кнопки «×» і стрілки — як у перегляді фото на сайті */
+.pv { position: fixed; inset: 0; z-index: 300; background: rgba(8, 14, 11, .95); display: flex; flex-direction: column; padding: 12px 12px 10px; color: #f2eee4; }
+.pv__top { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 48px; padding-right: 60px; }
+.pv__count { font-size: 13px; opacity: .8; margin-right: 6px; }
+.pv__ratios { display: flex; flex-wrap: wrap; gap: 4px; margin-right: 6px; }
+.pv__btn { border: 0; background: rgba(242, 238, 228, .12); color: #f2eee4; height: 36px; padding: 0 14px; border-radius: 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.pv__btn:hover { background: rgba(242, 238, 228, .24); }
+.pv__btn.on { background: #f2eee4; color: #15211b; }
+.pv__btn--main { background: #c68a45; color: #15211b; font-weight: 600; }
+.pv__btn--main:hover { background: #e2b477; }
+.pv__btn:disabled { opacity: .55; cursor: default; }
+.pv__nav, .pv__close { position: absolute; border: 0; background: rgba(242, 238, 228, .12); color: #f2eee4; width: 48px; height: 48px; border-radius: 10px; font-size: 30px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.pv__nav:hover, .pv__close:hover { background: rgba(242, 238, 228, .24); }
+.pv__close { right: 12px; top: 12px; }
+.pv__prev { left: 0; top: 50%; transform: translateY(-50%); }
+.pv__next { right: 0; top: 50%; transform: translateY(-50%); }
+.pv__stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 64px 4px; touch-action: none; }
+.pv__img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; user-select: none; }
+.pv__area { position: absolute; overflow: hidden; border-radius: 6px; }
+.pv__crop { position: absolute; box-sizing: border-box; border: 2px solid #f2eee4; box-shadow: 0 0 0 9999px rgba(8, 14, 11, .68); cursor: move; touch-action: none; }
+.pv__h { position: absolute; width: 22px; height: 22px; background: #f2eee4; border: 2px solid #15211b; border-radius: 6px; touch-action: none; }
+.pv__h--nw { left: -3px; top: -3px; cursor: nwse-resize; }
+.pv__h--ne { right: -3px; top: -3px; cursor: nesw-resize; }
+.pv__h--sw { left: -3px; bottom: -3px; cursor: nesw-resize; }
+.pv__h--se { right: -3px; bottom: -3px; cursor: nwse-resize; }
+.pv__hint, .pv__err { flex: none; text-align: center; font-size: 13px; padding: 8px 12px 0; opacity: .85; }
+.pv__err { color: #ffb4a8; opacity: 1; }
+.pv__cap { flex: none; display: flex; justify-content: center; padding: 8px 0 0; }
+.pv__cap textarea { width: min(760px, 100%); border: 1px solid rgba(242, 238, 228, .25); border-radius: 10px; background: rgba(242, 238, 228, .08); color: #f2eee4; font: inherit; font-size: 14px; padding: 8px 12px; resize: vertical; }
+.pv__cap textarea::placeholder { color: rgba(242, 238, 228, .55); }
+.pv__thumbs { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 10px 2px 4px; justify-content: safe center; scrollbar-width: thin; scrollbar-color: rgba(242, 238, 228, .3) transparent; }
+.pv__thumb { flex: none; width: 76px; height: 56px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #26302a; cursor: pointer; opacity: .55; }
+.pv__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pv__thumb:hover { opacity: .9; }
+.pv__thumb.on { opacity: 1; border-color: #c68a45; }
+.pv__thumb.off img { filter: grayscale(1); }
+@media (max-width: 700px) {
+  .pv__stage { padding: 6px 0 4px; }
+  .pv__nav { width: 42px; height: 42px; background: rgba(8, 14, 11, .55); }
+  .pv__thumb { width: 60px; height: 46px; }
+}
+.se-imgs__item { cursor: zoom-in; }
+.se-imgs__cap { position: absolute; right: 4px; top: 4px; background: rgba(0, 0, 0, .6); color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 4px; }
+.se-img__thumb { cursor: zoom-in; }

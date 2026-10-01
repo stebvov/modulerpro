@@ -8,6 +8,7 @@ import { fmtCurrency, templateTotalUah } from "@/lib/format";
 import { uploadSiteImage } from "@/lib/site/upload";
 import { hideStr, imgSmall, isHiddenStr, unhideStr } from "@/lib/site/format";
 import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EyeOffIcon, TrashIcon } from "@/components/Icon";
+import PhotoViewer from "./PhotoViewer";
 
 export const LINKS_ID = "se-links";
 
@@ -24,6 +25,8 @@ export function LinkOptions({ pages = [], extra = [] }) {
 function ImageField({ value, onChange, compact }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [view, setView] = useState(false);
+  const [before, setBefore] = useState(""); // фото до обрізання — щоб можна було повернути
   const input = useRef(null);
   async function pick(e) {
     const f = e.target.files?.[0];
@@ -37,7 +40,7 @@ function ImageField({ value, onChange, compact }) {
   const url = unhideStr(value);
   return (
     <div className={`se-img${compact ? " se-img--compact" : ""}${off ? " se-img--off" : ""}`}>
-      <div className="se-img__thumb" onClick={() => input.current?.click()} title="Замінити фото">
+      <div className="se-img__thumb" onClick={() => (url ? setView(true) : input.current?.click())} title={url ? "Відкрити фото: переглянути, обрізати" : "Завантажити фото"}>
         {url ? <img src={imgSmall(url)} alt="" /> : <span>{busy ? "…" : "+ фото"}</span>}
         {off && <span className="se-off-badge">приховано</span>}
       </div>
@@ -47,21 +50,52 @@ function ImageField({ value, onChange, compact }) {
           {url && !off && <button type="button" className="btn small" onClick={() => onChange(hideStr(value))} title="Сховати з сайту. Видалити назавжди — наступним натиском">Прибрати</button>}
           {off && <button type="button" className="btn small" onClick={() => onChange(url)}>Показати</button>}
           {off && <button type="button" className="btn small danger" onClick={() => onChange("")}>Видалити назавжди</button>}
+          {before && before !== value && <button type="button" className="btn small" onClick={() => { onChange(before); setBefore(""); }}>↩ Повернути необрізане</button>}
         </div>
         {!compact && <input className="se-url" value={url || ""} placeholder="або вставте посилання на фото" onChange={(e) => onChange(e.target.value.trim())} />}
         {err && <div className="se-err">{err}</div>}
       </div>
       <input ref={input} type="file" accept="image/*" hidden onChange={pick} />
+      {view && url && (
+        <PhotoViewer list={[value]} index={0} onIndex={() => {}} onClose={() => setView(false)}
+          onCropped={(_, cut) => { setBefore(value); onChange(off ? hideStr(cut) : cut); }} />
+      )}
     </div>
   );
 }
 
-function ImagesField({ value, onChange }) {
+// f.captions — назва сусіднього поля з підписами { адреса фото: підпис }; onPatch міняє кілька полів запису одним кроком
+function ImagesField({ f, value, onChange, data, onPatch }) {
   const list = Array.isArray(value) ? value : [];
   const [busy, setBusy] = useState(0);
   const [err, setErr] = useState("");
+  const [view, setView] = useState(null); // номер відкритого фото
   const input = useRef(null);
   const drag = useRef(null);
+  const capKey = onPatch ? f?.captions : null;
+  const caps = capKey ? data?.[capKey] || {} : null;
+  const setCaption = (url, text) => {
+    const next = { ...caps };
+    if (text) next[url] = text; else delete next[url];
+    onPatch({ [capKey]: next });
+  };
+  // обрізане фото стає на місце оригіналу, оригінал лишається поруч прихованим; підпис переходить на обрізане
+  function cropped(i, cut) {
+    const orig = unhideStr(list[i]);
+    const next = [...list.slice(0, i), isHiddenStr(list[i]) ? hideStr(cut) : cut, hideStr(orig), ...list.slice(i + 1)];
+    if (caps && caps[orig]) onPatch({ [f.key]: next, [capKey]: { ...caps, [cut]: caps[orig] } });
+    else onChange(next);
+  }
+  // видалене назавжди фото забирає з собою підпис
+  function remove(i) {
+    const url = unhideStr(list[i]);
+    const next = list.filter((_, j) => j !== i);
+    if (caps && caps[url] && !next.some((u) => unhideStr(u) === url)) {
+      const rest = { ...caps };
+      delete rest[url];
+      onPatch({ [f.key]: next, [capKey]: rest });
+    } else onChange(next);
+  }
   async function pick(e) {
     const files = [...(e.target.files || [])];
     e.target.value = "";
@@ -83,18 +117,19 @@ function ImagesField({ value, onChange }) {
         {list.map((u, i) => {
           const off = isHiddenStr(u);
           return (
-            <div key={u + i} className={`se-imgs__item${off ? " off" : ""}`} draggable
+            <div key={u + i} className={`se-imgs__item${off ? " off" : ""}`} draggable title="Відкрити фото: переглянути, підписати, обрізати" onClick={() => setView(i)}
               onDragStart={() => { drag.current = i; }} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag.current != null) move(drag.current, i); drag.current = null; }}>
               <img src={imgSmall(unhideStr(u))} alt="" />
               {i === cover && <span className="se-imgs__cover">обкладинка</span>}
               {off && <span className="se-off-badge">приховано</span>}
-              <div className="se-imgs__tools">
+              {caps?.[unhideStr(u)] && <span className="se-imgs__cap" title={caps[unhideStr(u)]}>підпис</span>}
+              <div className="se-imgs__tools" onClick={(e) => e.stopPropagation()}>
                 <button type="button" onClick={() => move(i, i - 1)} title="Ліворуч">‹</button>
                 <button type="button" onClick={() => move(i, i + 1)} title="Праворуч">›</button>
                 {off ? (
                   <>
                     <button type="button" onClick={() => setAt(i, unhideStr(u))} title="Показати на сайті"><EyeOffIcon /></button>
-                    <button type="button" className="danger" onClick={() => onChange(list.filter((_, j) => j !== i))} title="Видалити назавжди">×</button>
+                    <button type="button" className="danger" onClick={() => remove(i)} title="Видалити назавжди">×</button>
                   </>
                 ) : (
                   <button type="button" onClick={() => setAt(i, hideStr(u))} title="Сховати з сайту (видалити — наступним натиском)">×</button>
@@ -105,9 +140,13 @@ function ImagesField({ value, onChange }) {
         })}
         <button type="button" className="se-imgs__add" onClick={() => input.current?.click()} disabled={!!busy}>{busy ? `Завантажую… ${busy}` : "+ Додати фото"}</button>
       </div>
-      <div className="note">Перетягніть фото, щоб змінити порядок. «×» спершу ховає фото з сайту (воно стає блідим), повторний «×» на схованому — видаляє назавжди. Можна вибрати кілька файлів одразу — вони самі стиснуться для швидкого сайту.</div>
+      <div className="note">Натисніть на фото — відкриється велике: там можна {caps ? "написати підпис і " : ""}обрізати. Перетягніть фото, щоб змінити порядок. «×» спершу ховає фото з сайту (воно стає блідим), повторний «×» на схованому — видаляє назавжди. Можна вибрати кілька файлів одразу — вони самі стиснуться для швидкого сайту.</div>
       {err && <div className="se-err">{err}</div>}
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={pick} />
+      {view != null && list[view] != null && (
+        <PhotoViewer list={list} index={view} onIndex={setView} onClose={() => setView(null)}
+          captions={caps} onCaption={setCaption} onCropped={cropped} />
+      )}
     </div>
   );
 }
@@ -201,7 +240,7 @@ function TemplateField({ value, onChange }) {
   );
 }
 
-function FieldInput({ f, value, onChange }) {
+function FieldInput({ f, value, onChange, data, onPatch }) {
   switch (f.type) {
     case "textarea":
       return <textarea rows={Math.min(8, Math.max(3, String(value || "").split("\n").length + 1))} value={value || ""} maxLength={f.max ? f.max * 2 : undefined} onChange={(e) => onChange(e.target.value)} />;
@@ -228,7 +267,7 @@ function FieldInput({ f, value, onChange }) {
     }
     case "image": return <ImageField value={value} onChange={onChange} />;
     case "multi": return <MultiField f={f} value={value} onChange={onChange} />;
-    case "images": return <ImagesField value={value} onChange={onChange} />;
+    case "images": return <ImagesField f={f} value={value} onChange={onChange} data={data} onPatch={onPatch} />;
     case "list": return <ListField f={f} value={value} onChange={onChange} />;
     case "strings": return <StringsField f={f} value={value} onChange={onChange} />;
     case "template": return <TemplateField value={value} onChange={onChange} />;
@@ -241,7 +280,8 @@ function FieldInput({ f, value, onChange }) {
   }
 }
 
-export function Field({ f, value, onChange }) {
+// data й onPatch — увесь запис і зміна кількох його полів разом (потрібно фото з підписами)
+export function Field({ f, value, onChange, data, onPatch }) {
   if (f.type === "bool") return <div className="form-row"><FieldInput f={f} value={value} onChange={onChange} /></div>;
   const len = typeof value === "string" ? value.length : 0;
   return (
@@ -253,11 +293,14 @@ export function Field({ f, value, onChange }) {
           {f.max && <span className={`se-count${len > f.max ? " over" : ""}`}>{len}/{f.max}</span>}
         </label>
       )}
-      <FieldInput f={f} value={value} onChange={onChange} />
+      <FieldInput f={f} value={value} onChange={onChange} data={data} onPatch={onPatch} />
     </div>
   );
 }
 
 export function Fields({ fields, value, onChange }) {
-  return fields.map((f) => <Field key={f.key} f={f} value={value?.[f.key]} onChange={(v) => onChange({ ...value, [f.key]: v })} />);
+  return fields.map((f) => (
+    <Field key={f.key} f={f} value={value?.[f.key]} onChange={(v) => onChange({ ...value, [f.key]: v })}
+      data={value} onPatch={(patch) => onChange({ ...value, ...patch })} />
+  ));
 }

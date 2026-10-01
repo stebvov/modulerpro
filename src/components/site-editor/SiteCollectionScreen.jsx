@@ -61,7 +61,7 @@ export default function SiteCollectionScreen({ kind }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       const patch = {};
-      K.fields.forEach((f) => { patch[f.key] = next[f.key] ?? null; });
+      K.fields.forEach((f) => { patch[f.key] = next[f.key] ?? null; if (f.captions) patch[f.captions] = next[f.captions] || {}; });
       if ("kinds" in patch) patch.kind = patch.kinds?.[0] || "private"; // старе поле kind = основний (перший) тип
       if (!/^[a-z0-9-]+$/.test(patch.slug || "")) { setStatus(""); setMsg("Адреса — лише латиниця, цифри й дефіс."); return; }
       const { error } = await supabase.from(K.table).update(patch).eq("id", next.id);
