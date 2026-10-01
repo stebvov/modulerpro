@@ -79,7 +79,7 @@ function Audience({ b, ctx }) {
   return (
     <Section b={b}>
       <Head b={b} />
-      <div className="s-aud">
+      <div className={`s-aud s-aud--n${(b.items || []).length}`}>
         {(b.items || []).map((x, i) => {
           const href = siteHref(ctx.base, x.href);
           return (

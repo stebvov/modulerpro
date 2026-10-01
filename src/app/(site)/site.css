@@ -145,6 +145,8 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-aud { display: grid; gap: 14px; grid-template-columns: 1fr; }
 @media (min-width: 640px) { .s-aud { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1000px) { .s-aud { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); } }
+/* 4 і 6 карток — рівні ряди (4 в ряд; 3 × 2), а не 5 + 1 */
+@media (min-width: 1000px) { .s-aud--n4 { grid-template-columns: repeat(4, 1fr); } .s-aud--n6 { grid-template-columns: repeat(3, 1fr); } }
 .s-aud__card { background: var(--white); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; display: flex; flex-direction: column; gap: 8px; transition: transform .2s, box-shadow .2s, border-color .2s; }
 .s-aud__card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: transparent; }
 .s-aud__icon { font-size: 30px; line-height: 1; }
