@@ -183,3 +183,8 @@ insert into public.work_cities (slug, name, sort) values
   ('zhitomir', 'Житомир', 15), ('cherkassy', 'Черкаси', 16), ('poltava', 'Полтава', 17), ('chernigov', 'Чернігів', 18), ('sumy', 'Суми', 19),
   ('kropivnitskiy', 'Кропивницький', 20), ('nikolaev', 'Миколаїв', 21), ('herson', 'Херсон', 22)
 on conflict (slug) do nothing;
+
+-- rabotniki.ua для міста, де замало власних пропозицій, показує цифри по всій Україні.
+-- own = ціна справді міська (відрізняється від загальноукраїнської); для '' — завжди true.
+-- Прапорець ставить work_rates_ingest під час запису (порівнює з рядком по Україні).
+alter table public.work_rates add column if not exists own boolean not null default true;

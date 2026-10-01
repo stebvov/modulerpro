@@ -85,11 +85,20 @@ export default function WorkRatesScreen() {
     if (estimateId && canEstimate) supabase.from("work_estimates").update({ city: slug }).eq("id", estimateId).then(() => loadEstimates());
   }
 
-  const rates = ratesByCity[city];
   const cat = useMemo(() => new Map(categories.map((c) => [c.slug, c])), [categories]);
   const stages = useMemo(() => [...new Set(categories.map((c) => c.stage))], [categories]);
-  const cityRate = useMemo(() => new Map((ratesByCity[city] || []).map((r) => [key(r), r])), [ratesByCity, city]);
+  // Для міста, де замало власних пропозицій, сайт показує цифри по всій Україні (own = false) —
+  // міськими вважаємо лише ті, що справді відрізняються.
+  const cityRate = useMemo(() => new Map((city ? ratesByCity[city] || [] : []).filter((r) => r.own).map((r) => [key(r), r])), [ratesByCity, city]);
   const uaRate = useMemo(() => new Map((ratesByCity[""] || []).map((r) => [key(r), r])), [ratesByCity]);
+  // розцінки для вибраного міста: по Україні, а де в міста є своя ціна — вона
+  const rates = useMemo(() => {
+    const ua = ratesByCity[""];
+    if (!city) return ua;
+    if (!ua || !ratesByCity[city]) return undefined;
+    return ua.map((r) => cityRate.get(key(r)) || { ...r, fromUa: true });
+  }, [ratesByCity, city, cityRate]);
+  const ownCount = city && rates ? rates.filter((r) => !r.fromUa).length : null;
   const estimate = estimates.find((e) => e.id === estimateId) || null;
   const inEstimate = new Set(lines.map(key));
   const cityName = cities.find((c) => c.slug === city)?.name || "Вся Україна";
@@ -154,7 +163,7 @@ export default function WorkRatesScreen() {
   }
 
   // ринкова ціна рядка: у вибраному місті, а якщо там такої роботи немає — по Україні
-  const market = (l) => (l.category ? cityRate.get(key(l)) || (city ? uaRate.get(key(l)) : null) : null);
+  const market = (l) => (l.category ? cityRate.get(key(l)) || uaRate.get(key(l)) || null : null);
   const sums = lines.reduce(
     (a, l) => {
       const r = market(l);
@@ -175,7 +184,7 @@ export default function WorkRatesScreen() {
     if (!linked.length) return setByCity([]);
     try {
       const works = [...new Set(linked.map((l) => l.work))];
-      const rows = await fetchAll(() => supabase.from("work_rates").select("category,work,city,price_min,price_avg,price_max").in("work", works));
+      const rows = await fetchAll(() => supabase.from("work_rates").select("category,work,city,price_min,price_avg,price_max").in("work", works).eq("own", true));
       const idx = new Map(rows.map((r) => [`${r.city}|${key(r)}`, r]));
       setByCity(
         cities.map((c) => {
@@ -217,7 +226,10 @@ export default function WorkRatesScreen() {
             {cities.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
           </select>
           {view === "rates" && <SearchFilter value={search} onChange={setSearch} placeholder="Пошук роботи..." />}
-          <span className="note" style={{ marginTop: 0 }}>{checked ? `оновлено ${new Date(checked).toLocaleDateString("uk-UA")}` : rates && !rates.length ? "для цього міста даних ще немає" : ""}</span>
+          <span className="note" style={{ marginTop: 0 }}>
+            {checked ? `оновлено ${new Date(checked).toLocaleDateString("uk-UA")}` : ""}
+            {ownCount != null && ` · власні ціни міста: ${ownCount} з ${rates.length} робіт, решта — по Україні (позначено *)`}
+          </span>
         </div>
       </div>
 
@@ -243,7 +255,7 @@ export default function WorkRatesScreen() {
                         <tr><td colSpan={7} style={{ background: "var(--accent-bg)", fontWeight: 600, fontSize: 12 }}>{cat.get(r.category)?.stage} · {cat.get(r.category)?.name}</td></tr>
                       )}
                       <tr>
-                        <td><a href={r.url} target="_blank" rel="noreferrer">{r.name}</a></td>
+                        <td><a href={r.url} target="_blank" rel="noreferrer">{r.name}</a>{r.fromUa && <span className="note" title="У цьому місті замало пропозицій — показано ціни по Україні"> *</span>}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{r.unit}</td>
                         <td>{r.offers ?? "—"}</td>
                         <td>{n(r.price_min)}</td>
@@ -374,7 +386,7 @@ export default function WorkRatesScreen() {
                       {byCity.map((c) => (
                         <tr key={c.slug} style={c.slug === city ? { fontWeight: 600 } : undefined}>
                           <td>{c.name}</td><td>{n(c.min)}</td><td>{n(c.avg)}</td><td>{n(c.max)}</td>
-                          <td className="note" title="Скільки робіт мають ціну саме в цьому місті; решту взято по Україні">{c.own} з {c.lines}</td>
+                          <td className="note" title="Скільки робіт мають ціну саме в цьому місті; решту взято по Україні">{c.slug ? `${c.own} з ${c.lines}` : "—"}</td>
                         </tr>
                       ))}
                     </tbody>
