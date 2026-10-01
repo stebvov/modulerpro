@@ -4,6 +4,7 @@
 // need: хто бачить. any — будь-хто з доступом, mp — користувачі Moduler Pro (профіль), team — учасники команди,
 // owner — лише засновник, finance/admin — ролі Moduler Pro, mgr — керівники в пульті, unitowner — власник юніта (кабінет).
 // Вкладки "pult-*" — розділи пульту всередині оболонки. Група без доступних вкладок не показується.
+// settings: true — це налаштування розділу: у рядку вкладок замість підпису стоїть кнопка-шестерня (підпис — у підказці).
 export const MENU = [
   { key: "home", label: "🏠 Мій пульт", need: "team", tabs: [{ id: "pult-my", label: "Мій пульт" }] },
   { key: "tasks", label: "✅ Задачі", need: "team", tabs: [{ id: "pult-tasks", label: "Задачі" }] },
@@ -20,7 +21,7 @@ export const MENU = [
       { id: "site-pages", label: "Сторінки (конструктор)" },
       { id: "site-models", label: "Моделі на сайті" },
       { id: "site-cases", label: "Кейси" },
-      { id: "site-settings", label: "Налаштування сайту" },
+      { id: "site-settings", label: "Налаштування сайту", settings: true },
     ],
   },
   { key: "crm", label: "🤝 Продажі (CRM)", need: "mp", tabs: [{ id: "crm", label: "Продажі (CRM)" }] },
@@ -43,7 +44,7 @@ export const MENU = [
       { id: "materials", label: "Товари й матеріали" },
       { id: "price", label: "Ціни постачальників" },
       { id: "market", label: "Ринкові ціни (сайти)" },
-      { id: "material-categories", label: "Категорії матеріалів" },
+      { id: "material-categories", label: "Категорії матеріалів і одиниці виміру", settings: true },
     ],
   },
   { key: "towns", label: "🏘 Містечка", need: "any", tabs: [{ id: "towns", label: "Містечка: земля, лоти, будинки" }] },
@@ -69,7 +70,7 @@ export const MENU = [
       { id: "users", label: "Зовнішні логіни", need: "admin" },
       { id: "access-groups", label: "Ролі партнерів", need: "admin" },
       { id: "pult-tg", label: "Telegram-чати", need: "mgr" },
-      { id: "menu-settings", label: "Меню", need: "admin" },
+      { id: "menu-settings", label: "Налаштування меню", need: "admin", settings: true },
     ],
   },
 ];

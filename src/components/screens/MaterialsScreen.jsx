@@ -1,5 +1,5 @@
 "use client";
-import { GearIcon } from "@/components/Icon";
+import SettingsButton from "@/components/SettingsButton";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -77,7 +77,7 @@ export default function MaterialsScreen() {
                 Категорія
                 <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
                 {canWriteCatalog && (
-                  <button className="btn small" title="Налаштування категорій" onClick={() => setPage("categories")} ><GearIcon /></button>
+                  <SettingsButton title="Категорії матеріалів" onClick={() => setPage("categories")} />
                 )}
               </div>
             </th>
@@ -98,7 +98,7 @@ export default function MaterialsScreen() {
                 Одиниця
                 <MultiSelectFilter options={unitOptions} selected={unitFilter} onChange={setUnitFilter} label="Всі" />
                 {canWriteCatalog && (
-                  <button className="btn small" title="Налаштування одиниць" onClick={() => setPage("units")} ><GearIcon /></button>
+                  <SettingsButton title="Одиниці виміру" onClick={() => setPage("units")} />
                 )}
               </div>
             </th>

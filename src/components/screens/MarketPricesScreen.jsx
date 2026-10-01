@@ -3,6 +3,7 @@
 // Ринкові ціни: що парсер знайшов на сайтах магазинів будматеріалів.
 // Рядок — матеріал, колонка — магазин; у клітинці ціна магазину за одиницю матеріалу (вона ж лежить у «Цінах постачальників»).
 // Розгорнутий рядок — усі знайдені товари: ціна «як продають» і перерахунок на м³ / м² / м.п.
+import SettingsButton from "@/components/SettingsButton";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
@@ -13,7 +14,6 @@ import SearchFilter from "@/components/SearchFilter";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import TrackRuleModal from "@/components/modals/TrackRuleModal";
 import PriceSourcesModal from "@/components/modals/PriceSourcesModal";
-import { GearIcon } from "@/components/Icon";
 
 const dateTime = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const dateOnly = (ts) => (ts ? new Date(ts).toLocaleDateString("uk-UA") : "—");
@@ -167,7 +167,7 @@ export default function MarketPricesScreen() {
               {anyRunning ? "Оновлюється…" : "↻ Оновити ціни"}
             </button>
           )}
-          <button className="btn" onClick={() => setSourcesOpen(true)} title="Сторінки магазинів, які обходить парсер"><GearIcon /> Джерела</button>
+          <SettingsButton title="Джерела: сторінки магазинів, які обходить парсер" onClick={() => setSourcesOpen(true)} />
           {canWriteCatalog && <button className="btn primary" onClick={() => setRuleFor(null)}>+ Позиція</button>}
         </div>
       </div>
@@ -224,7 +224,7 @@ export default function MarketPricesScreen() {
                     <td style={{ whiteSpace: "nowrap" }} className={freshest && isStale(freshest) ? "stale" : undefined}>
                       {freshest ? dateOnly(freshest) : "—"}{" "}
                       {canWriteCatalog && (
-                        <button className="btn small" title="Правило відстеження" onClick={() => setRuleFor(m)}><GearIcon /></button>
+                        <SettingsButton title="Правило відстеження" onClick={() => setRuleFor(m)} />
                       )}
                     </td>
                   </tr>

@@ -1,5 +1,5 @@
 "use client";
-import { GearIcon } from "@/components/Icon";
+import SettingsButton from "@/components/SettingsButton";
 
 import { useState } from "react";
 import { useCrmData } from "@/context/CrmDataContext";
@@ -164,7 +164,7 @@ export default function CrmSettingsModal({ open, onClose }) {
                 </div>
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{p.name}</span>
                 <span className="note" style={{ marginTop: 0, minWidth: 60 }}>{dealsInPipeline(p.id)} угод</span>
-                <button className="btn small" title="Налаштувати воронку" onClick={() => setSelectedId(p.id)} ><GearIcon /></button>
+                <SettingsButton title="Налаштувати воронку" onClick={() => setSelectedId(p.id)} />
               </div>
             ))}
             {!pipelines.length && <div className="empty">Немає жодної воронки</div>}

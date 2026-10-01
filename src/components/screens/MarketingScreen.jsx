@@ -1,8 +1,8 @@
 "use client";
 
+import SettingsButton from "@/components/SettingsButton";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { GearIcon } from "@/components/Icon";
 import ChannelsModal from "@/components/modals/ChannelsModal";
 import { useMarketingData } from "@/context/MarketingDataContext";
 import AssetModal from "@/components/modals/AssetModal";
@@ -81,7 +81,7 @@ export default function MarketingScreen({ direction }) {
           <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Дашборд реклами</button>
         </div>
         {canWriteCatalog && (
-          <button className="btn" onClick={() => setChannelsOpen(true)} title="Канали реклами й контенту: додати, змінити, видалити"><GearIcon /> Канали</button>
+          <SettingsButton title="Канали реклами й контенту: додати, змінити, видалити" onClick={() => setChannelsOpen(true)} />
         )}
       </div>
 

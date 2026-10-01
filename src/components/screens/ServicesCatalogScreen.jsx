@@ -1,8 +1,8 @@
 "use client";
+import SettingsButton from "@/components/SettingsButton";
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import { treeOptions, inBranch } from "@/lib/tree";
-import { GearIcon } from "@/components/Icon";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -49,7 +49,7 @@ export default function ServicesCatalogScreen() {
         </SearchFilter>
         <div className="toolbar-actions">
           {canWriteCatalog && (
-            <button className="btn icon-btn-sq" title="Категорії послуг" aria-label="Категорії послуг" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+            <SettingsButton title="Категорії послуг" onClick={() => setShowCategoriesPage(true)} />
           )}
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => openModal(null)}>+ Нова послуга</button>

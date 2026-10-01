@@ -1,5 +1,5 @@
 "use client";
-import { GearIcon } from "@/components/Icon";
+import SettingsButton from "@/components/SettingsButton";
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import { treeOptions, inBranch } from "@/lib/tree";
@@ -146,7 +146,7 @@ export default function CatalogScreen() {
             ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
           </button>
           {canWriteCatalog && (
-            <button className="btn icon-btn-sq" title="Категорії моделей будинків" aria-label="Категорії моделей" onClick={() => setShowCategoriesPage(true)}><GearIcon /></button>
+            <SettingsButton title="Категорії моделей будинків" onClick={() => setShowCategoriesPage(true)} />
           )}
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>

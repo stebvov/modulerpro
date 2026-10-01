@@ -1,5 +1,6 @@
 "use client";
 
+import SettingsButton from "@/components/SettingsButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
@@ -278,8 +279,11 @@ export default function AppShell() {
 
           {activeGroup && activeGroup.tabs.length > 1 && (
             <div className="subtabs" role="tablist">
-              {activeGroup.tabs.map((t) => (
+              {activeGroup.tabs.filter((t) => !t.settings).map((t) => (
                 <button key={t.id} role="tab" aria-selected={activeTab === t.id} className={`subtab${activeTab === t.id ? " active" : ""}`} onClick={() => select(t.id)}>{t.label}</button>
+              ))}
+              {activeGroup.tabs.filter((t) => t.settings).map((t, i) => (
+                <SettingsButton key={t.id} role="tab" aria-selected={activeTab === t.id} title={t.label} active={activeTab === t.id} className={i === 0 ? "subtabs__settings" : ""} onClick={() => select(t.id)} />
               ))}
             </div>
           )}

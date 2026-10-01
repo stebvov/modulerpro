@@ -1,9 +1,9 @@
 "use client";
+import SettingsButton from "@/components/SettingsButton";
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import { treeOptions, inBranch } from "@/lib/tree";
 import { flagOf } from "@/lib/site/leadMeta";
-import { GearIcon } from "@/components/Icon";
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -128,7 +128,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
               </button>
             );
           })}
-          <button className="btn small" title="Налаштування" onClick={() => setModal({ mode: "settings" })} ><GearIcon /></button>
+          <SettingsButton title="Налаштування воронок і етапів" onClick={() => setModal({ mode: "settings" })} />
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ textAlign: "right" }}>

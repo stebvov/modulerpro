@@ -3,6 +3,7 @@
 // 📦 Пакети: кілька будинків (однакових чи різних) + послуги + власні позиції → один продукт.
 // Приклади: котеджне містечко, база відпочинку, дохідна нерухомість, «будинок + фундамент + доставка + монтаж».
 // Ціна рахується як в угоді CRM; собівартість — зі специфікації будинків і вказаної собівартості позицій.
+import SettingsButton from "@/components/SettingsButton";
 import { useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +11,6 @@ import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import DeleteButton from "@/components/DeleteButton";
 import { templateProductionCost, curr } from "@/lib/crm";
-import { GearIcon } from "@/components/Icon";
 import TreeCategoriesPanel from "@/components/panels/TreeCategoriesPanel";
 
 
@@ -97,7 +97,7 @@ function PackageEditor({ pkg, items: initialItems, cats, onClose, onSaved, onCat
           <div className="form-row"><label>Категорія</label>
             <div style={{ display: "flex", gap: 6 }}>
               <SelectSearch value={form.category_id} options={catTree(cats)} onChange={(v) => setForm({ ...form, category_id: v })} placeholder="Категорія пакета" emptyLabel="— без категорії —" width="100%" />
-              {canWriteCatalog && <button type="button" className="btn icon-btn-sq" title="Категорії пакетів" aria-label="Категорії пакетів" onClick={onCats}><GearIcon /></button>}
+              {canWriteCatalog && <SettingsButton title="Категорії пакетів" onClick={onCats} />}
             </div></div>
         </div>
         <div className="form-row"><label>Опис</label><textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Що входить, для кого, умови" /></div>
@@ -198,7 +198,7 @@ export default function PackagesScreen() {
           <SelectSearch value={cat} options={catTree(cats)} onChange={setCat} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
         </SearchFilter>
         <div className="toolbar-actions">
-          {canWriteCatalog && <button className="btn icon-btn-sq" title="Категорії пакетів" aria-label="Категорії пакетів" onClick={() => setCatsOpen(true)}><GearIcon /></button>}
+          {canWriteCatalog && <SettingsButton title="Категорії пакетів" onClick={() => setCatsOpen(true)} />}
           {canWriteCatalog && <button className="btn primary" onClick={() => setOpen({ pkg: null, items: [] })}>+ Пакет</button>}
         </div>
       </div>

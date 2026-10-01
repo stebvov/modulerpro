@@ -1,5 +1,5 @@
 "use client";
-import { GearIcon } from "@/components/Icon";
+import SettingsButton from "@/components/SettingsButton";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -51,7 +51,7 @@ export default function FinanceScreen() {
     <div className="seg-row" style={{ marginBottom: 12 }}>
       <button className={`seg-btn${view === "ledger" ? " active" : ""}`} onClick={() => setView("ledger")}>📒 Журнал</button>
       <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>📊 Дашборд</button>
-      <button className="seg-btn" onClick={() => setShowCategoriesPage(true)}>Категорії</button>
+      <SettingsButton title="Категорії фінансів" onClick={() => setShowCategoriesPage(true)} />
     </div>
   );
   if (view === "ledger" && !showCategoriesPage) return <div>{tabs}<Ledger /></div>;
@@ -220,7 +220,7 @@ export default function FinanceScreen() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div className="note" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 0 }}>Звіт по категоріях</div>
                 {canWriteFinance && (
-                  <button className="btn small" title="Налаштування категорій" onClick={() => setShowCategoriesPage(true)} ><GearIcon /></button>
+                  <SettingsButton title="Категорії фінансів" onClick={() => setShowCategoriesPage(true)} />
                 )}
               </div>
               <div className="card" style={{ padding: 16, marginBottom: 20, cursor: "default" }}>

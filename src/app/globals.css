@@ -564,6 +564,11 @@ select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { mi
 .badge, .tag, .chip, .tag-check, .role-pill { border-radius: var(--r-sm); }
 .btn svg, .seg-btn svg { flex: none; }
 .icon-btn-sq { width: var(--h); padding: 0 !important; }
+/* кнопка налаштувань — однакова всюди: квадрат із шестернею (SettingsButton) */
+.settings-btn { flex: none; height: var(--h); color: var(--text-secondary); }
+.settings-btn:hover { color: var(--accent); border-color: var(--accent); }
+.settings-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.subtabs__settings { margin-left: auto; position: sticky; right: 0; box-shadow: -8px 0 8px -4px var(--bg, #f2eee4); }
 
 /* Пошук з вбудованою квадратною кнопкою фільтрів (як у KeyCRM) */
 .sf { position: relative; display: flex; align-items: center; flex: 1 1 260px; min-width: 200px; max-width: 520px; }
