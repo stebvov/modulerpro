@@ -1,7 +1,7 @@
--- Магазини, чиї сайти не пускають запити із серверів (ОЛДІ): сервер їх не обходить,
--- ціни оновлюються лише запуском з комп'ютера в Україні (node tools/price-parser/run.mjs --site=oldi).
+-- Магазини, чиї сайти не пускають запити із серверів (ОЛДІ, М2): сервер їх не обходить,
+-- ціни оновлюються лише запуском з комп'ютера в Україні (node tools/price-parser/run.mjs --site=oldi,m2).
 alter table public.suppliers add column if not exists parser_local boolean not null default false;
-update public.suppliers set parser_local = true where parser_key = 'oldi';
+update public.suppliers set parser_local = true where parser_key in ('oldi', 'm2');
 
 create or replace function public.price_parser_config(p_token text) returns jsonb
 language plpgsql security definer set search_path to 'public' as $$

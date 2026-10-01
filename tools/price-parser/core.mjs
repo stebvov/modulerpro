@@ -27,10 +27,12 @@ export async function crawl(site, sources, { maxPages = 0, firstPageOnly = false
   const adapter = SITES[site];
   const items = new Map();
   const stats = [];
+  let blocked = false; // сайт відмовив на першій же сторінці — решту джерел не смикаємо
   for (const src of sources) {
     const seen = new Set();
     let pages = 0, error = null;
     try {
+      if (blocked) throw new Error("HTTP 403");
       if (timeUp(deadline)) throw new Error("забракло часу на обхід");
       const limit = Math.min(maxPages || Infinity, src.max_pages || 15);
       for (let p = 1; p <= limit; p++) {
@@ -56,7 +58,9 @@ export async function crawl(site, sources, { maxPages = 0, firstPageOnly = false
       }
       if (!seen.size && !error) error = "жодного товару — змінилась адреса або розмітка";
     } catch (e) {
-      error = /HTTP 403/.test(e.message) ? "сайт не пускає запити з цього сервера (403)" : e.message;
+      const denied = /HTTP 40[13]/.test(e.message);
+      if (denied && !pages) blocked = true;
+      error = denied ? "сайт не пускає запити з цього сервера (403)" : e.message;
     }
     stats.push({ id: src.id, grp: src.grp, url: src.url, items: seen.size, pages, error });
     log(`  ${site} · ${src.grp}: ${seen.size} товарів, ${pages} стор.${error ? ` — ${error}` : ""}`);

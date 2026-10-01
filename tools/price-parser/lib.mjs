@@ -6,7 +6,7 @@ const UA =
 const lastHit = new Map(); // хост → час останнього запиту
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Один запит на хост раз на `gap` мс, до 3 спроб.
+// Один запит на хост раз на `gap` мс, до 3 спроб (відмову 401/403 не повторюємо).
 export async function getHtml(url, { gap = 900, timeout = 40000, tries = 3 } = {}) {
   const host = new URL(url).host;
   let err;
@@ -30,6 +30,7 @@ export async function getHtml(url, { gap = 900, timeout = 40000, tries = 3 } = {
       return { status: res.status, html: await res.text(), url: res.url };
     } catch (e) {
       err = e;
+      if (/HTTP 40[13]/.test(e.message)) break; // сайт не пускає — повтори не допоможуть
       await sleep(1500 * (i + 1));
     }
   }
