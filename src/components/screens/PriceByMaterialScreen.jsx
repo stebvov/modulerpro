@@ -94,9 +94,10 @@ export default function PriceByMaterialScreen() {
         return (
           <div key={m.id} id={`mat-${m.id}`} style={{ marginBottom: 18, scrollMarginTop: 12 }}>
             <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>{m.icon ? `${m.icon} ` : ""}{m.name} <span className="note">({m.unit})</span></h3>
+            {m.spec && <p className="note" style={{ margin: "-4px 0 8px" }}>{m.spec}</p>}
             <div className="table-scroll">
             <table>
-              <thead><tr><th>Постачальник</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
+              <thead><tr><th>Постачальник</th><th>Ціна, грн за {m.unit}</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
                 {!rows.length && <tr><td colSpan={6} className="empty">Немає цін</td></tr>}
                 {rows.map((p) => {

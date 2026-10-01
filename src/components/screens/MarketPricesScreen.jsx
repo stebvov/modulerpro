@@ -39,6 +39,7 @@ export default function MarketPricesScreen() {
   const [ruleFor, setRuleFor] = useState(undefined); // undefined — закрито, null — нова позиція
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sold, setSold] = useState(new Map()); // магазин|матеріал → пропозиції: щоб показати, як саме продають і куди клацнути
   const [running, setRunning] = useState({}); // parser_key → іде оновлення
   const [runNotes, setRunNotes] = useState([]);
 
@@ -58,11 +59,29 @@ export default function MarketPricesScreen() {
     setLastRun(run.data || null);
   }, [supabase]);
 
+  const loadSold = useCallback(async () => {
+    const map = new Map();
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from("market_offers")
+        .select("supplier_id,material_id,url,title,price,sale_unit,unit_price")
+        .eq("active", true).eq("excluded", false).not("unit_price", "is", null).range(from, from + 999);
+      if (error || !data) break;
+      for (const o of data) {
+        const k = `${o.supplier_id}|${o.material_id}`;
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(o);
+      }
+      if (data.length < 1000) break;
+    }
+    setSold(map);
+  }, [supabase]);
+
   useEffect(() => {
     // Initial fetch of parser sources and the last run on mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMeta();
-  }, [loadMeta]);
+    loadSold();
+  }, [loadMeta, loadSold]);
 
   const loadOffers = useCallback(async (materialId) => {
     const { data } = await supabase.from("market_offers").select("*").eq("material_id", materialId).order("unit_price", { ascending: true, nullsFirst: false }).limit(1000);
@@ -78,7 +97,7 @@ export default function MarketPricesScreen() {
   async function setExcluded(offer, excluded) {
     setBusy(true);
     await supabase.from("market_offers").update({ excluded }).eq("id", offer.id);
-    await Promise.all([loadOffers(offer.material_id), reload(true)]);
+    await Promise.all([loadOffers(offer.material_id), reload(true), loadSold()]);
     setBusy(false);
   }
 
@@ -102,7 +121,7 @@ export default function MarketPricesScreen() {
       setRunning((p) => ({ ...p, [s.parser_key]: false }));
       await reload(true);
     }));
-    await loadMeta();
+    await Promise.all([loadMeta(), loadSold()]);
     setOffers({});
     if (openId) loadOffers(openId);
   }
@@ -120,6 +139,9 @@ export default function MarketPricesScreen() {
     )
     .sort((a, b) => (catOrder.get(a.category_id) ?? 999999) - (catOrder.get(b.category_id) ?? 999999) || a.name.localeCompare(b.name, "uk", { numeric: true }));
 
+  // пропозиція, з якої взято ціну магазину (найближча за ціною одиниці), і посилання на товар; для ручних цін — посилання з примітки
+  const offerOf = (p) => (sold.get(`${p.supplier_id}|${p.material_id}`) || []).reduce((a, o) => (!a || Math.abs(o.unit_price - p.price) < Math.abs(a.unit_price - p.price) ? o : a), null);
+  const linkOf = (p, offer) => offer?.url || /https?:\/\/\S+/.exec(p.note || "")?.[0] || null;
   const priceOf = (materialId, supplierId) => supplierPrices.find((p) => p.material_id === materialId && p.supplier_id === supplierId);
   const tracked = materials.filter((m) => m.parse_rule).length;
   const withPrice = materials.filter((m) => m.parse_rule && supplierPrices.some((p) => p.material_id === m.id && storeIds.has(p.supplier_id))).length;
@@ -189,7 +211,7 @@ export default function MarketPricesScreen() {
             <tr>
               <th>Матеріал</th>
               <th>Од.</th>
-              <th>Найкраща ціна, грн</th>
+              <th>Найкраща ціна за одиницю</th>
               {columnStores.map((s) => <th key={s.id}>{s.name}</th>)}
               <th>Оновлено</th>
             </tr>
@@ -203,6 +225,9 @@ export default function MarketPricesScreen() {
               const best = found.length ? Math.min(...found.map((p) => Number(p.price))) : null;
               const bestStore = best != null ? suppliers.find((s) => s.id === found.find((p) => Number(p.price) === best).supplier_id) : null;
               const freshest = found.length ? found.map((p) => p.updated_at).sort().pop() : null;
+              const bestPrice = best != null ? found.find((p) => Number(p.price) === best) : null;
+              const bestOffer = bestPrice && offerOf(bestPrice);
+              const bestLink = bestPrice && linkOf(bestPrice, bestOffer);
               const cat = materialCategories.find((c) => c.id === m.category_id);
               const header = cat && list[idx - 1]?.category_id !== cat.id;
               const isOpen = openId === m.id;
@@ -216,17 +241,35 @@ export default function MarketPricesScreen() {
                     <td>
                       {isOpen ? "▾" : "▸"} {m.icon ? `${m.icon} ` : ""}{m.name}
                       {!m.parse_rule && <span className="badge draft" style={{ marginLeft: 6 }}>ціна вручну</span>}
+                      {m.spec && <div className="note" style={{ marginTop: 2, maxWidth: 460, whiteSpace: "normal" }}>{m.spec}</div>}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{m.unit}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {best != null ? <><b>{fmtPrice(best)}</b> <span className="note">{bestStore?.name}</span></> : "—"}
+                      {bestPrice ? (
+                        <>
+                          {bestLink ? <a href={bestLink} target="_blank" rel="noreferrer" title={bestOffer?.title || "Відкрити товар на сайті"}><b>{fmtPrice(best)}</b></a> : <b>{fmtPrice(best)}</b>}
+                          <span className="note"> грн/{m.unit}</span>
+                          <div className="note" style={{ marginTop: 0 }}>{bestStore?.name}{bestOffer ? ` · продають по ${fmtPrice(bestOffer.price)} грн/${bestOffer.sale_unit || "шт"}` : ""}</div>
+                        </>
+                      ) : "—"}
                     </td>
-                    {cells.map((p, i) => (
-                      <td key={columnStores[i].id} style={{ whiteSpace: "nowrap" }} className={p && isStale(p.updated_at) ? "stale" : undefined}
-                        title={p ? `${p.note || ""}\nоновлено ${dateOnly(p.updated_at)}` : undefined}>
-                        {p ? (Number(p.price) === best ? <b className="fresh">{fmtPrice(p.price)}</b> : fmtPrice(p.price)) : <span className="note">—</span>}
-                      </td>
-                    ))}
+                    {cells.map((p, i) => {
+                      const o = p && offerOf(p);
+                      const href = p && linkOf(p, o);
+                      const value = p && (Number(p.price) === best ? <b className="fresh">{fmtPrice(p.price)}</b> : fmtPrice(p.price));
+                      return (
+                        <td key={columnStores[i].id} style={{ whiteSpace: "nowrap" }} className={p && isStale(p.updated_at) ? "stale" : undefined}
+                          title={p ? `${o?.title || p.note || ""}\nоновлено ${dateOnly(p.updated_at)}` : undefined}>
+                          {p ? (
+                            <>
+                              {href ? <a href={href} target="_blank" rel="noreferrer">{value}</a> : value}
+                              <span className="note"> /{m.unit}</span>
+                              {o && <div className="note" style={{ marginTop: 0 }}>{fmtPrice(o.price)} грн/{o.sale_unit || "шт"}</div>}
+                            </>
+                          ) : <span className="note">—</span>}
+                        </td>
+                      );
+                    })}
                     <td style={{ whiteSpace: "nowrap" }} className={freshest && isStale(freshest) ? "stale" : undefined}>
                       {freshest ? dateOnly(freshest) : "—"}{" "}
                       {canWriteCatalog && (
@@ -237,7 +280,6 @@ export default function MarketPricesScreen() {
                   {isOpen && (
                     <tr>
                       <td colSpan={cols} style={{ background: "var(--bg, #faf9f5)", padding: 12 }}>
-                        {m.spec && <p className="note" style={{ marginTop: 0 }}>{m.spec}</p>}
                         <div className="seg-row" style={{ marginBottom: 8 }}>
                           <button className={`seg-btn${!storeFilter ? " active" : ""}`} onClick={() => setStoreFilter("")}>Усі магазини</button>
                           {columnStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (

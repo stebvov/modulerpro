@@ -99,7 +99,7 @@ export default function PriceBySupplierScreen() {
             </h3>
             <div className="table-scroll">
             <table>
-              <thead><tr><th>Матеріал</th><th>Ціна, грн</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
+              <thead><tr><th>Матеріал</th><th>Ціна, грн за одиницю</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
               <tbody>
                 {!rows.length && <tr><td colSpan={6} className="empty">Немає цін</td></tr>}
                 {rows.map((p) => {
@@ -112,7 +112,7 @@ export default function PriceBySupplierScreen() {
                   return (
                     <Fragment key={key}>
                       <tr>
-                        <td>{m ? m.name : "—"}</td>
+                        <td>{m ? m.name : "—"}{m?.spec && <div className="note" style={{ marginTop: 2, maxWidth: 420 }}>{m.spec}</div>}</td>
                         <td>
                           <input
                             type="number"
@@ -121,6 +121,7 @@ export default function PriceBySupplierScreen() {
                             disabled={!canWriteFinance}
                             onChange={(e) => setEditPrices((v) => ({ ...v, [key]: e.target.value }))}
                           />{" "}
+                          <span className="note">грн/{m?.unit || "од."}</span>{" "}
                           {currency !== "UAH" && <span className="note">≈ {fmtCurrency(p.price, currency, exchangeRates, showDecimals)}</span>}
                         </td>
                         <td>
