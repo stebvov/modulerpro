@@ -1,0 +1,34 @@
+/* 💡 Ідеї та роздуми — спершу під телефон: велике поле й кнопка «Записати думку», нижче картки-ідеї. */
+.ideas { max-width: 860px; }
+.ideas__capture { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; }
+.ideas__capture textarea { width: 100%; min-height: 96px; font-size: 15px; line-height: 1.45; resize: vertical; }
+.ideas__row { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.ideas__add { padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.ideas__mic { padding: 9px 14px; font-size: 14px; }
+.ideas__mic.on { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+.ideas__status { margin: 0; }
+.ideas__filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.idea { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+.idea.open { border-color: var(--border-strong); }
+.idea__head { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; width: 100%; padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer; font-family: inherit; color: var(--text); }
+.idea__title { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.idea__meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--text-muted); }
+.idea__status { align-self: start; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; background: #f1efe8; color: var(--text-secondary); }
+.idea__status.st-thinking { background: #fdf3d7; color: #7a5a00; }
+.idea__status.st-testing { background: #dfeaf7; color: #1f4f8a; }
+.idea__status.st-do { background: var(--accent-bg); color: var(--accent); }
+.idea__status.st-no { background: var(--danger-bg); color: var(--danger); }
+.idea--no .idea__title { color: var(--text-muted); text-decoration: line-through; }
+.idea__body { padding: 12px 14px 14px; border-top: 1px solid var(--border); }
+.idea__body textarea { line-height: 1.45; resize: vertical; }
+.idea__seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.idea__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.idea__dirs { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--text); }
+.idea .idea__dirs label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.idea .idea__dirs input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+@media (max-width: 600px) {
+  .idea__grid { grid-template-columns: 1fr; }
+  .ideas__add { flex: 1 1 100%; }
+  .ideas__mic { flex: none; }
+}
