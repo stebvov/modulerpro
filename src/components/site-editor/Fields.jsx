@@ -1,11 +1,12 @@
 "use client";
 // Форма полів конструктора сайту: одна для блоків, моделей, кейсів і налаштувань.
-// Типи: text, textarea, number, bool, select, href, link, image, images, list, strings, group, template.
+// Типи: text, textarea, number, bool, select, multi, href, link, image, images, list, strings, group, template.
+// Видалення в два кроки: перше «Видалити» ховає з сайту (фото — префікс «~~», пункт — hidden), друге — видаляє назавжди.
 import { useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { uploadSiteImage } from "@/lib/site/upload";
-import { imgSmall } from "@/lib/site/format";
-import { ArrowDownIcon, ArrowUpIcon, CopyIcon, TrashIcon } from "@/components/Icon";
+import { hideStr, imgSmall, isHiddenStr, unhideStr } from "@/lib/site/format";
+import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EyeOffIcon, TrashIcon } from "@/components/Icon";
 
 export const LINKS_ID = "se-links";
 
@@ -31,17 +32,22 @@ function ImageField({ value, onChange, compact }) {
     try { onChange(await uploadSiteImage(f)); } catch (x) { setErr(x.message || "Не вдалося завантажити"); }
     setBusy(false);
   }
+  const off = isHiddenStr(value);
+  const url = unhideStr(value);
   return (
-    <div className={`se-img${compact ? " se-img--compact" : ""}`}>
+    <div className={`se-img${compact ? " se-img--compact" : ""}${off ? " se-img--off" : ""}`}>
       <div className="se-img__thumb" onClick={() => input.current?.click()} title="Замінити фото">
-        {value ? <img src={imgSmall(value)} alt="" /> : <span>{busy ? "…" : "+ фото"}</span>}
+        {url ? <img src={imgSmall(url)} alt="" /> : <span>{busy ? "…" : "+ фото"}</span>}
+        {off && <span className="se-off-badge">приховано</span>}
       </div>
       <div className="se-img__side">
         <div className="se-row">
-          <button type="button" className="btn small" onClick={() => input.current?.click()} disabled={busy}>{busy ? "Завантажую…" : value ? "Замінити" : "Завантажити"}</button>
-          {value && <button type="button" className="btn small" onClick={() => onChange("")}>Прибрати</button>}
+          <button type="button" className="btn small" onClick={() => input.current?.click()} disabled={busy}>{busy ? "Завантажую…" : url ? "Замінити" : "Завантажити"}</button>
+          {url && !off && <button type="button" className="btn small" onClick={() => onChange(hideStr(value))} title="Сховати з сайту. Видалити назавжди — наступним натиском">Прибрати</button>}
+          {off && <button type="button" className="btn small" onClick={() => onChange(url)}>Показати</button>}
+          {off && <button type="button" className="btn small danger" onClick={() => onChange("")}>Видалити назавжди</button>}
         </div>
-        {!compact && <input className="se-url" value={value || ""} placeholder="або вставте посилання на фото" onChange={(e) => onChange(e.target.value.trim())} />}
+        {!compact && <input className="se-url" value={url || ""} placeholder="або вставте посилання на фото" onChange={(e) => onChange(e.target.value.trim())} />}
         {err && <div className="se-err">{err}</div>}
       </div>
       <input ref={input} type="file" accept="image/*" hidden onChange={pick} />
@@ -68,24 +74,37 @@ function ImagesField({ value, onChange }) {
     onChange([...list, ...added]);
   }
   const move = (from, to) => { if (to < 0 || to >= list.length) return; const a = [...list]; const [x] = a.splice(from, 1); a.splice(to, 0, x); onChange(a); };
+  const setAt = (i, v) => onChange(list.map((x, j) => (j === i ? v : x)));
+  const cover = list.findIndex((u) => !isHiddenStr(u));
   return (
     <div>
       <div className="se-imgs">
-        {list.map((u, i) => (
-          <div key={u + i} className="se-imgs__item" draggable
-            onDragStart={() => { drag.current = i; }} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag.current != null) move(drag.current, i); drag.current = null; }}>
-            <img src={imgSmall(u)} alt="" />
-            {i === 0 && <span className="se-imgs__cover">обкладинка</span>}
-            <div className="se-imgs__tools">
-              <button type="button" onClick={() => move(i, i - 1)} title="Ліворуч">‹</button>
-              <button type="button" onClick={() => move(i, i + 1)} title="Праворуч">›</button>
-              <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))} title="Прибрати">×</button>
+        {list.map((u, i) => {
+          const off = isHiddenStr(u);
+          return (
+            <div key={u + i} className={`se-imgs__item${off ? " off" : ""}`} draggable
+              onDragStart={() => { drag.current = i; }} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag.current != null) move(drag.current, i); drag.current = null; }}>
+              <img src={imgSmall(unhideStr(u))} alt="" />
+              {i === cover && <span className="se-imgs__cover">обкладинка</span>}
+              {off && <span className="se-off-badge">приховано</span>}
+              <div className="se-imgs__tools">
+                <button type="button" onClick={() => move(i, i - 1)} title="Ліворуч">‹</button>
+                <button type="button" onClick={() => move(i, i + 1)} title="Праворуч">›</button>
+                {off ? (
+                  <>
+                    <button type="button" onClick={() => setAt(i, unhideStr(u))} title="Показати на сайті"><EyeOffIcon /></button>
+                    <button type="button" className="danger" onClick={() => onChange(list.filter((_, j) => j !== i))} title="Видалити назавжди">×</button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setAt(i, hideStr(u))} title="Сховати з сайту (видалити — наступним натиском)">×</button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <button type="button" className="se-imgs__add" onClick={() => input.current?.click()} disabled={!!busy}>{busy ? `Завантажую… ${busy}` : "+ Додати фото"}</button>
       </div>
-      <div className="note">Перетягніть фото, щоб змінити порядок. Можна вибрати кілька файлів одразу — вони самі стиснуться для швидкого сайту.</div>
+      <div className="note">Перетягніть фото, щоб змінити порядок. «×» спершу ховає фото з сайту (воно стає блідим), повторний «×» на схованому — видаляє назавжди. Можна вибрати кілька файлів одразу — вони самі стиснуться для швидкого сайту.</div>
       {err && <div className="se-err">{err}</div>}
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={pick} />
     </div>
@@ -103,7 +122,7 @@ function ListField({ f, value, onChange }) {
   return (
     <div className="se-list">
       {list.map((x, i) => (
-        <div key={i} className="se-list__item">
+        <div key={i} className={`se-list__item${x?.hidden ? " off" : ""}`}>
           <div className="se-list__head">
             {single ? (
               <FieldInput f={{ ...f.fields[0], label: "" }} value={x?.[f.fields[0].key]} onChange={(v) => set(i, { [f.fields[0].key]: v })} />
@@ -113,11 +132,17 @@ function ListField({ f, value, onChange }) {
                 {firstText(x) || `${f.item || "Елемент"} ${i + 1}`}
               </button>
             )}
+            {x?.hidden && <span className="se-off-badge se-off-badge--inline">приховано</span>}
             <div className="se-tools">
               <button type="button" onClick={() => move(i, -1)} title="Вище" disabled={!i}><ArrowUpIcon /></button>
               <button type="button" onClick={() => move(i, 1)} title="Нижче" disabled={i === list.length - 1}><ArrowDownIcon /></button>
-              <button type="button" onClick={() => { const a = [...list]; a.splice(i + 1, 0, structuredClone(x)); onChange(a); }} title="Дублювати"><CopyIcon /></button>
-              <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))} title="Видалити"><TrashIcon /></button>
+              <button type="button" onClick={() => { const a = [...list]; a.splice(i + 1, 0, { ...structuredClone(x), hidden: false }); onChange(a); }} title="Дублювати"><CopyIcon /></button>
+              {x?.hidden && <button type="button" onClick={() => set(i, { hidden: false })} title="Показати на сайті"><EyeOffIcon /></button>}
+              {x?.hidden ? (
+                <button type="button" className="danger" onClick={() => onChange(list.filter((_, j) => j !== i))} title="Видалити назавжди"><TrashIcon /></button>
+              ) : (
+                <button type="button" onClick={() => set(i, { hidden: true })} title="Сховати з сайту (видалити — наступним натиском)"><TrashIcon /></button>
+              )}
             </div>
           </div>
           {!single && open.includes(i) && (
@@ -135,8 +160,22 @@ function ListField({ f, value, onChange }) {
 function StringsField({ f, value, onChange }) {
   const list = (Array.isArray(value) ? value : []).map((x) => (typeof x === "string" ? x : x?.text || ""));
   return (
-    <ListField f={{ ...f, fields: [{ key: "text", type: "text" }] }} value={list.map((text) => ({ text }))}
-      onChange={(a) => onChange(a.map((x) => x.text || ""))} />
+    <ListField f={{ ...f, fields: [{ key: "text", type: "text" }] }} value={list.map((s) => ({ text: unhideStr(s), hidden: isHiddenStr(s) }))}
+      onChange={(a) => onChange(a.map((x) => (x.hidden ? hideStr(x.text || "") : x.text || "")))} />
+  );
+}
+
+// кілька значень зі списку (напр. типи кейсу); перше вибране — основне
+function MultiField({ f, value, onChange }) {
+  const v = Array.isArray(value) ? value : [];
+  return (
+    <div className="se-multi">
+      {f.options.map(([k, l]) => (
+        <label key={k} className="se-check">
+          <input type="checkbox" checked={v.includes(k)} onChange={(e) => onChange(e.target.checked ? [...v, k] : v.filter((x) => x !== k))} /> {l}
+        </label>
+      ))}
+    </div>
   );
 }
 
@@ -176,6 +215,7 @@ function FieldInput({ f, value, onChange }) {
       );
     }
     case "image": return <ImageField value={value} onChange={onChange} />;
+    case "multi": return <MultiField f={f} value={value} onChange={onChange} />;
     case "images": return <ImagesField value={value} onChange={onChange} />;
     case "list": return <ListField f={f} value={value} onChange={onChange} />;
     case "strings": return <StringsField f={f} value={value} onChange={onChange} />;

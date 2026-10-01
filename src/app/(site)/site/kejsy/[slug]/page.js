@@ -2,7 +2,7 @@
 import { notFound } from "next/navigation";
 import { getBase, getCases, getSettings } from "@/lib/site/data";
 import { CASE_KINDS } from "@/lib/site/blocks";
-import { imgProps, paragraphs, rich, siteHref } from "@/lib/site/format";
+import { caseKinds, imgProps, paragraphs, rich, siteHref } from "@/lib/site/format";
 import { siteRobots } from "@/components/site/CmsPage";
 import { CaseCard } from "@/components/site/Cards";
 import Gallery from "@/components/site/Gallery";
@@ -36,7 +36,7 @@ export default async function CasePage({ params }) {
         <div className="s-hero__veil" />
         <div className="s-wrap">
           <nav className="s-crumbs"><a href={siteHref(base, "/")}>Головна</a> / <a href={siteHref(base, "/kejsy")}>Кейси</a></nav>
-          <div className="s-eyebrow">{[CASE_KINDS[c.kind], c.year].filter(Boolean).join(" · ")}</div>
+          <div className="s-eyebrow">{[...caseKinds(c).map((k) => CASE_KINDS[k]), c.year].filter(Boolean).join(" · ")}</div>
           <h1 className="s-hero__title">{c.title}</h1>
           <div className="s-hero__facts">
             {c.location && <span>📍 {c.location}</span>}

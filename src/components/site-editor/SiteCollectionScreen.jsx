@@ -4,28 +4,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CASE_KINDS, SIZE_GROUPS } from "@/lib/site/blocks";
 import { CASE_FIELDS, MODEL_FIELDS, slugify } from "@/lib/site/schemas";
-import { imgSmall, money, modelPriceFrom } from "@/lib/site/format";
+import { caseKinds, imgSmall, isHiddenStr, money, modelPriceFrom } from "@/lib/site/format";
 import { Fields, LinkOptions } from "./Fields";
 import { revalidateSite } from "./SitePagesScreen";
 import DeleteButton from "@/components/DeleteButton";
 import { ArrowDownIcon, ArrowUpIcon, ExternalIcon } from "@/components/Icon";
 import "./editor.css";
 
+// фото, які показуються на сайті (без прихованих «~~…»)
+const visiblePhotos = (x) => (x.photos || []).filter((u) => !isHiddenStr(u));
+
 const KINDS = {
   models: {
     table: "site_models", fields: MODEL_FIELDS, one: "модель", add: "+ Модель", path: "modeli", titleKey: "name",
     blank: (tab) => ({ name: tab === "concept" ? "Нова розробка" : "Нова модель", kind: tab === "concept" ? "concept" : "ready", slug: `model-${Date.now().toString(36)}`, size_group: 1, currency: "USD", published: false, photos: [], plans: [], features: [], highlights: [] }),
     sub: (x) => [x.popular && "★ популярна", SIZE_GROUPS[x.size_group], x.area_m2 && `${Number(x.area_m2)} м²`, x.kind === "concept" ? "розробка" : modelPriceFrom(x) ? `від ${money(modelPriceFrom(x), x.currency)}` : "без ціни"].filter(Boolean).join(" · "),
-    warn: (x) => (x.kind !== "concept" && !modelPriceFrom(x) ? "Немає ціни — на сайті буде «порахуємо під вас»" : !x.photos?.length ? "Немає фото" : ""),
+    warn: (x) => (x.kind !== "concept" && !modelPriceFrom(x) ? "Немає ціни — на сайті буде «порахуємо під вас»" : !visiblePhotos(x).length ? "Немає фото" : ""),
     tabs: [["ready", "Готові моделі"], ["concept", "Індивідуальні проєкти"], ["", "Усі"]],
     tabOf: (x) => x.kind || "ready",
     intro: "Готові моделі — каталог з цінами: кожна має свою сторінку-лендинг. Популярні (★) показуються першими. Індивідуальні проєкти — ваші розробки й візуалізації: окрема сторінка «Індивідуальні проєкти», щоб показати, що можливо безліч варіантів.",
   },
   cases: {
     table: "site_cases", fields: CASE_FIELDS, one: "кейс", add: "+ Кейс", path: "kejsy", titleKey: "title",
-    blank: () => ({ title: "Новий об'єкт", slug: `case-${Date.now().toString(36)}`, kind: "private", published: false, photos: [] }),
-    sub: (x) => [CASE_KINDS[x.kind], x.location, x.format].filter(Boolean).join(" · "),
-    warn: (x) => (!x.photos?.length ? "Немає фото" : !x.task && !x.solution ? "Додайте історію: задача → що зробили" : !x.quote ? "Немає слів власника" : ""),
+    blank: () => ({ title: "Новий об'єкт", slug: `case-${Date.now().toString(36)}`, kind: "private", kinds: ["private"], published: false, photos: [] }),
+    sub: (x) => [caseKinds(x).map((k) => CASE_KINDS[k]).filter(Boolean).join(" + "), x.location, x.format].filter(Boolean).join(" · "),
+    warn: (x) => (!visiblePhotos(x).length ? "Немає фото" : !x.task && !x.solution ? "Додайте історію: задача → що зробили" : !x.quote ? "Немає слів власника" : ""),
     intro: "Портфоліо: картки в блоці «Кейси» і сторінка кожного об'єкта з галереєю. Історія «задача → рішення» і слова власника продають краще за фото.",
   },
 };
@@ -59,6 +62,7 @@ export default function SiteCollectionScreen({ kind }) {
     timer.current = setTimeout(async () => {
       const patch = {};
       K.fields.forEach((f) => { patch[f.key] = next[f.key] ?? null; });
+      if ("kinds" in patch) patch.kind = patch.kinds?.[0] || "private"; // старе поле kind = основний (перший) тип
       if (!/^[a-z0-9-]+$/.test(patch.slug || "")) { setStatus(""); setMsg("Адреса — лише латиниця, цифри й дефіс."); return; }
       const { error } = await supabase.from(K.table).update(patch).eq("id", next.id);
       if (error) { setStatus(""); setMsg(error.code === "23505" ? "Така адреса вже зайнята." : "Не збережено: " + error.message); return; }
@@ -114,7 +118,7 @@ export default function SiteCollectionScreen({ kind }) {
             return (
               <div key={r.id} className={`se-item${r.id === selId ? " on" : ""}${r.published ? "" : " off"}`}>
                 <button type="button" className="se-item__main" onClick={() => setSelId(r.id)}>
-                  <span className="se-item__img">{r.photos?.[0] ? <img src={imgSmall(r.photos[0])} alt="" /> : "📷"}</span>
+                  <span className="se-item__img">{visiblePhotos(r)[0] ? <img src={imgSmall(visiblePhotos(r)[0])} alt="" /> : "📷"}</span>
                   <span className="se-item__txt">
                     <b>{r[K.titleKey]}</b>
                     <small>{K.sub(r)}</small>
@@ -140,7 +144,12 @@ export default function SiteCollectionScreen({ kind }) {
             </div>
             <Fields fields={K.fields} value={sel} onChange={edit} />
             <div className="se-row">
-              <DeleteButton table={K.table} id={sel.id} what={K.one} onDone={() => { setSelId(null); load(); revalidateSite(); }} onError={setMsg} />
+              {/* спершу ховаємо з сайту; видалити назавжди можна лише прихований запис */}
+              {sel.published ? (
+                <button type="button" className="btn small" onClick={() => edit({ ...sel, published: false })}>Сховати з сайту</button>
+              ) : (
+                <DeleteButton table={K.table} id={sel.id} what={K.one} onDone={() => { setSelId(null); load(); revalidateSite(); }} onError={setMsg} />
+              )}
             </div>
           </div>
         )}

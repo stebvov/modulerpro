@@ -1,6 +1,6 @@
 // Малює сторінку сайту з блоків конструктора. Працює і на сервері (сайт), і в браузері (живий перегляд у конструкторі).
 import { BLOCKS } from "@/lib/site/blocks";
-import { imgProps, isExternal, paragraphs, rich, siteHref, youtubeId } from "@/lib/site/format";
+import { imgProps, isExternal, paragraphs, rich, siteHref, stripHidden, youtubeId } from "@/lib/site/format";
 import YouTube from "./YouTube";
 import Gallery from "./Gallery";
 import Catalog from "./Catalog";
@@ -450,7 +450,7 @@ const RENDER = {
   lead_form: ({ b, ctx }) => (
     <Section b={b} className="s-formsec">
       <Head b={b} center />
-      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} />
+      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} goalOptions={b.goals} goalLabel={b.goal_label} />
     </Section>
   ),
 };
@@ -458,7 +458,7 @@ const RENDER = {
 export default function SiteRenderer({ blocks, ctx }) {
   return (
     <>
-      {(blocks || []).filter((b) => !b.hidden && BLOCKS[b.type] && RENDER[b.type]).map((b) => {
+      {stripHidden(blocks || []).filter((b) => BLOCKS[b.type] && RENDER[b.type]).map((b) => { /* приховані блоки, пункти й фото не показуємо */
         const C = RENDER[b.type];
         return <C key={b.id} b={b} ctx={ctx} />;
       })}

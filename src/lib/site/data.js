@@ -1,8 +1,10 @@
 // Дані сайту для сервера: опубліковане читається анонімним ключем і кешується (тег "site").
+// Приховане в конструкторі (фото «~~…», елементи з hidden) сюди не потрапляє — див. stripHidden.
 // Кнопка «Опублікувати» в конструкторі скидає кеш через /api/site/revalidate.
 import { unstable_cache } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { stripHidden } from "./format";
 
 function anon() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
@@ -14,7 +16,7 @@ const cached = (fn, key) => unstable_cache(fn, ["site", key], { tags: ["site"], 
 
 export const getSettings = cached(async () => {
   const { data } = await anon().from("site_settings").select("value").eq("key", "main").maybeSingle();
-  return data?.value || {};
+  return stripHidden(data?.value || {});
 }, "settings");
 
 export const getPage = cached(async (slug) => {
@@ -22,7 +24,7 @@ export const getPage = cached(async (slug) => {
     .from("site_pages")
     .select("slug,title,nav_label,seo_title,seo_description,og_image,blocks,updated_at")
     .eq("slug", slug).eq("published", true).maybeSingle();
-  return data || null;
+  return data ? { ...data, og_image: stripHidden(data.og_image) } : null;
 }, "page");
 
 export const getPagesList = cached(async () => {
@@ -32,12 +34,12 @@ export const getPagesList = cached(async () => {
 
 export const getModels = cached(async () => {
   const { data } = await anon().from("site_models").select("*").eq("published", true).order("sort").order("area_m2");
-  return data || [];
+  return stripHidden(data || []);
 }, "models");
 
 export const getCases = cached(async () => {
   const { data } = await anon().from("site_cases").select("*").eq("published", true).order("sort");
-  return data || [];
+  return stripHidden(data || []);
 }, "cases");
 
 // усе, що потрібно блокам сторінки, одним викликом

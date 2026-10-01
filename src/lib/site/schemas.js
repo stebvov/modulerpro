@@ -38,7 +38,7 @@ export const MODEL_FIELDS = [
 export const CASE_FIELDS = [
   { key: "title", label: "Назва об'єкта", type: "text" },
   { key: "slug", label: "Адреса сторінки (латиницею)", type: "text", hint: "moduler.pro/kejsy/…" },
-  { key: "kind", label: "Тип", type: "select", options: Object.entries(CASE_KINDS) },
+  { key: "kinds", label: "Тип об'єкта (можна кілька, напр. соціальний + містечко)", type: "multi", options: Object.entries(CASE_KINDS) },
   { key: "location", label: "Де", type: "text" },
   { key: "format", label: "Формат (модулі, площа)", type: "text" },
   { key: "year", label: "Рік", type: "text" },

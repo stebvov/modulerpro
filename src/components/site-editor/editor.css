@@ -132,3 +132,15 @@
   .se-coll__main.has-sel .se-coll__list { display: none; }
   .se-coll__form { position: static; max-height: none; }
 }
+
+/* Приховане з сайту: бліде, з плашкою «приховано». Видалити назавжди — наступним натиском (червона кнопка). */
+.se-img__thumb { position: relative; }
+.se-imgs__item.off img, .se-img--off .se-img__thumb img { opacity: .35; filter: grayscale(1); }
+.se-imgs__item.off .se-imgs__tools { opacity: 1; }
+.se-off-badge { position: absolute; left: 4px; top: 4px; padding: 1px 6px; border-radius: 4px; background: #5b5b5b; color: #fff; font-size: 11px; font-weight: 600; line-height: 1.5; }
+.se-off-badge--inline { position: static; margin: 0 6px; align-self: center; white-space: nowrap; }
+.se-list__item.off { opacity: .7; background: #f1efe9; }
+.se-list__item.off .se-list__title { text-decoration: line-through; }
+.se-tools button.danger, .se-imgs__tools button.danger { color: var(--danger); }
+.se-block.hidden .se-block__name small::after { content: " · приховано"; }
+.se-multi { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 0; }

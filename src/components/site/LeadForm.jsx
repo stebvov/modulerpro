@@ -26,9 +26,10 @@ function utm() {
   try { return sessionStorage.getItem("moduler_utm") || ""; } catch { return ""; }
 }
 
-export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel, hint, noArea }) {
+export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel, hint, noArea, goalOptions, goalLabel }) {
   const lead = settings.lead || {};
-  const baseGoals = lead.goals?.length ? lead.goals : DEFAULT_GOALS;
+  // варіанти «Що плануєте»: свої для цієї форми (блок) → з налаштувань сайту → стандартні
+  const baseGoals = goalOptions?.filter(Boolean).length ? goalOptions.filter(Boolean) : lead.goals?.length ? lead.goals : DEFAULT_GOALS;
   const goals = goal && !baseGoals.includes(goal) ? [goal, ...baseGoals] : baseGoals; // своя задача сторінки (проєкт, партнерство) — першою
   const areas = lead.areas?.length ? lead.areas : DEFAULT_AREAS;
   const phone = settings.contacts?.phone;
@@ -92,7 +93,7 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
       {!compact && (
         <>
           <div className={noArea ? "" : "s-form__row"}>
-            <label className="s-field"><span>Що плануєте</span>
+            <label className="s-field"><span>{goalLabel || "Що плануєте"}</span>
               <select name="goal" defaultValue={goals.includes(goal) ? goal : goals[0]}>{goals.map((g) => <option key={g}>{g}</option>)}</select>
             </label>
             {!noArea && (

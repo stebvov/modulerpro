@@ -1,6 +1,6 @@
 // Картки моделі й кейсу — спільні для каталогу, сторінок сайту й живого перегляду.
 import { CASE_KINDS, SIZE_GROUPS } from "@/lib/site/blocks";
-import { imgProps, money, modelPriceFrom, siteHref } from "@/lib/site/format";
+import { caseKinds, imgProps, modelPriceFrom, money, siteHref } from "@/lib/site/format";
 
 export function ModelCard({ m, base }) {
   const from = modelPriceFrom(m);
@@ -34,7 +34,7 @@ export function CaseCard({ c, base }) {
       {c.photos?.[0] && <img alt={c.title} loading="lazy" {...imgProps(c.photos[0], "(max-width: 700px) 100vw, 33vw")} />}
       <div className="s-case__veil" />
       <div className="s-case__meta">
-        <span className="s-case__kind">{CASE_KINDS[c.kind] || ""}{c.location ? ` · ${c.location}` : ""}</span>
+        <span className="s-case__kind">{[...caseKinds(c).map((k) => CASE_KINDS[k]).filter(Boolean), c.location].filter(Boolean).join(" · ")}</span>
         <h3>{c.title}</h3>
         {c.format && <span className="s-case__fmt">{c.format}</span>}
       </div>

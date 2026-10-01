@@ -82,3 +82,19 @@ export function modelPriceFrom(m) {
   const vals = [m.price_shell, m.price_prefinish, m.price_ready].map(Number).filter((v) => v > 0);
   return vals.length ? Math.min(...vals) : null;
 }
+
+// ── Приховане в конструкторі ─────────────────────────────────────────────
+// Перше «Видалити» лише ховає: рядок (фото, варіант) отримує префікс «~~», елемент списку чи блок — hidden: true.
+// Сайт прибирає все приховане; друге «Видалити» в конструкторі видаляє назавжди.
+export const HIDDEN = "~~";
+export const isHiddenStr = (s) => typeof s === "string" && s.startsWith(HIDDEN);
+export const hideStr = (s) => (isHiddenStr(s) ? s : HIDDEN + (s || ""));
+export const unhideStr = (s) => (isHiddenStr(s) ? s.slice(HIDDEN.length) : s);
+export function stripHidden(v) {
+  if (Array.isArray(v)) return v.filter((x) => !isHiddenStr(x) && !(x && typeof x === "object" && x.hidden === true)).map(stripHidden);
+  if (v && typeof v === "object") { const o = {}; for (const k in v) o[k] = stripHidden(v[k]); return o; }
+  return isHiddenStr(v) ? "" : v;
+}
+
+// типи кейсу: kinds (кілька) або старе одиночне kind
+export const caseKinds = (c) => (Array.isArray(c?.kinds) && c.kinds.length ? c.kinds : c?.kind ? [c.kind] : []);

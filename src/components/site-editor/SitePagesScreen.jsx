@@ -280,7 +280,12 @@ export default function SitePagesScreen() {
               <div className="note">Адреса на сайті: {siteUrl.replace("/site", "moduler.pro") || "moduler.pro"}</div>
               {page.slug !== "home" && (
                 <div className="se-row" style={{ marginTop: 12 }}>
-                  <DeleteButton table="site_pages" id={page.id} what="сторінку" onDone={() => { revalidateSite(); load(); }} onError={setMsg} />
+                  {/* спершу ховаємо сторінку з сайту, видалити можна лише приховану */}
+                  {page.published ? (
+                    <button type="button" className="btn small" onClick={() => { changeMeta({ ...page, published: false }); setMsg("Сторінку сховано з сайту. Видалити назавжди можна тут же, вже прихованою."); }}>Сховати сторінку з сайту</button>
+                  ) : (
+                    <DeleteButton table="site_pages" id={page.id} what="сторінку" onDone={() => { revalidateSite(); load(); }} onError={setMsg} />
+                  )}
                 </div>
               )}
             </div>
@@ -303,7 +308,11 @@ export default function SitePagesScreen() {
                       <div className="se-tools">
                         <button type="button" onClick={() => update(b.id, { ...b, hidden: !b.hidden })} title={b.hidden ? "Показати на сайті" : "Сховати з сайту"}>{b.hidden ? <EyeOffIcon /> : <EyeIcon />}</button>
                         <button type="button" onClick={() => { const a = [...blocks]; a.splice(i + 1, 0, { ...structuredClone(b), id: newBlock(b.type).id }); change(a); }} title="Дублювати"><CopyIcon /></button>
-                        <button type="button" onClick={() => { if (confirm(`Видалити блок «${def?.label}»?`)) change(blocks.filter((x) => x.id !== b.id)); }} title="Видалити"><TrashIcon /></button>
+                        {b.hidden ? (
+                          <button type="button" className="danger" onClick={() => { if (confirm(`Видалити блок «${def?.label}» назавжди?`)) change(blocks.filter((x) => x.id !== b.id)); }} title="Видалити назавжди"><TrashIcon /></button>
+                        ) : (
+                          <button type="button" onClick={() => { update(b.id, { ...b, hidden: true }); setMsg("Блок сховано з сайту (після «Опублікувати»). Видалити назавжди — ще раз кошик на схованому блоці."); }} title="Сховати з сайту (видалити — наступним натиском)"><TrashIcon /></button>
+                        )}
                       </div>
                     </div>
                     {open && def && (
