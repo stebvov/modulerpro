@@ -4,6 +4,7 @@
 // Видалення в два кроки: перше «Видалити» ховає з сайту (фото — префікс «~~», пункт — hidden), друге — видаляє назавжди.
 import { useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import { fmtCurrency, templateTotalUah } from "@/lib/format";
 import { uploadSiteImage } from "@/lib/site/upload";
 import { hideStr, imgSmall, isHiddenStr, unhideStr } from "@/lib/site/format";
 import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EyeOffIcon, TrashIcon } from "@/components/Icon";
@@ -180,12 +181,23 @@ function MultiField({ f, value, onChange }) {
 }
 
 function TemplateField({ value, onChange }) {
-  const { templates } = useAppData();
+  const { templates, currency, exchangeRates } = useAppData();
+  const tpl = (templates || []).find((t) => t.id === value);
+  const total = tpl ? templateTotalUah(tpl) : null;
   return (
-    <select value={value || ""} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">— не пов’язано —</option>
-      {(templates || []).filter((t) => t.status !== "archived").map((t) => <option key={t.id} value={t.id}>{t.name}{t.area_m2 ? ` · ${t.area_m2} м²` : ""}</option>)}
-    </select>
+    <>
+      <select value={value || ""} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">— не пов’язано —</option>
+        {(templates || []).filter((t) => t.status !== "archived" || t.id === value).map((t) => <option key={t.id} value={t.id}>{t.name}{t.area_m2 ? ` · ${t.area_m2} м²` : ""}</option>)}
+      </select>
+      {tpl && (
+        <span className="note">
+          {total != null
+            ? `Ціна за каталогом: ${fmtCurrency(total, currency, exchangeRates, false)} · ${fmtCurrency(tpl.base_cost_per_m2, currency, exchangeRates, false)}/м². На сайті сама не зʼявляється — ціни для сайту вказуються в полях вище.`
+            : "У каталозі ця модель ще не прорахована — ціни немає."}
+        </span>
+      )}
+    </>
   );
 }
 

@@ -22,7 +22,7 @@ function usePackageMath() {
       : it.kind === "service" ? (Number(services.find((x) => x.id === it.template_id)?.base_price) || 0)
       : Number(it.unit_price) || 0;
     const unitCost = (it) =>
-      it.kind === "house" ? (templateProductionCost(it.template_id, bomItems, extraCosts, supplierPrices) || 0)
+      it.kind === "house" ? (templateProductionCost(it.template_id, bomItems, extraCosts, supplierPrices, templates) || 0)
       : Number(it.unit_cost) || 0;
     function totals(pkg, items) {
       const price = items.reduce((s2, it) => s2 + unitPrice(it) * (Number(it.quantity) || 0), 0);

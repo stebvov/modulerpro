@@ -8,14 +8,23 @@ import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
+import { templateProductionCost } from "@/lib/crm";
 import TemplateModal from "@/components/modals/TemplateModal";
 import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
 import CompareScreen from "@/components/screens/CompareScreen";
 
+// 1 модуль, 2 модулі, 5 модулів
+function modulesWord(n) {
+  const d = n % 10, h = n % 100;
+  if (d === 1 && h !== 11) return "модуль";
+  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return "модулі";
+  return "модулів";
+}
+
 const STATUS_OPTIONS = [{ value: "active", label: "Активний" }, { value: "draft", label: "Чернетка" }, { value: "archived", label: "Архів" }];
 
 export default function CatalogScreen() {
-  const { supabase, templates, bomItems, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
+  const { supabase, templates, bomItems, extraCosts, supplierPrices, siteModels, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
@@ -157,6 +166,9 @@ export default function CatalogScreen() {
             const bom = bomItems.filter((b) => b.template_id === t.id);
             const cats = productCategoryLinks.filter((l) => l.template_id === t.id).map((l) => productCategories.find((c) => c.id === l.category_id)).filter(Boolean);
             const totalUah = templateTotalUah(t);
+            const costUah = canWriteCatalog ? templateProductionCost(t.id, bomItems, extraCosts, supplierPrices, templates) : 0;
+            const onSite = siteModels.filter((m) => m.template_id === t.id);
+            const terraceM2 = Math.round((t.terraces || []).reduce((s, x) => s + (Number(x.area) || 0), 0) * 100) / 100;
             const photo = templateFiles.filter((f) => f.template_id === t.id && f.kind === "photo").sort((a, b) => a.sort_order - b.sort_order)[0];
             return (
               <div className="card" key={t.id} onClick={() => openModal(t)}>
@@ -164,18 +176,28 @@ export default function CatalogScreen() {
                   {photo ? <img src={photo.url} alt={t.name} loading="lazy" decoding="async" /> : "фото модуля"}
                 </div>
                 <h3>{t.name}</h3>
+                {onSite.length > 0 && (
+                  <div className="row"><span className="tag tag--site" title="Ця модель показана на сайті">на сайті: {onSite.map((m) => m.name).join(", ")}</span></div>
+                )}
                 <div className="row">
                   <span>{cats.map((c) => <span className="tag" key={c.id}>{c.name}</span>)}{!cats.length && "—"}</span>
                   <span className={`badge ${t.status}`}>{statusLabels[t.status] || t.status}</span>
                 </div>
-                <div className="row"><span>Площа</span><span>{t.area_m2} м²{t.module_count ? ` · ${t.module_count} модулі` : ""}</span></div>
+                <div className="row"><span>Площа</span><span>{t.area_m2} м²{terraceM2 ? ` + тераса ${terraceM2} м²` : ""}{t.module_count ? ` · ${t.module_count} ${modulesWord(t.module_count)}` : ""}</span></div>
                 {totalUah != null ? (
                   <div className="cost-block">
                     <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates, showDecimals)}</div>
                     <div className="cost-sub">{fmtCurrency(t.base_cost_per_m2, currency, exchangeRates, showDecimals)}/м²</div>
+                    {costUah > 0 && (
+                      <div className="cost-sub" title={t.cost_note || undefined}>
+                        собівартість {fmtCurrency(costUah, currency, exchangeRates, false)}
+                        {Number(t.markup_percent) ? ` · націнка ${Number(t.markup_percent)}%` : " · без націнки"}
+                        {t.cost_mode === "fixed" ? " · за прайсом" : ""}
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="cost-block cost-missing">{bom.length ? "ціна неповна" : "BOM не заповнено"}</div>
+                  <div className="cost-block cost-missing">{t.cost_mode === "fixed" ? "собівартість не вказана" : bom.length ? "ціна неповна" : "BOM не заповнено"}</div>
                 )}
                 <div className="row" onClick={(e) => e.stopPropagation()} style={{ alignItems: "center" }}>
                   <label className="compare-check" style={{ marginTop: 0 }}>

@@ -29,6 +29,7 @@ const EMPTY = {
   serviceTemplateItems: [],
   menuGroupOrder: [],
   menuHomeGroup: null,
+  siteModels: [],
 };
 
 export function DataProvider({ children }) {
@@ -88,6 +89,7 @@ export function DataProvider({ children }) {
           serviceTemplates,
           serviceTemplateItems,
           menuSettings,
+          siteModels,
         ] = await Promise.all([
           supabase.from("materials").select("*").order("name"),
           supabase.from("suppliers").select("*").order("name"),
@@ -111,6 +113,7 @@ export function DataProvider({ children }) {
           supabase.from("service_templates").select("*").order("sort_order"),
           supabase.from("service_template_items").select("*").order("sort_order"),
           supabase.from("app_menu_settings").select("*").eq("id", true).maybeSingle(),
+          supabase.from("site_models").select("id,name,slug,template_id,published").not("template_id", "is", null),
         ]);
 
         const firstError = [
@@ -146,6 +149,7 @@ export function DataProvider({ children }) {
           serviceTemplateItems: serviceTemplateItems.data || [],
           menuGroupOrder: menuSettings.data?.group_order || [],
           menuHomeGroup: menuSettings.data?.home_group || null,
+          siteModels: siteModels.data || [],
         });
         setError(null);
       } catch (e) {

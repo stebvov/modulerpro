@@ -23,6 +23,21 @@ export function foundationVariants(rateCards) {
   return [...new Set(rateCards.filter((r) => r.service_type === "фундамент").map((r) => r.variant))].filter(Boolean);
 }
 
+// Customer price from cost: cost × (1 + markup) ÷ (1 − tax). Tax is taken
+// from the price, so it divides rather than adds. Same formula as the
+// template_cost_calculated view, which fills base_cost_per_m2.
+export function priceFromCost(cost, markupPercent, taxPercent) {
+  const k = 1 - (Number(taxPercent) || 0) / 100;
+  if (k <= 0) return 0;
+  return ((Number(cost) || 0) * (1 + (Number(markupPercent) || 0) / 100)) / k;
+}
+
+// Markup is counted on cost, margin on price: markup 30% = margin 23%.
+export function marginFromMarkup(markupPercent) {
+  const m = Number(markupPercent) || 0;
+  return m > 0 ? (m / (100 + m)) * 100 : 0;
+}
+
 export function avgCostPerM2(templates) {
   const priced = templates.filter((t) => t.base_cost_per_m2 != null);
   if (!priced.length) return 0;
@@ -40,8 +55,12 @@ function bestSupplierPrice(materialId, supplierPrices) {
 // Actual production cost of a template (materials at their cheapest known
 // supplier price, or the row's override, plus extra costs like labor) — as
 // opposed to product_templates.base_cost_per_m2, which is the price charged
-// to the customer, not the cost to build.
-export function templateProductionCost(templateId, bomItems, extraCosts, supplierPrices) {
+// to the customer, not the cost to build. A template priced "by price list"
+// (cost_mode = "fixed") has its cost entered as one sum instead of a BOM —
+// pass `templates` so that sum is used.
+export function templateProductionCost(templateId, bomItems, extraCosts, supplierPrices, templates) {
+  const tpl = templates?.find((t) => t.id === templateId);
+  if (tpl?.cost_mode === "fixed") return Number(tpl.fixed_cost) || 0;
   const bomTotal = bomItems
     .filter((b) => b.template_id === templateId)
     .reduce((sum, b) => {
@@ -61,7 +80,7 @@ export function templateProductionCost(templateId, bomItems, extraCosts, supplie
 // estimated_price already averages base_cost_per_m2 for the same case.
 export function avgProductionCostPerM2(templates, bomItems, extraCosts, supplierPrices) {
   const withCost = templates
-    .map((t) => ({ area: Number(t.area_m2) || 0, cost: templateProductionCost(t.id, bomItems, extraCosts, supplierPrices) }))
+    .map((t) => ({ area: Number(t.area_m2) || 0, cost: templateProductionCost(t.id, bomItems, extraCosts, supplierPrices, templates) }))
     .filter((x) => x.area > 0 && x.cost > 0);
   if (!withCost.length) return 0;
   return Math.round(withCost.reduce((s, x) => s + x.cost / x.area, 0) / withCost.length);
@@ -114,7 +133,7 @@ export function computeProductionCostSnapshot(deal, { templates, bomItems, extra
   const houseLines = (deal.template_lines || []).filter((l) => l.kind === "house");
   if (houseLines.length) {
     const total = houseLines.reduce((sum, l) => {
-      const cost = templateProductionCost(l.template_id, bomItems, extraCosts, supplierPrices);
+      const cost = templateProductionCost(l.template_id, bomItems, extraCosts, supplierPrices, templates);
       return sum + cost * (Number(l.quantity) || 0);
     }, 0);
     return total > 0 ? Math.round(total) : null;
@@ -125,7 +144,7 @@ export function computeProductionCostSnapshot(deal, { templates, bomItems, extra
     return Math.round(areaM2 * avgProductionCostPerM2(templates, bomItems, extraCosts, supplierPrices));
   }
   if (!deal.template_id) return null;
-  const cost = templateProductionCost(deal.template_id, bomItems, extraCosts, supplierPrices);
+  const cost = templateProductionCost(deal.template_id, bomItems, extraCosts, supplierPrices, templates);
   return cost > 0 ? Math.round(cost) : null;
 }
 

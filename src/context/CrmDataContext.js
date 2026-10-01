@@ -75,7 +75,7 @@ export function CrmDataProvider({ children }) {
           supabase.from("service_rate_cards").select("*").eq("active", true),
           supabase.from("team_members").select("*").order("name"),
           supabase.from("product_categories").select("*").order("sort_order"),
-          supabase.from("product_templates").select("id,name,area_m2,base_cost_per_m2,status").order("sort_order"),
+          supabase.from("product_templates").select("id,name,area_m2,base_cost_per_m2,status,cost_mode,fixed_cost").order("sort_order"),
           supabase.from("template_bom_items").select("template_id,material_id,quantity_per_unit,unit_price_override"),
           supabase.from("template_extra_costs").select("template_id,amount"),
           supabase.from("supplier_prices").select("material_id,price"),

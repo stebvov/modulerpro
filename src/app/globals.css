@@ -295,6 +295,26 @@ input.price-input { width: 100px; }
 .section-details .section-body { padding-bottom: 12px; }
 .section-count { font-weight: 400; color: var(--text-muted); font-size: 12px; }
 
+/* Template pricing: cost → markup → tax → customer price */
+.price-cost-row { display: flex; gap: 8px; }
+.price-cost-row input { flex: 1; min-width: 0; }
+.form-row .price-cost-row select { width: 84px; flex: none; }
+.price-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.price-summary { background: var(--accent-bg); border-radius: 8px; padding: 8px 12px; }
+.price-summary .row { margin: 3px 0; }
+.price-summary .row span:last-child { white-space: nowrap; text-align: right; }
+.price-summary__total { font-weight: 600; color: var(--text); border-top: 1px solid var(--border); padding-top: 6px; margin-top: 6px; }
+.tag--site { background: #fdf3dc; color: #8a5a00; }
+
+/* Template sizes: module w × l rows and terraces */
+.size-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
+.form-row .size-row input { flex: 1 1 56px; width: 56px; max-width: 84px; min-width: 0; }
+.form-row .size-row input.size-row__label { flex: 4 1 80px; width: auto; max-width: none; }
+.size-row__name { min-width: 76px; flex: none; }
+.size-row__area { margin-left: auto; white-space: nowrap; }
+.form-row > .tag-check.self-left { align-self: flex-start; }
+.form-row .tag-check input { width: auto; }
+
 /* BOM row v2 */
 .bom-row-v2 { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
 .bom-row-line { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }

@@ -5,6 +5,8 @@ import { useAppData } from "@/context/DataContext";
 import MaterialTreeCombobox from "@/components/MaterialTreeCombobox";
 import FileLightbox from "@/components/FileLightbox";
 import PdfPreviewModal from "@/components/PdfPreviewModal";
+import { CURRENCIES, convert, fmtCurrency } from "@/lib/format";
+import { priceFromCost, marginFromMarkup } from "@/lib/crm";
 
 const FILE_COLLAPSE_THRESHOLD = 10;
 const NO_GROUP = "__none";
@@ -18,6 +20,21 @@ function emptyBomRow() {
 }
 function emptyExtraRow(defaultGroupId) {
   return { key: Math.random().toString(36).slice(2), group_id: defaultGroupId || "", label: "", amount: "" };
+}
+// сума для поля вводу: без зайвих копійок
+function toInput(n) {
+  return n == null ? "" : String(Math.round(Number(n) * 100) / 100);
+}
+const MAX_MODULES = 20;
+const round2 = (n) => Math.round(n * 100) / 100;
+function emptyTerrace() {
+  return { key: Math.random().toString(36).slice(2), name: "", area: "" };
+}
+const validSize = (m) => parseFloat(m?.w) > 0 && parseFloat(m?.l) > 0;
+// площа за розмірами модулів — лише коли розміри вказано для всіх
+function modulesArea(rows) {
+  if (!rows.length || !rows.every(validSize)) return null;
+  return round2(rows.reduce((s, m) => s + parseFloat(m.w) * parseFloat(m.l), 0));
 }
 function fmtUah(n) {
   return Number(n || 0).toLocaleString("uk-UA", { maximumFractionDigits: 0 }) + " грн";
@@ -36,13 +53,27 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     extraCosts,
     templateFiles,
     templates,
+    currency,
+    exchangeRates,
     reload,
   } = useAppData();
 
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
   const [moduleCount, setModuleCount] = useState("");
+  // розміри модулів (ширина × довжина, м): за замовчуванням усі однакові — тоді в modRows один рядок на всіх
+  const [sameModules, setSameModules] = useState(true);
+  const [modRows, setModRows] = useState([]);
+  const [terraceRows, setTerraceRows] = useState([]);
   const [status, setStatus] = useState("draft");
+  // собівартість: з BOM або однією сумою за прайсом; ціна клієнту = собівартість × (1 + націнка) ÷ (1 − податок)
+  const [costMode, setCostMode] = useState("bom");
+  const [fixedCost, setFixedCost] = useState("");
+  const [fixedCur, setFixedCur] = useState("UAH");
+  const [fixedTouched, setFixedTouched] = useState(false);
+  const [markup, setMarkup] = useState("");
+  const [tax, setTax] = useState("");
+  const [costNote, setCostNote] = useState("");
   const [selectedCats, setSelectedCats] = useState([]);
   const [bomRows, setBomRows] = useState([emptyBomRow()]);
   const [extraRows, setExtraRows] = useState([]);
@@ -77,8 +108,24 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     setTemplateId(template ? template.id : null);
     setName(template ? template.name : "");
     setArea(template ? template.area_m2 : "");
-    setModuleCount(template ? template.module_count ?? "" : "");
+    const mods = Array.isArray(template?.modules) ? template.modules.map((m) => ({ w: String(m.w ?? ""), l: String(m.l ?? "") })) : [];
+    const same = mods.every((m) => m.w === mods[0].w && m.l === mods[0].l);
+    setModuleCount(template ? template.module_count ?? (mods.length || "") : "");
+    setSameModules(same);
+    setModRows(same ? mods.slice(0, 1) : mods);
+    setTerraceRows(
+      Array.isArray(template?.terraces)
+        ? template.terraces.map((t) => ({ ...emptyTerrace(), name: t.name || "", area: t.area != null ? String(t.area) : "" }))
+        : []
+    );
     setStatus(template ? template.status : "draft");
+    setCostMode(template?.cost_mode || "bom");
+    setFixedCur(currency);
+    setFixedCost(template?.fixed_cost != null ? toInput(convert(template.fixed_cost, currency, exchangeRates)) : "");
+    setFixedTouched(false);
+    setMarkup(template && Number(template.markup_percent) ? String(Number(template.markup_percent)) : "");
+    setTax(template && Number(template.tax_percent) ? String(Number(template.tax_percent)) : "");
+    setCostNote(template?.cost_note || "");
     setSelectedCats(
       template ? productCategoryLinks.filter((l) => l.template_id === template.id).map((l) => l.category_id) : []
     );
@@ -170,6 +217,70 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     return sum + qty * (price || 0);
   }, 0);
   const extraTotal = extraRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+  // Сума «за прайсом» зберігається в гривні. Поки поле не чіпали — лишаємо збережене значення,
+  // щоб перегляд у доларах не зсував його на копійки через округлення.
+  const fixedRate = Number(exchangeRates.find((r) => r.code === fixedCur)?.rate_to_uah) || 1;
+  const fixedUah =
+    fixedCost === "" || Number.isNaN(parseFloat(fixedCost))
+      ? null
+      : !fixedTouched && template?.fixed_cost != null
+        ? Number(template.fixed_cost)
+        : Math.round(parseFloat(fixedCost) * fixedRate * 100) / 100;
+  const markupNum = Math.max(0, parseFloat(markup) || 0);
+  const taxNum = Math.max(0, parseFloat(tax) || 0);
+  const costUah = costMode === "fixed" ? fixedUah || 0 : bomTotal + extraTotal;
+  const priceUah = priceFromCost(costUah, markupNum, taxNum);
+  const areaForPrice = parseFloat(area) || 0;
+  const money = (uah) => fmtCurrency(uah, currency, exchangeRates, false);
+
+  const modCount = Math.min(MAX_MODULES, Math.max(0, parseInt(moduleCount, 10) || 0));
+  const firstMod = modRows[0] || { w: "", l: "" };
+  const modList = Array.from({ length: modCount }, (_, i) => (sameModules ? firstMod : modRows[i] || firstMod));
+  const houseByModules = modulesArea(modList);
+  const terraceTotal = round2(terraceRows.reduce((s, t) => s + (parseFloat(t.area) || 0), 0));
+
+  // Кількість або розміри модулів змінились — площа будинку підлаштовується під них (далі її можна поправити вручну).
+  function setModules(count, same, rows) {
+    const n = Math.min(MAX_MODULES, Math.max(0, parseInt(count, 10) || 0));
+    const first = rows[0] || { w: "", l: "" };
+    const list = Array.from({ length: n }, (_, i) => (same ? first : rows[i] || first));
+    setModuleCount(count);
+    setSameModules(same);
+    setModRows(same ? (rows.length ? [first] : []) : list);
+    const a = modulesArea(list);
+    if (a != null) setArea(String(a));
+  }
+  function editModule(i, patch) {
+    if (sameModules) setModules(moduleCount, true, [{ ...firstMod, ...patch }]);
+    else setModules(moduleCount, false, modList.map((m, j) => (j === i ? { ...m, ...patch } : m)));
+  }
+  function editTerrace(key, patch) {
+    setTerraceRows((prev) => prev.map((t) => (t.key === key ? { ...t, ...patch } : t)));
+  }
+  function sizePayload() {
+    return {
+      module_count: modCount || null,
+      modules: modList.every(validSize) ? modList.map((m) => ({ w: parseFloat(m.w), l: parseFloat(m.l) })) : [],
+      terraces: terraceRows
+        .filter((t) => parseFloat(t.area) > 0)
+        .map((t) => ({ name: t.name.trim() || "Тераса", area: parseFloat(t.area) })),
+    };
+  }
+
+  function changeFixedCur(code) {
+    setFixedCur(code);
+    if (!fixedTouched && template?.fixed_cost != null) setFixedCost(toInput(convert(template.fixed_cost, code, exchangeRates)));
+  }
+  function pricingPayload() {
+    return {
+      cost_mode: costMode,
+      fixed_cost: fixedUah,
+      markup_percent: markupNum,
+      tax_percent: taxNum,
+      cost_note: costNote.trim() || null,
+    };
+  }
 
   async function createMaterial(text) {
     const unit = (window.prompt(`Одиниця виміру для «${text}» (шт, м², м³, компл...)`, "шт") || "шт").trim() || "шт";
@@ -271,13 +382,18 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       setError("Заповни назву, площу і хоча б одну категорію.");
       return;
     }
+    if (taxNum >= 100) {
+      setError("Податок має бути меншим за 100%.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         name: name.trim(),
         area_m2: areaNum,
         status,
-        module_count: moduleCount === "" ? null : parseInt(moduleCount, 10),
+        ...sizePayload(),
+        ...pricingPayload(),
       };
       let id = templateId;
       if (id) {
@@ -338,7 +454,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         .insert([{
           name: `${name.trim()} (копія)`,
           area_m2: areaNum,
-          module_count: moduleCount === "" ? null : parseInt(moduleCount, 10),
+          ...sizePayload(),
+          ...pricingPayload(),
           status: "draft",
           sort_order: nextSortOrder,
         }])
@@ -390,7 +507,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         </div>
 
         <details className="section-details" open={!templateId}>
-          <summary>Параметри шаблону <span className="section-count">— категорії, фото, площа, кількість модулів, статус</span></summary>
+          <summary>Параметри шаблону <span className="section-count">— категорії, фото, статус</span></summary>
           <div className="section-body">
             <div className="form-row">
               <label>Категорії (можна декілька — напр. Дача + Кемпінг)</label>
@@ -475,16 +592,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
             </div>
 
             <div className="form-row">
-              <label>Площа, м²</label>
-              <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
-            </div>
-
-            <div className="form-row">
-              <label>Кількість модулів</label>
-              <input type="number" step="1" min="1" value={moduleCount} onChange={(e) => setModuleCount(e.target.value)} placeholder="напр. 2" />
-            </div>
-
-            <div className="form-row">
               <label>Статус</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="draft">Чернетка</option>
@@ -492,6 +599,144 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
                 <option value="archived">Архів</option>
               </select>
             </div>
+          </div>
+        </details>
+
+        <details className="section-details" open>
+          <summary>
+            Площа, модулі й тераси
+            <span className="section-count">
+              {" "}— будинок {parseFloat(area) || "—"} м²{terraceTotal ? ` + тераси ${terraceTotal} м² = ${round2((parseFloat(area) || 0) + terraceTotal)} м²` : ""}
+            </span>
+          </summary>
+          <div className="section-body">
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Кількість модулів</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  max={MAX_MODULES}
+                  value={moduleCount}
+                  onChange={(e) => setModules(e.target.value, sameModules, sameModules ? modRows : modList)}
+                  placeholder="напр. 2"
+                />
+              </div>
+              <div className="form-row">
+                <label>Площа будинку, м²</label>
+                <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
+              </div>
+            </div>
+
+            {modCount > 0 && (
+              <div className="form-row">
+                <label>Розміри модулів, м (ширина × довжина)</label>
+                {(sameModules ? [firstMod] : modList).map((m, i) => (
+                  <div className="size-row" key={i}>
+                    <span className="size-row__name">{sameModules ? (modCount > 1 ? `Кожен із ${modCount}` : "Модуль") : `Модуль ${i + 1}`}</span>
+                    <input type="number" min="0" step="0.05" value={m.w} placeholder="3" aria-label="Ширина, м" onChange={(e) => editModule(i, { w: e.target.value })} />
+                    <span>×</span>
+                    <input type="number" min="0" step="0.05" value={m.l} placeholder="6.5" aria-label="Довжина, м" onChange={(e) => editModule(i, { l: e.target.value })} />
+                    <span className="size-row__area">{validSize(m) ? `${round2(parseFloat(m.w) * parseFloat(m.l))} м²` : ""}</span>
+                  </div>
+                ))}
+                {modCount > 1 && (
+                  <label className="tag-check self-left">
+                    <input type="checkbox" checked={sameModules} onChange={(e) => setModules(moduleCount, e.target.checked, e.target.checked ? [firstMod] : modList)} />
+                    усі модулі однакові
+                  </label>
+                )}
+                {houseByModules != null && Math.abs(houseByModules - (parseFloat(area) || 0)) > 0.01 && (
+                  <span className="note">
+                    За розмірами модулів виходить {houseByModules} м².{" "}
+                    <button type="button" className="btn small" onClick={() => setArea(String(houseByModules))}>Підставити</button>
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="form-row">
+              <label>Тераси</label>
+              {terraceRows.map((t) => (
+                <div className="size-row" key={t.key}>
+                  <input className="size-row__label" type="text" value={t.name} placeholder="Тераса" aria-label="Назва тераси" onChange={(e) => editTerrace(t.key, { name: e.target.value })} />
+                  <input type="number" min="0" step="0.1" value={t.area} placeholder="0" aria-label="Площа тераси, м²" onChange={(e) => editTerrace(t.key, { area: e.target.value })} />
+                  <span>м²</span>
+                  <span className="icon-x" title="Прибрати терасу" onClick={() => setTerraceRows((prev) => prev.filter((x) => x.key !== t.key))}>×</span>
+                </div>
+              ))}
+              <button type="button" className="btn small self-left" onClick={() => setTerraceRows((prev) => [...prev, emptyTerrace()])}>+ Додати терасу</button>
+            </div>
+
+            <div className="price-summary">
+              <div className="row"><span>Будинок</span><span>{parseFloat(area) ? `${round2(parseFloat(area))} м²` : "—"}</span></div>
+              <div className="row"><span>Тераси{terraceRows.length > 1 ? ` (${terraceRows.length})` : ""}</span><span>{terraceTotal} м²</span></div>
+              <div className="row price-summary__total"><span>Будинок + тераси</span><span>{round2((parseFloat(area) || 0) + terraceTotal)} м²</span></div>
+            </div>
+          </div>
+        </details>
+
+        <details className="section-details" open>
+          <summary>
+            Собівартість і ціна
+            <span className="section-count"> — {costUah > 0 ? `${money(costUah)} → ${money(priceUah)}` : "ще не пораховано"}</span>
+          </summary>
+          <div className="section-body">
+            <div className="form-row">
+              <label>Звідки собівартість</label>
+              <select value={costMode} onChange={(e) => setCostMode(e.target.value)}>
+                <option value="bom">З матеріалів і робіт (списки нижче)</option>
+                <option value="fixed">Одна сума за прайсом</option>
+              </select>
+            </div>
+            {costMode === "fixed" && (
+              <>
+                <div className="form-row">
+                  <label>Собівартість будинку</label>
+                  <div className="price-cost-row">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={fixedCost}
+                      onChange={(e) => { setFixedCost(e.target.value); setFixedTouched(true); }}
+                      placeholder="напр. 25700"
+                    />
+                    <select value={fixedCur} onChange={(e) => changeFixedCur(e.target.value)} aria-label="Валюта собівартості">
+                      {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.symbol}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label>Звідки цифра</label>
+                  <input type="text" value={costNote} onChange={(e) => setCostNote(e.target.value)} placeholder="напр. Прайс 14.09.2026, 2 модулі 3 × 6,5" />
+                </div>
+              </>
+            )}
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Націнка, %</label>
+                <input type="number" min="0" step="1" value={markup} onChange={(e) => setMarkup(e.target.value)} placeholder="0" />
+              </div>
+              <div className="form-row">
+                <label>Податок, %</label>
+                <input type="number" min="0" max="99" step="0.5" value={tax} onChange={(e) => setTax(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+            {costUah > 0 ? (
+              <div className="price-summary">
+                <div className="row"><span>Собівартість</span><span>{money(costUah)}{areaForPrice ? ` · ${money(costUah / areaForPrice)}/м²` : ""}</span></div>
+                <div className="row"><span>Прибуток{markupNum ? ` (націнка ${markupNum}% = маржа ${Math.round(marginFromMarkup(markupNum))}%)` : ""}</span><span>{money((costUah * markupNum) / 100)}</span></div>
+                <div className="row"><span>Податок{taxNum ? ` (${taxNum}% від ціни)` : ""}</span><span>{money((priceUah * taxNum) / 100)}</span></div>
+                <div className="row price-summary__total"><span>Ціна клієнту</span><span>{money(priceUah)}{areaForPrice ? ` · ${money(priceUah / areaForPrice)}/м²` : ""}</span></div>
+              </div>
+            ) : (
+              <span className="note">{costMode === "fixed" ? "Вкажи собівартість — ціна порахується сама." : "Заповни матеріали й роботи нижче — ціна порахується сама."}</span>
+            )}
+            {costMode === "fixed" && bomTotal + extraTotal > 0 && (
+              <span className="note">Матеріали й роботи нижче ({fmtUah(bomTotal + extraTotal)}) збережені, але в ціну зараз не входять — ціна рахується від суми за прайсом.</span>
+            )}
           </div>
         </details>
 
