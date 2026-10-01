@@ -42,6 +42,7 @@ export const MENU = [
       { id: "suppliers", label: "Постачальники й контакти" },
       { id: "materials", label: "Товари й матеріали" },
       { id: "price", label: "Ціни постачальників" },
+      { id: "market", label: "Ринкові ціни (сайти)" },
       { id: "material-categories", label: "Категорії матеріалів" },
     ],
   },
