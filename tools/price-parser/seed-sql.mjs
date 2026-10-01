@@ -22,8 +22,9 @@ out.push(
 out.push("\n-- магазини");
 const stores = [
   ...Object.entries(SITES).map(([key, s]) => ({ key, name: s.name, website: s.website, enabled: true, status: null })),
-  { key: "leroymerlin", name: "Leroy Merlin", website: "https://www.leroymerlin.ua/", enabled: false, status: "сайт блокує автоматичний обхід — ціни вносимо вручну" },
-  { key: "angio", name: "Angio", website: "https://angio.com.ua/", enabled: false, status: "сайт блокує автоматичний обхід — ціни вносимо вручну" },
+  // обидва сайти не пускають програми; захист не обходимо — ціни вручну або з прайсу від магазину
+  { key: "leroymerlin", name: "Leroy Merlin", website: "https://www.leroymerlin.ua/", enabled: false, status: "Сайт захищено від автоматичного збору даних (DataDome): справжньому браузеру показує капчу після кількох сторінок. Ціни — вручну або з прайсу від магазину." },
+  { key: "angio", name: "Angio", website: "https://angio.com.ua/", enabled: false, status: "Сайт не пускає програми (перевірка Cloudflare «чи ви людина»). Ціни — вручну або з прайсу від магазину." },
 ];
 out.push(
   `insert into public.suppliers (name, region, website, parser_key, parser_enabled, parse_status, notes)\nselect v.name, 'Київ', v.website, v.key, v.enabled, v.status, 'Інтернет-магазин будматеріалів. Ціни оновлює парсер раз на день.'\nfrom (values\n${stores.map((s) => `  (${q(s.name)}, ${q(s.website)}, ${q(s.key)}, ${s.enabled}, ${q(s.status)})`).join(",\n")}\n) as v(name, website, key, enabled, status)\nwhere not exists (select 1 from public.suppliers s where s.parser_key = v.key);`
