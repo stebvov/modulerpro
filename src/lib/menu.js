@@ -35,7 +35,7 @@ export const MENU = [
   },
   {
     key: "production", label: "🏭 Виробництво", need: "mp",
-    tabs: [{ id: "production", label: "Виробництво" }, { id: "services", label: "Відвантаження і монтаж (дод. послуги)" }],
+    tabs: [{ id: "production", label: "Виробництво" }, { id: "services", label: "Відвантаження і монтаж (дод. послуги)" }, { id: "work-rates", label: "Розцінки на роботи" }],
   },
   {
     key: "suppliers", label: "🏪 Постачальники", need: "mp",

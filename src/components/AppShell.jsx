@@ -27,6 +27,7 @@ import SuppliersScreen from "@/components/screens/SuppliersScreen";
 import CategoriesScreen from "@/components/screens/CategoriesScreen";
 import PriceScreen from "@/components/screens/PriceScreen";
 import MarketPricesScreen from "@/components/screens/MarketPricesScreen";
+import WorkRatesScreen from "@/components/screens/WorkRatesScreen";
 import ServicesCatalogScreen from "@/components/screens/ServicesCatalogScreen";
 import ServiceTemplatesScreen from "@/components/screens/ServiceTemplatesScreen";
 import UsersScreen from "@/components/screens/UsersScreen";
@@ -61,6 +62,7 @@ const SCREENS = {
   categories: () => <CategoriesScreen />,
   price: () => <PriceScreen />,
   market: () => <MarketPricesScreen />,
+  "work-rates": () => <WorkRatesScreen />,
   "catalog-services": () => <ServicesCatalogScreen />,
   "service-templates": () => <ServiceTemplatesScreen />,
   packages: () => <PackagesScreen />,
