@@ -26,7 +26,7 @@ function utm() {
   try { return sessionStorage.getItem("moduler_utm") || ""; } catch { return ""; }
 }
 
-export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel, hint, noArea, goalOptions, goalLabel }) {
+export default function LeadForm({ settings = {}, goal, model, calc, compact, submitLabel, hint, noArea, goalOptions, goalLabel, pipeline }) {
   const lead = settings.lead || {};
   // варіанти «Що плануєте»: свої для цієї форми (блок) → з налаштувань сайту → стандартні
   const baseGoals = goalOptions?.filter(Boolean).length ? goalOptions.filter(Boolean) : lead.goals?.length ? lead.goals : DEFAULT_GOALS;
@@ -45,7 +45,7 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
     if (!String(p.name || "").trim()) { e.currentTarget.name.focus(); return; }
     if (String(p.phone || "").replace(/\D/g, "").length < 9) { setErr("Перевірте номер телефону"); e.currentTarget.phone.focus(); return; }
     setState("sending"); setErr("");
-    const fields = { ...p, contact_via: via, model: model || "", calc: calc || "", page: location.pathname, utm: utm() };
+    const fields = { ...p, contact_via: via, model: model || "", calc: calc || "", page: location.pathname, utm: utm(), ...(pipeline ? { pipeline } : {}) }; // pipeline — воронка CRM, якщо її задано в блоці форми
     let meta = null;
     try { meta = await visitorMeta({ formStartedAt: startedAt.current, form: { kind: compact ? "коротка" : "повна", model: model || undefined, calc: calc || undefined } }); } catch { /* без деталей теж приймаємо */ }
     // основний шлях — через сервер сайту (додає країну, місто, пристрій); якщо він недоступний — напряму в базу, як раніше
@@ -113,7 +113,7 @@ export default function LeadForm({ settings = {}, goal, model, calc, compact, su
         {state === "sending" ? "Надсилаємо…" : submitLabel || lead.button || "Надіслати заявку"}
       </button>
       <p className="s-form__note">
-        {lead.note || "Без тиску й завчених скриптів. Натискаючи кнопку, ви погоджуєтесь на обробку контактних даних."}
+        {lead.note || "Без тиску й завчених скриптів. Натискаючи кнопку, ви погоджуєтесь на обробку контактних даних і технічних даних візиту (країна, пристрій, джерело переходу)."}
         {phone && <> Або зателефонуйте: <a href={phoneHref(phone)}>{settings.contacts.phone_display || phone}</a></>}
       </p>
     </form>

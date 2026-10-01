@@ -450,7 +450,7 @@ const RENDER = {
   lead_form: ({ b, ctx }) => (
     <Section b={b} className="s-formsec">
       <Head b={b} center />
-      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} goalOptions={b.goals} goalLabel={b.goal_label} />
+      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} goalOptions={b.goals} goalLabel={b.goal_label} pipeline={b.pipeline} />
     </Section>
   ),
 };

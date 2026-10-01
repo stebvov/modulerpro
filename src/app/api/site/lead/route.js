@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildLeadMeta } from "@/lib/site/leadMeta";
 
-const FIELDS = ["name", "phone", "company", "contact_via", "goal", "area", "message", "model", "calc", "page", "utm", "region", "budget"];
+const FIELDS = ["name", "phone", "company", "contact_via", "goal", "area", "message", "model", "calc", "page", "utm", "region", "budget", "pipeline"];
 
 function dec(v) {
   if (!v) return "";
