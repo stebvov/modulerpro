@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       site:
-        description: "Лише ці магазини (через кому): epicentr, oldi, budia, kub, budmaterial, m2. Порожньо — усі"
+        description: "Лише ці магазини (через кому). Порожньо — epicentr, budia, kub, budmaterial"
         required: false
 
 concurrency:
@@ -30,7 +30,9 @@ jobs:
         with:
           node-version: 22
 
+      # ОЛДІ та М2 відповідають 403 на запити з дата-центрів (Cloudflare) — їх обходимо з комп'ютера в Україні:
+      #   node tools/price-parser/run.mjs --site=oldi,m2
       - name: Run parser
         env:
-          SITE: ${{ inputs.site }}
-        run: node tools/price-parser/run.mjs ${SITE:+--site=$SITE}
+          SITE: ${{ inputs.site || 'epicentr,budia,kub,budmaterial' }}
+        run: node tools/price-parser/run.mjs --site=$SITE
