@@ -432,7 +432,7 @@ const RENDER = {
   gallery: ({ b }) => (
     <Section b={b}>
       <Head b={b} />
-      <Gallery images={b.images || []} title={b.title} />
+      <Gallery images={b.images || []} title={b.title} layout={b.layout === "plans" ? "plans" : "grid"} />
     </Section>
   ),
   video: ({ b }) => {
