@@ -79,7 +79,7 @@ export const BLOCKS = {
     label: "Переваги / картки з іконками", icon: "✨",
     fields: [eyebrow, title, lead, { key: "items", label: "Картки", type: "list", item: "Перевага", fields: [
       { key: "icon", label: "Емодзі", type: "text" }, { key: "title", label: "Назва", type: "text" }, { key: "text", label: "Опис", type: "textarea" },
-    ] }, { key: "columns", label: "Колонок", type: "select", options: [["3", "3"], ["2", "2"], ["4", "4"]] }],
+    ] }, { key: "columns", label: "Колонок", type: "select", options: [["3", "3"], ["2", "2"], ["4", "4"]] }, cta("cta", "Кнопка під картками")],
     defaults: { theme: "light", columns: "3", items: [] },
   },
   cases: {

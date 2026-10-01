@@ -148,7 +148,7 @@ function Tiers({ b }) {
   );
 }
 
-function Features({ b }) {
+function Features({ b, ctx }) {
   return (
     <Section b={b}>
       <Head b={b} />
@@ -161,6 +161,7 @@ function Features({ b }) {
           </div>
         ))}
       </div>
+      {b.cta?.label && <div className="s-actions s-actions--center"><Btn link={b.cta} base={ctx.base} /></div>}
     </Section>
   );
 }
