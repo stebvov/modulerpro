@@ -1,7 +1,7 @@
 // Ядро парсера: обхід категорій магазину, зіставлення з матеріалами, запис через rpc.
 // Викликається з командного рядка (run.mjs) і з сервера (src/app/api/price-parser/run).
 
-import { SITES } from "./sites.mjs";
+import { SITES, genericListing } from "./sites.mjs";
 import { getHtml, text } from "./lib.mjs";
 import { match, pageFacts } from "./normalize.mjs";
 
@@ -92,7 +92,7 @@ export async function matchSite(site, items, materials, known, { enrichLimit = 8
   const need = [];
   for (const m of materials) {
     for (const it of items.values()) {
-      if (!m.rule.groups?.some((g) => it.grps.has(g))) continue;
+      if (!it.grps.has("*") && !m.rule.groups?.some((g) => it.grps.has(g))) continue; // «*» — сторінка, надіслана людиною: група невідома
       const cached = known.get(`${site}|${it.url}`);
       const page = cached && cached.title === it.title ? cached.attrs?.page : undefined;
       const r = match(it, m.rule, page);
@@ -159,4 +159,29 @@ export async function runSite({ site, cfg, rpc, token, runId = null, dry = false
     if (!dry) await rpc("price_parser_ingest", { p_token: token, p: { run_id: runId, site, ok: false, error: e.message, offers: [], sources: [] } }).catch(() => {});
     return { site, stats: [], offers: [], ok: false, error: e.message, pages: 0, items: 0 };
   }
+}
+
+// Сторінка магазину, яку людина надіслала зі свого браузера (сайт не пускає програми): розбираємо товари,
+// шукаємо серед них позиції за всіма правилами й записуємо. Сторінок товарів не відкриваємо, «зниклими» нічого не позначаємо —
+// пропозиції, яких не бачили понад staleDays днів, база сама вважає неактуальними.
+export async function capturePage({ site, url, html, cfg, rpc, token, staleDays = 60 }) {
+  const adapter = SITES[site];
+  let found = adapter ? adapter.listing(html, url).items : [];
+  if (!found.length) found = genericListing(html, url).items;
+  const items = new Map();
+  for (const it of found) {
+    if (it.url && it.price > 0 && !items.has(it.url)) items.set(it.url, { ...it, lumberDefault: adapter?.lumberDefault, grps: new Set(["*"]) });
+  }
+  const materials = cfg.materials.filter((m) => m.rule);
+  const known = new Map((cfg.known || []).map((k) => [`${k.site}|${k.url}`, k]));
+  const offers = await matchSite(site, items, materials, known, { enrichLimit: 0 });
+  if (!items.size) return { items: 0, offers, saved: null };
+
+  const bare = (u) => u.split(/[?#]/)[0].replace(/\/$/, "");
+  const src = cfg.sources.find((s) => s.site === site && bare(s.url) === bare(url));
+  const saved = await rpc("price_parser_ingest", {
+    p_token: token,
+    p: { site, ok: true, pages: 1, items: items.size, offers, stale_days: staleDays, sources: src ? [{ id: src.id, items: items.size, error: null }] : [] },
+  });
+  return { items: items.size, offers, saved };
 }

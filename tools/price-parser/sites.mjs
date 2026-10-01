@@ -198,4 +198,77 @@ export const SITES = {
       return { items };
     },
   },
+
+  // ── Leroy Merlin: сайт не пускає програми, тож сам парсер його не обходить. Сторінки надсилає людина
+  //    зі свого браузера (кнопка «Ціни в Модулер», /capture). Класи в розмітці хешовані — ціну беремо з тексту картки:
+  //    «1 501 .00 грн / уп - 15 % 1 275 .00 грн / уп» → остання ціна. ──
+  leroymerlin: {
+    name: "Leroy Merlin",
+    website: "https://www.leroymerlin.ua/",
+    lumberDefault: "planed",
+    pageUrl: (base, n) => withParam(base, "page", n),
+    listing(html, pageUrl) {
+      const items = [];
+      for (const c of cards(html, 'data-testid="product-card"')) {
+        const tag = first(/(<a\b[^>]*data-testid="product-title"[^>]*>)/, c);
+        const href = tag && first(/href="([^"]+)"/, tag);
+        const title = tag && (first(/title="([^"]*)"/, tag) || first(/data-testid="product-title"[^>]*>\s*(?:<p>)?([^<]+)/, c));
+        const t = text(c.split('data-testid="add-to-cart"')[0]);
+        const prices = [...t.matchAll(/(\d[\d\s]*?)\s*([.,]\d{2})?\s*грн\s*\/\s*([а-яіїєa-z.²³0-9]+)/gi)];
+        const p = prices.pop();
+        if (!href || !title || !p) continue;
+        const price = num(p[1].replace(/\s/g, "") + (p[2] || ""));
+        if (price == null) continue;
+        items.push({
+          title: decode(title).trim(),
+          url: abs(href, pageUrl),
+          price,
+          unit: /^од/i.test(p[3]) ? "шт" : p[3],
+          inStock: /Готовий до відправлення|в наявності/i.test(t) && !/немає в наявності/i.test(t) ? true : /немає|недоступн|очікується/i.test(t) ? false : null,
+          extId: first(/Код\D{0,12}(\d{6,})/, t),
+          props: {},
+        });
+      }
+      return { items };
+    },
+  },
 };
+
+// Сайт без власного адаптера (напр. Angio): беремо товари з того, що сторінка сама розповідає пошуковикам —
+// JSON-LD (Product, ItemList) або мікродані schema.org. Нічого не знайшлось — сторінку зберігаємо як зразок для адаптера.
+export function genericListing(html, pageUrl) {
+  const items = [];
+  const seen = new Set();
+  const add = (title, url, price, avail) => {
+    const p = num(price);
+    const u = abs(url || pageUrl, pageUrl);
+    if (!title || p == null || !(p > 0) || !u || seen.has(u)) return;
+    seen.add(u);
+    items.push({
+      title: decode(String(title)).trim(), url: u, price: p, unit: null, props: {},
+      inStock: /InStock/i.test(avail || "") ? true : /OutOfStock|SoldOut/i.test(avail || "") ? false : null,
+    });
+  };
+  const walk = (o) => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o)) return o.forEach(walk);
+    const type = [].concat(o["@type"] || []).join(" ");
+    if (/Product/.test(type) && o.offers) {
+      const offer = Array.isArray(o.offers) ? o.offers[0] : o.offers;
+      add(o.name, o.url || offer?.url, offer?.price ?? offer?.lowPrice, offer?.availability);
+    }
+    walk(o["@graph"]);
+    walk(o.itemListElement);
+    walk(o.item);
+  };
+  walk(jsonLd(html));
+  if (!items.length) {
+    for (const c of cards(html, /itemtype="https?:\/\/schema\.org\/Product"/i)) {
+      const name = first(/itemprop="name"[^>]*content="([^"]+)"/, c) || first(/itemprop="name"[^>]*>\s*(?:<[^>]+>\s*)*([^<]+)/, c);
+      const price = first(/itemprop="price"[^>]*content="([\d.,\s]+)"/, c) || first(/itemprop="price"[^>]*>\s*([\d.,\s]+)/, c);
+      const url = first(/itemprop="url"[^>]*(?:href|content)="([^"]+)"/, c) || first(/<a\b[^>]*href="([^"#]+)"/, c);
+      add(name, url, price, first(/itemprop="availability"[^>]*(?:href|content)="([^"]+)"/, c));
+    }
+  }
+  return { items };
+}

@@ -43,6 +43,8 @@ export default function MarketPricesScreen() {
 
   const stores = useMemo(() => suppliers.filter((s) => s.parser_key).sort((a, b) => Number(b.parser_enabled) - Number(a.parser_enabled) || a.name.localeCompare(b.name, "uk")), [suppliers]);
   const activeStores = stores.filter((s) => s.parser_enabled);
+  // колонки: магазини, які обходить парсер, і ті, де вже є ціни — надіслані з браузера чи внесені вручну
+  const columnStores = stores.filter((s) => s.parser_enabled || supplierPrices.some((p) => p.supplier_id === s.id));
   const groups = useMemo(() => [...new Set(sources.map((s) => s.grp))].sort(), [sources]);
 
   const loadMeta = useCallback(async () => {
@@ -125,7 +127,7 @@ export default function MarketPricesScreen() {
     return <div className="empty">Парсер цін ще не підключено до бази: немає магазинів із сайтами. Після підключення тут зʼявляться ціни з сайтів будматеріалів.</div>;
   }
 
-  const cols = 4 + activeStores.length;
+  const cols = 4 + columnStores.length;
 
   return (
     <div>
@@ -135,15 +137,17 @@ export default function MarketPricesScreen() {
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
         {stores.map((s) => {
-          const bad = !s.parser_enabled || (s.parse_status && s.parse_status !== "ok") || (s.parsed_at && daysAgo(s.parsed_at) > 2);
+          // магазин «з браузера»: програм сайт не пускає, сторінки надсилає людина — свіжим вважаємо місяць
+          const byHand = !s.parser_enabled;
+          const bad = byHand ? !s.parsed_at || daysAgo(s.parsed_at) > 30 : (s.parse_status && s.parse_status !== "ok") || (s.parsed_at && daysAgo(s.parsed_at) > 2);
           const isRunning = running[s.parser_key];
           return (
             <span key={s.id} className="tag-check" style={{ cursor: "default" }}
-              title={!s.parser_enabled ? s.parse_status || "обхід вимкнено" : s.parser_local ? "Сайт не пускає запити із сервера — ціни оновлюються лише з комп'ютера в Україні" : s.parse_status && s.parse_status !== "ok" ? s.parse_status : undefined}>
+              title={byHand ? "Сайт не пускає програми. Ціни — зі сторінок, надісланих кнопкою «З браузера», або внесені вручну в «Цінах постачальників»" : s.parser_local ? "Сайт не пускає запити із сервера — ціни оновлюються лише з комп'ютера в Україні" : s.parse_status && s.parse_status !== "ok" ? s.parse_status : undefined}>
               <span className={bad ? "stale" : "fresh"}>●</span>
               <a href={s.website} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{s.name}</a>
               <span className="note" style={{ marginTop: 0 }}>
-                {isRunning ? "оновлюється…" : !s.parser_enabled ? "вручну" : `${s.parser_local ? "з комп'ютера · " : ""}${s.parsed_at ? ago(s.parsed_at) : "ще не обходили"}`}
+                {isRunning ? "оновлюється…" : byHand ? (s.parsed_at ? `з браузера · ${ago(s.parsed_at)}` : "вручну") : `${s.parser_local ? "з комп'ютера · " : ""}${s.parsed_at ? ago(s.parsed_at) : "ще не обходили"}`}
               </span>
               {canWriteCatalog && s.parser_enabled && !s.parser_local && (
                 <button className="btn small" disabled={isRunning} title="Оновити ціни цього магазину зараз" onClick={() => refresh([s])}>↻</button>
@@ -167,6 +171,7 @@ export default function MarketPricesScreen() {
               {anyRunning ? "Оновлюється…" : "↻ Оновити ціни"}
             </button>
           )}
+          <a className="btn" href="/capture" target="_blank" rel="noopener noreferrer" title="Магазини, чиї сайти не пускають програми: надіслати відкриту сторінку зі свого браузера">⇪ З браузера</a>
           <SettingsButton title="Джерела: сторінки магазинів, які обходить парсер" onClick={() => setSourcesOpen(true)} />
           {canWriteCatalog && <button className="btn primary" onClick={() => setRuleFor(null)}>+ Позиція</button>}
         </div>
@@ -184,14 +189,14 @@ export default function MarketPricesScreen() {
               <th>Матеріал</th>
               <th>Од.</th>
               <th>Найкраща ціна, грн</th>
-              {activeStores.map((s) => <th key={s.id}>{s.name}</th>)}
+              {columnStores.map((s) => <th key={s.id}>{s.name}</th>)}
               <th>Оновлено</th>
             </tr>
           </thead>
           <tbody>
             {!list.length && <tr><td colSpan={cols} className="empty">Нічого не знайдено</td></tr>}
             {list.map((m, idx) => {
-              const cells = activeStores.map((s) => priceOf(m.id, s.id));
+              const cells = columnStores.map((s) => priceOf(m.id, s.id));
               // найкраща — серед усіх постачальників, зокрема з ціною, внесеною вручну (вікна, двері)
               const found = supplierPrices.filter((p) => p.material_id === m.id);
               const best = found.length ? Math.min(...found.map((p) => Number(p.price))) : null;
@@ -216,7 +221,7 @@ export default function MarketPricesScreen() {
                       {best != null ? <><b>{fmtPrice(best)}</b> <span className="note">{bestStore?.name}</span></> : "—"}
                     </td>
                     {cells.map((p, i) => (
-                      <td key={activeStores[i].id} style={{ whiteSpace: "nowrap" }} className={p && isStale(p.updated_at) ? "stale" : undefined}
+                      <td key={columnStores[i].id} style={{ whiteSpace: "nowrap" }} className={p && isStale(p.updated_at) ? "stale" : undefined}
                         title={p ? `${p.note || ""}\nоновлено ${dateOnly(p.updated_at)}` : undefined}>
                         {p ? (Number(p.price) === best ? <b className="fresh">{fmtPrice(p.price)}</b> : fmtPrice(p.price)) : <span className="note">—</span>}
                       </td>
@@ -234,7 +239,7 @@ export default function MarketPricesScreen() {
                         {m.spec && <p className="note" style={{ marginTop: 0 }}>{m.spec}</p>}
                         <div className="seg-row" style={{ marginBottom: 8 }}>
                           <button className={`seg-btn${!storeFilter ? " active" : ""}`} onClick={() => setStoreFilter("")}>Усі магазини</button>
-                          {activeStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (
+                          {columnStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (
                             <button key={s.id} className={`seg-btn${storeFilter === s.id ? " active" : ""}`} onClick={() => setStoreFilter(s.id)}>{s.name}</button>
                           ))}
                           <label className="tag-check" style={{ marginLeft: "auto" }}>

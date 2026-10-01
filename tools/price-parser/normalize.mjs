@@ -71,10 +71,12 @@ function lumber(item, rule, t, page) {
   if ([a, b].sort((x, y) => x - y).join("x") !== [rule.a, rule.b].sort((x, y) => x - y).join("x")) return null;
 
   const kind = `${t} ${prep(item.props?.["вид"] || "")} ${prep(item.props?.["обробка"] || "")}`;
-  const stated = /струган|строган|калібр|калибр/.test(kind) ? "planed"
+  const unplaned = /не\s?струган|не\s?строган/.test(kind);
+  const stated = !unplaned && /струган|строган|калібр|калибр/.test(kind) ? "planed"
     : /сух|сушен|камерн/.test(kind) ? "dry"
     : /свіжопил|свежепил|свежий пил|природн\S* волог|естественн\S* влажн/.test(kind) ? "fresh" : null;
-  const type = stated || item.lumberDefault || "fresh"; // не сказано — як заведено в цього магазину
+  // не сказано — як заведено в цього магазину; «нестругана» в будмаркеті (де звичайно стругана) — суха нестругана
+  const type = stated || (unplaned && item.lumberDefault === "planed" ? "dry" : item.lumberDefault) || "fresh";
   if (rule.type && rule.type !== type) return null;
 
   let L = d?.[3] ? +d[3] : null; // мм

@@ -51,7 +51,7 @@ export default function PriceSourcesModal({ open, sources, stores, canWrite, onC
           return (
             <div key={s.id} style={{ marginBottom: 14 }}>
               <h4 style={{ margin: "10px 0 6px" }}>{s.name} <span className="note">· {rows.length} стор.</span></h4>
-              {!s.parser_enabled && <div className="note stale" style={{ marginTop: 0 }}>{s.parse_status || "обхід вимкнено"}</div>}
+              {!s.parser_enabled && <div className="note" style={{ marginTop: 0 }}>Сайт не пускає програми — ці сторінки надсилають вручну кнопкою «З браузера».</div>}
               {!!rows.length && (
                 <div className="table-scroll">
                   <table>
@@ -63,7 +63,7 @@ export default function PriceSourcesModal({ open, sources, stores, canWrite, onC
                           <td style={{ wordBreak: "break-all" }}><a href={r.url} target="_blank" rel="noreferrer">{decodeURI(r.url).replace(/^https?:\/\/[^/]+/, "")}</a></td>
                           <td>{r.last_items ?? "—"}</td>
                           <td className={r.last_error ? "stale" : "fresh"}>
-                            {r.last_error || (r.last_ok_at ? new Date(r.last_ok_at).toLocaleDateString("uk-UA") : "ще не обходили")}
+                            {r.last_error || (r.last_ok_at ? new Date(r.last_ok_at).toLocaleDateString("uk-UA") : s.parser_enabled ? "ще не обходили" : "ще не надсилали")}
                           </td>
                           <td style={{ whiteSpace: "nowrap" }}>
                             {canWrite && (
@@ -93,7 +93,7 @@ export default function PriceSourcesModal({ open, sources, stores, canWrite, onC
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <select value={form.supplierId} onChange={(e) => setForm((p) => ({ ...p, supplierId: e.target.value }))} style={{ width: 170 }}>
                 <option value="">магазин…</option>
-                {stores.filter((s) => s.parser_enabled).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <input list="price-source-groups" type="text" placeholder="група (обери або впиши нову)" value={form.grp} onChange={(e) => setForm((p) => ({ ...p, grp: e.target.value }))} style={{ width: 230 }} />
               <datalist id="price-source-groups">{groups.map((g) => <option key={g} value={g}>{groupLabel(g)}</option>)}</datalist>

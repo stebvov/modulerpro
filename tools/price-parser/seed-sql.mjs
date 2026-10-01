@@ -2,7 +2,7 @@
 // Повторний запуск безпечний: нічого не дублює, наявним матеріалам лише оновлює правило й опис.
 
 import { SITES } from "./sites.mjs";
-import { CATEGORIES, UNITS, MATERIALS, SOURCES, maxPages } from "./seed.mjs";
+import { CATEGORIES, UNITS, MATERIALS, SOURCES, CAPTURE_SOURCES, maxPages } from "./seed.mjs";
 
 const q = (s) => (s == null ? "null" : `'${String(s).replace(/'/g, "''")}'`);
 const out = [];
@@ -21,7 +21,7 @@ out.push(
 
 out.push("\n-- магазини");
 const stores = [
-  ...Object.entries(SITES).map(([key, s]) => ({ key, name: s.name, website: s.website, enabled: true, status: null })),
+  ...Object.entries(SITES).filter(([key]) => SOURCES[key]).map(([key, s]) => ({ key, name: s.name, website: s.website, enabled: true, status: null })),
   // обидва сайти не пускають програми; захист не обходимо — ціни вручну або з прайсу від магазину
   { key: "leroymerlin", name: "Leroy Merlin", website: "https://www.leroymerlin.ua/", enabled: false, status: "Сайт захищено від автоматичного збору даних (DataDome): справжньому браузеру показує капчу після кількох сторінок. Ціни — вручну або з прайсу від магазину." },
   { key: "angio", name: "Angio", website: "https://angio.com.ua/", enabled: false, status: "Сайт не пускає програми (перевірка Cloudflare «чи ви людина»). Ціни — вручну або з прайсу від магазину." },
@@ -43,6 +43,8 @@ out.push("\n-- джерела: сторінки категорій");
 const src = Object.entries(SOURCES).flatMap(([site, groups]) =>
   Object.entries(groups).flatMap(([grp, urls]) => urls.map((url) => `  (${q(site)}, ${q(grp)}, ${q(url)}, ${maxPages(site, grp, url)})`))
 );
+for (const [site, groups] of Object.entries(CAPTURE_SOURCES))
+  for (const [grp, urls] of Object.entries(groups)) for (const url of urls) src.push(`  (${q(site)}, ${q(grp)}, ${q(url)}, 1)`);
 out.push(
   `insert into public.price_sources (supplier_id, grp, url, max_pages)\nselect s.id, v.grp, v.url, v.max_pages\nfrom (values\n${src.join(",\n")}\n) as v(site, grp, url, max_pages)\njoin public.suppliers s on s.parser_key = v.site\non conflict (supplier_id, grp, url) do nothing;`
 );

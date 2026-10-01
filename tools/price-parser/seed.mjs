@@ -281,6 +281,46 @@ export const SOURCES = {
   },
 };
 
+// Магазини, чиї сайти не пускають програми: парсер їх не обходить, сторінки надсилає людина зі свого браузера (/capture).
+// Тут — які сторінки варто надсилати (адреси з відкритих карт сайтів).
+const lm = (slug) => `https://www.leroymerlin.ua/f/${slug}`;
+const an = (slug) => `https://angio.com.ua/ua/ishop/${slug}/`;
+export const CAPTURE_SOURCES = {
+  leroymerlin: {
+    lumber: [lm("doshky"), lm("brus-ta-reiky")],
+    wool: [lm("bazaltova-vata")],
+    membrane: [lm("superdyfuziina-membrana"), lm("paroizoliatsiini-plivky")],
+    tape: [lm("aliuminiieva-strichka"), lm("pokrivelni-strichky")],
+    osb: [lm("osb-plyty")],
+    plywood: [lm("fanera")],
+    drywall: [lm("gipsokarton")],
+    cladding: [lm("dereviana-vagonka")],
+    staples: [lm("skoby-ta-gvizdky-dlia-pnevmoinstrumentu")],
+    nails: [lm("tsviakhy")],
+    screws: [lm("shurupy")],
+    gloves: [lm("rukavychky")],
+    brush: [lm("penzli-maliarni")],
+    pencil: [lm("rozmitochni-instrumenty-olivtsi-markery-kreida")],
+    mesh: [lm("sitka-metaleva")],
+  },
+  angio: {
+    lumber: [an("doska_obreznaya"), an("brus")],
+    wool: [an("bazaltovaya_vata")],
+    membrane: [an("izoliacionnye_plenki")],
+    tape: [an("lenty-germetiki")],
+    osb: [an("osb")],
+    plywood: [an("fanera")],
+    drywall: [an("gipsokarton")],
+    cladding: [an("vagonka")],
+    geotextile: [an("geotekstil")],
+    nails: [an("gvozdi")],
+    screws: [an("shurupy")],
+    gloves: [an("perchatki")],
+    brush: [an("malyarnyy_instrument/kisti"), an("malyarnyy_instrument/maklovicy")],
+    mesh: [an("metallicheskaya_setka")],
+  },
+};
+
 // Скільки сторінок категорії проходити. Для дрібниці (рукавиці, пензлі, скоби) досить вибірки з перших сторінок:
 // там ціна серединна, а категорії у великих магазинах — на тисячі товарів.
 const GROUP_PAGES = { gloves: 3, brush: 3, staples: 3, nails: 4, screws: 4, pencil: 2, tape: 6, roof_pvc: 3, geotextile: 3 };
