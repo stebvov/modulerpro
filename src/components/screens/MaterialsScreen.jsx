@@ -1,41 +1,50 @@
 "use client";
 import SettingsButton from "@/components/SettingsButton";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { flattenCategoryOrder } from "@/lib/categoryOrder";
-import MultiSelectFilter from "@/components/MultiSelectFilter";
+import { useColumns } from "@/lib/useColumns";
+import ColHead, { ColReset } from "@/components/ColHead";
+import SearchFilter from "@/components/SearchFilter";
 import MaterialModal from "@/components/modals/MaterialModal";
 import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
 import UnitsPanel from "@/components/panels/UnitsPanel";
 
 export default function MaterialsScreen() {
-  const { materials, materialCategories, materialUnits } = useAppData();
+  const { materials, materialCategories } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState([]);
-  const [unitFilter, setUnitFilter] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [page, setPage] = useState(null); // null | "categories" | "units"
 
-  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name, icon: c.icon }));
-  const unitOptions = materialUnits.map((u) => ({ id: u.name, label: u.name }));
-  const catOrder = flattenCategoryOrder(materialCategories);
-
-  const list = materials
-    .filter(
-      (m) =>
-        (!search || m.name.toLowerCase().includes(search.toLowerCase())) &&
-        (!categoryFilter.length || categoryFilter.includes(m.category_id)) &&
-        (!unitFilter.length || unitFilter.includes(m.unit))
-    )
-    .sort((a, b) => {
-      const ca = catOrder.get(a.category_id) ?? 999999;
-      const cb = catOrder.get(b.category_id) ?? 999999;
-      return ca - cb || a.name.localeCompare(b.name, "uk");
-    });
+  // типовий порядок — як у дереві категорій, далі за назвою; сортування стовпчика його перекриває
+  const base = useMemo(() => {
+    const catOrder = flattenCategoryOrder(materialCategories);
+    const q = search.trim().toLowerCase();
+    return materials
+      .filter((m) => !q || `${m.name} ${m.spec || ""}`.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const ca = catOrder.get(a.category_id) ?? 999999;
+        const cb = catOrder.get(b.category_id) ?? 999999;
+        return ca - cb || a.name.localeCompare(b.name, "uk");
+      });
+  }, [materials, materialCategories, search]);
+  const cols = useMemo(() => {
+    const cat = (m) => materialCategories.find((c) => c.id === m.category_id);
+    return {
+      cat: { value: (m) => cat(m)?.name, text: (v) => { const c = materialCategories.find((x) => x.name === v); return c?.icon ? `${c.icon} ${v}` : v; } },
+      name: { value: (m) => m.name },
+      unit: { value: (m) => m.unit },
+    };
+  }, [materialCategories]);
+  const t = useColumns(base, cols);
+  const list = t.rows;
+  // нова позиція одразу в категорії, якщо у фільтрі вибрано рівно одну
+  const pickedCats = t.selected("cat");
+  const defaultCategoryId = pickedCats.length === 1 ? materialCategories.find((c) => c.name === pickedCats[0])?.id : undefined;
 
   function openModal(m) {
     if (!canWriteCatalog) return;
@@ -61,47 +70,21 @@ export default function MaterialsScreen() {
   return (
     <div>
       <div className="toolbar">
-        <div className="toolbar-left">
-          <span className="note" style={{ marginTop: 0 }}>Пошук і фільтри — у заголовках таблиці.</span>
+        <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару чи матеріалу…" />
+        <div className="toolbar-actions">
+          <ColReset t={t} />
+          {canWriteCatalog && (
+            <button className="btn primary" onClick={() => openModal(null)}>+ Новий матеріал</button>
+          )}
         </div>
-        {canWriteCatalog && (
-          <button className="btn primary" onClick={() => openModal(null)}>+ Новий матеріал</button>
-        )}
       </div>
       <div className="table-scroll">
       <table>
         <thead>
           <tr>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Категорія
-                <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
-                {canWriteCatalog && (
-                  <SettingsButton title="Категорії матеріалів" onClick={() => setPage("categories")} />
-                )}
-              </div>
-            </th>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Назва
-                <input
-                  type="text"
-                  className="th-search-input"
-                  placeholder="Пошук..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </th>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Одиниця
-                <MultiSelectFilter options={unitOptions} selected={unitFilter} onChange={setUnitFilter} label="Всі" />
-                {canWriteCatalog && (
-                  <SettingsButton title="Одиниці виміру" onClick={() => setPage("units")} />
-                )}
-              </div>
-            </th>
+            <ColHead t={t} k="cat" extra={canWriteCatalog && <SettingsButton title="Категорії матеріалів" onClick={() => setPage("categories")} />}>Категорія</ColHead>
+            <ColHead t={t} k="name">Назва</ColHead>
+            <ColHead t={t} k="unit" extra={canWriteCatalog && <SettingsButton title="Одиниці виміру" onClick={() => setPage("units")} />}>Одиниця</ColHead>
             <th></th>
           </tr>
         </thead>
@@ -134,7 +117,7 @@ export default function MaterialsScreen() {
       <MaterialModal
         open={modalOpen}
         material={editing}
-        defaultCategoryId={categoryFilter.length === 1 ? categoryFilter[0] : undefined}
+        defaultCategoryId={defaultCategoryId}
         onClose={() => setModalOpen(false)}
         onSaved={() => setModalOpen(false)}
       />

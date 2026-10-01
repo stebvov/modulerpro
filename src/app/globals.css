@@ -613,3 +613,20 @@ select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { mi
 .lsrc-more summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; margin-top: 3px; }
 .lsrc-more ol { margin: 4px 0 2px; padding-left: 20px; font-size: 12px; color: var(--text-secondary); }
 @media (max-width: 640px) { .lsrc-row { flex-direction: column; gap: 0; } .lsrc-l { flex: none; } }
+
+/* Заголовок стовпчика (ColHead): клік по назві — сортування, стрілка ▾ поруч — список значень із галочками */
+.col-head { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.col-sort { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.col-sort:hover, .col-sort.on { color: var(--accent); }
+.col-arrow { font-size: 9px; line-height: 1; }
+.col-arrow:empty { display: none; }
+.col-filter { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--border-strong); border-radius: var(--r-sm, 6px); background: var(--card); color: var(--text-secondary); font-size: 12px; line-height: 1; cursor: pointer; }
+.col-filter:hover, .col-filter[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.col-filter.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.col-n { position: absolute; top: -6px; right: -6px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--danger); color: #fff; font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
+.col-pop { min-width: 230px; max-width: 320px; max-height: 340px; }
+.col-pop .ms-filter-item { white-space: normal; }
+.col-pop .col-lbl { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.col-pop .col-cnt { margin-left: 8px; color: var(--text-muted); font-size: 11px; }
+.col-pop .col-on { color: var(--accent); font-weight: 600; }
+.col-pop .col-sep { border-bottom: 1px solid var(--border); }

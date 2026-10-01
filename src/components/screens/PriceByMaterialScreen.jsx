@@ -1,7 +1,7 @@
 "use client";
 import SearchFilter from "@/components/SearchFilter";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale, fmtCurrency, linkify } from "@/lib/format";
@@ -11,6 +11,11 @@ import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
 import SupplierModal from "@/components/modals/SupplierModal";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import SearchCombobox from "@/components/SearchCombobox";
+import { useColumns } from "@/lib/useColumns";
+import ColHead, { ColReset } from "@/components/ColHead";
+
+// «Оновлено» у фільтрі — групами, а не кожна кількість днів окремо
+const ageGroup = (d) => (d <= 0 ? "сьогодні" : d <= 7 ? "до 7 днів" : d <= 30 ? "до 30 днів" : "понад 30 днів");
 
 export default function PriceByMaterialScreen() {
   const { supabase, materials, materialCategories, suppliers, supplierPrices, priceHistory, supplierCategoryLinks, currency, exchangeRates, showDecimals, reload } =
@@ -34,6 +39,17 @@ export default function PriceByMaterialScreen() {
       (!search || m.name.toLowerCase().includes(search.toLowerCase())) &&
       (!allowedCategoryIds || allowedCategoryIds.includes(m.category_id))
   );
+
+  // сортування й фільтр стовпчиків — спільні для всіх таблиць (один стан на екран); рядки — ціни постачальників
+  const cols = useMemo(() => ({
+    supplier: { value: (p) => suppliers.find((x) => x.id === p.supplier_id)?.name },
+    price: { value: (p) => Number(p.price), text: (v) => `${Number(v).toLocaleString("uk-UA")} грн` },
+    note: { value: (p) => (p.note ? "є нотатка" : ""), sort: (p) => p.note },
+    updated: { value: (p) => ageGroup(daysAgo(p.updated_at)), sort: (p) => daysAgo(p.updated_at) },
+    status: { value: (p) => (isStale(p.updated_at) ? "застаріла" : "актуальна") },
+  }), [suppliers]);
+  const shown = useMemo(() => { const ids = new Set(list.map((m) => m.id)); return supplierPrices.filter((p) => ids.has(p.material_id)); }, [list, supplierPrices]);
+  const t = useColumns(shown, cols);
 
   async function handleSave(supplierId, materialId, priceValue, noteValue) {
     const price = parseFloat(priceValue);
@@ -69,6 +85,7 @@ export default function PriceByMaterialScreen() {
         <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
         <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." />
       </div>
+      <div className="toolbar-actions"><ColReset t={t} /></div>
     </div>
   );
 
@@ -87,9 +104,13 @@ export default function PriceByMaterialScreen() {
       <p className="note">Список товарів. Обери потрібний або відфільтруй пошуком — побачиш ціни всіх постачальників.</p>
       {toolbar}
 
+      {t.active > 0 && !t.rows.length && <div className="empty">За фільтром стовпчиків нічого не знайдено — натисніть «Скинути фільтри» вгорі.</div>}
       {list.map((m) => {
-        const rows = supplierPrices.filter((p) => p.material_id === m.id).sort((a, b) => a.price - b.price);
-        const usedSupplierIds = rows.map((r) => r.supplier_id);
+        const all = supplierPrices.filter((p) => p.material_id === m.id);
+        // типово — від найдешевшої; сортування стовпчика це перекриває
+        const rows = t.sortRows(all.filter((p) => t.passes(p)).sort((a, b) => a.price - b.price));
+        if (t.active > 0 && !rows.length) return null; // при фільтрі показуємо лише товари, де є відповідні ціни
+        const usedSupplierIds = all.map((r) => r.supplier_id);
         const addOptions = suppliers.filter((s) => !usedSupplierIds.includes(s.id)).map((s) => ({ id: s.id, label: s.name }));
         return (
           <div key={m.id} id={`mat-${m.id}`} style={{ marginBottom: 18, scrollMarginTop: 12 }}>
@@ -97,7 +118,7 @@ export default function PriceByMaterialScreen() {
             {m.spec && <p className="note" style={{ margin: "-4px 0 8px" }}>{m.spec}</p>}
             <div className="table-scroll">
             <table>
-              <thead><tr><th>Постачальник</th><th>Ціна, грн за {m.unit}</th><th>Нотатка / посилання</th><th>Оновлено</th><th>Статус</th><th></th></tr></thead>
+              <thead><tr><ColHead t={t} k="supplier">Постачальник</ColHead><ColHead t={t} k="price">Ціна, грн за {m.unit}</ColHead><ColHead t={t} k="note">Нотатка / посилання</ColHead><ColHead t={t} k="updated">Оновлено</ColHead><ColHead t={t} k="status">Статус</ColHead><th></th></tr></thead>
               <tbody>
                 {!rows.length && <tr><td colSpan={6} className="empty">Немає цін</td></tr>}
                 {rows.map((p) => {

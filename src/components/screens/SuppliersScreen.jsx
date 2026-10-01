@@ -1,41 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { contactHref } from "@/lib/format";
-import MultiSelectFilter from "@/components/MultiSelectFilter";
+import { useColumns } from "@/lib/useColumns";
+import ColHead, { ColReset } from "@/components/ColHead";
+import SearchFilter from "@/components/SearchFilter";
 import SupplierModal from "@/components/modals/SupplierModal";
 
-const RELIABILITY_OPTIONS = [
-  { id: "0", label: "без оцінки" },
-  { id: "1", label: "★☆☆☆☆" },
-  { id: "2", label: "★★☆☆☆" },
-  { id: "3", label: "★★★☆☆" },
-  { id: "4", label: "★★★★☆" },
-  { id: "5", label: "★★★★★" },
-];
+const stars = (n) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "без оцінки");
 
 export default function SuppliersScreen() {
   const { suppliers, materialCategories, supplierCategoryLinks, supplierContacts } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState([]);
-  const [reliabilityFilter, setReliabilityFilter] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const categoryOptions = materialCategories.map((c) => ({ id: c.id, label: c.name, icon: c.icon }));
+  // стовпчики: за чим сортувати й що показувати у списку фільтра
+  const cols = useMemo(() => {
+    const catsOf = (s) => supplierCategoryLinks.filter((l) => l.supplier_id === s.id).map((l) => materialCategories.find((c) => c.id === l.category_id)).filter(Boolean);
+    const contactsOf = (s) => supplierContacts.filter((c) => c.supplier_id === s.id);
+    return {
+      name: { value: (s) => s.name },
+      cats: { value: (s) => catsOf(s).map((c) => c.name), text: (v) => { const c = materialCategories.find((x) => x.name === v); return c?.icon ? `${c.icon} ${v}` : v; } },
+      contacts: { value: (s) => [...new Set(contactsOf(s).map((c) => c.type || "інше"))], sort: (s) => contactsOf(s).map((c) => c.value).join(", ") },
+      rel: { value: (s) => stars(s.reliability_score || 0), sort: (s) => s.reliability_score || 0 },
+    };
+  }, [materialCategories, supplierCategoryLinks, supplierContacts]);
 
-  const list = suppliers.filter((s) => {
-    const cats = supplierCategoryLinks.filter((l) => l.supplier_id === s.id).map((l) => l.category_id);
-    const rel = String(s.reliability_score || 0);
-    return (
-      (!search || s.name.toLowerCase().includes(search.toLowerCase())) &&
-      (!categoryFilter.length || cats.some((c) => categoryFilter.includes(c))) &&
-      (!reliabilityFilter.length || reliabilityFilter.includes(rel))
-    );
-  });
+  const q = search.trim().toLowerCase();
+  const found = useMemo(() => suppliers.filter((s) => {
+    if (!q) return true;
+    const contacts = supplierContacts.filter((c) => c.supplier_id === s.id).map((c) => `${c.label || ""} ${c.value || ""}`).join(" ");
+    return `${s.name} ${contacts}`.toLowerCase().includes(q);
+  }), [suppliers, supplierContacts, q]);
+  const t = useColumns(found, cols);
+  const list = t.rows;
 
   function openModal(s) {
     if (!canWriteCatalog) return;
@@ -46,42 +48,22 @@ export default function SuppliersScreen() {
   return (
     <div>
       <div className="toolbar">
-        <div className="toolbar-left">
-          <span className="note" style={{ marginTop: 0 }}>Пошук і фільтри — у заголовках таблиці.</span>
+        <SearchFilter value={search} onChange={setSearch} placeholder="Пошук: назва, телефон, контакт…" />
+        <div className="toolbar-actions">
+          <ColReset t={t} />
+          {canWriteCatalog && (
+            <button className="btn primary" onClick={() => openModal(null)}>+ Новий постачальник</button>
+          )}
         </div>
-        {canWriteCatalog && (
-          <button className="btn primary" onClick={() => openModal(null)}>+ Новий постачальник</button>
-        )}
       </div>
       <div className="table-scroll">
       <table>
         <thead>
           <tr>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Назва
-                <input
-                  type="text"
-                  className="th-search-input"
-                  placeholder="Пошук..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </th>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Категорії
-                <MultiSelectFilter options={categoryOptions} selected={categoryFilter} onChange={setCategoryFilter} label="Всі" />
-              </div>
-            </th>
-            <th>Контакти</th>
-            <th className="th-filter">
-              <div className="th-filter-row">
-                Надійність
-                <MultiSelectFilter options={RELIABILITY_OPTIONS} selected={reliabilityFilter} onChange={setReliabilityFilter} label="Всі" />
-              </div>
-            </th>
+            <ColHead t={t} k="name">Назва</ColHead>
+            <ColHead t={t} k="cats">Категорії</ColHead>
+            <ColHead t={t} k="contacts">Контакти</ColHead>
+            <ColHead t={t} k="rel">Надійність</ColHead>
             <th></th>
           </tr>
         </thead>

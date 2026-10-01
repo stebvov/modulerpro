@@ -9,6 +9,12 @@ function Section({ h }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>{h.what}</p>
+      {h.tip && (
+        <div>
+          <div className="section-label" style={{ marginBottom: 6 }}>Сортування й фільтр</div>
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.45 }}>{h.tip}</p>
+        </div>
+      )}
       {h.steps?.length > 0 && (
         <div>
           <div className="section-label" style={{ marginBottom: 6 }}>Як працювати</div>

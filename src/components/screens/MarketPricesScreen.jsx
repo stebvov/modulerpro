@@ -11,6 +11,8 @@ import { daysAgo, isStale } from "@/lib/format";
 import { getCategoryAndDescendantIds, flattenCategoryOrder } from "@/lib/categoryOrder";
 import { attrChips, fmtPrice } from "@/lib/market";
 import SearchFilter from "@/components/SearchFilter";
+import { useColumns } from "@/lib/useColumns";
+import ColHead, { ColReset } from "@/components/ColHead";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import TrackRuleModal from "@/components/modals/TrackRuleModal";
 import PriceSourcesModal from "@/components/modals/PriceSourcesModal";
@@ -18,6 +20,8 @@ import ManualPricesPanel from "@/components/panels/ManualPricesPanel";
 
 const dateTime = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const dateOnly = (ts) => (ts ? new Date(ts).toLocaleDateString("uk-UA") : "—");
+// «Оновлено» у фільтрі стовпчика — групами, а не кожна дата окремо
+const ageGroup = (d) => (d <= 0 ? "сьогодні" : d <= 7 ? "до 7 днів" : d <= 30 ? "до 30 днів" : "понад 30 днів");
 const ago = (ts) => {
   const d = daysAgo(ts);
   return d <= 0 ? "сьогодні" : d === 1 ? "вчора" : `${d} дн. тому`;
@@ -143,6 +147,29 @@ export default function MarketPricesScreen() {
   const offerOf = (p) => (sold.get(`${p.supplier_id}|${p.material_id}`) || []).reduce((a, o) => (!a || Math.abs(o.unit_price - p.price) < Math.abs(a.unit_price - p.price) ? o : a), null);
   const linkOf = (p, offer) => offer?.url || /https?:\/\/\S+/.exec(p.note || "")?.[0] || null;
   const priceOf = (materialId, supplierId) => supplierPrices.find((p) => p.material_id === materialId && p.supplier_id === supplierId);
+  // сортування й фільтр стовпчиків головної таблиці (рядок — матеріал); у стовпчику магазину сортуємо за його ціною
+  const pricesOf = (m) => supplierPrices.filter((p) => p.material_id === m.id);
+  const bestOf = (m) => { const f = pricesOf(m); return f.length ? Math.min(...f.map((p) => Number(p.price))) : null; };
+  const freshOf = (m) => { const f = pricesOf(m); return f.length ? f.map((p) => p.updated_at).sort().pop() : null; };
+  const t = useColumns(list, {
+    name: { value: (m) => m.name },
+    unit: { value: (m) => m.unit },
+    best: { value: (m) => { const b = bestOf(m); return b == null ? "" : suppliers.find((s) => s.id === pricesOf(m).find((p) => Number(p.price) === b).supplier_id)?.name || ""; }, sort: bestOf },
+    updated: { value: (m) => { const f = freshOf(m); return f ? ageGroup(daysAgo(f)) : ""; }, sort: (m) => { const f = freshOf(m); return f ? daysAgo(f) : null; } },
+    ...Object.fromEntries(columnStores.map((s) => [`s:${s.id}`, { value: (m) => (priceOf(m.id, s.id) ? "є ціна" : ""), sort: (m) => { const p = priceOf(m.id, s.id); return p ? Number(p.price) : null; } }])),
+  });
+  // знайдені товари відкритого матеріалу — своя пара сортування / фільтрів
+  const openRows = (offers[openId] || []).filter((o) => (!storeFilter || o.supplier_id === storeFilter) && (showGone || o.active));
+  const ot = useColumns(openRows, {
+    store: { value: (o) => stores.find((s) => s.id === o.supplier_id)?.name },
+    title: { value: (o) => o.brand || "", sort: (o) => o.title },
+    attrs: { value: (o) => attrChips(o.attrs) },
+    price: { value: (o) => o.sale_unit || "?", sort: (o) => Number(o.price) },
+    unit: { value: (o) => (o.unit_price != null ? "перераховано" : "не перерахувати"), sort: (o) => (o.unit_price != null ? Number(o.unit_price) : null) },
+    other: { value: (o) => Object.keys(o.unit_prices || {}).filter((u) => u !== o.sale_unit) },
+    stock: { value: (o) => (!o.active ? "зник із сайту" : o.in_stock === false ? "немає" : o.in_stock ? "є" : "—") },
+    seen: { value: (o) => dateOnly(o.last_seen_at), sort: (o) => o.last_seen_at },
+  });
   const tracked = materials.filter((m) => m.parse_rule).length;
   const withPrice = materials.filter((m) => m.parse_rule && supplierPrices.some((p) => p.material_id === m.id && storeIds.has(p.supplier_id))).length;
 
@@ -189,6 +216,7 @@ export default function MarketPricesScreen() {
           </SearchFilter>
         </div>
         <div className="toolbar-actions">
+          <ColReset t={t} />
           {canWriteCatalog && (
             <button className="btn" disabled={anyRunning} onClick={() => refresh(activeStores.filter((s) => !s.parser_local))} title="Обійти сайти магазинів зараз — кілька хвилин">
               {anyRunning ? "Оновлюється…" : "↻ Оновити ціни"}
@@ -209,16 +237,16 @@ export default function MarketPricesScreen() {
         <table>
           <thead>
             <tr>
-              <th>Матеріал</th>
-              <th>Од.</th>
-              <th>Найкраща ціна за одиницю</th>
-              {columnStores.map((s) => <th key={s.id}>{s.name}</th>)}
-              <th>Оновлено</th>
+              <ColHead t={t} k="name">Матеріал</ColHead>
+              <ColHead t={t} k="unit">Од.</ColHead>
+              <ColHead t={t} k="best">Найкраща ціна за одиницю</ColHead>
+              {columnStores.map((s) => <ColHead t={t} k={`s:${s.id}`} key={s.id}>{s.name}</ColHead>)}
+              <ColHead t={t} k="updated">Оновлено</ColHead>
             </tr>
           </thead>
           <tbody>
-            {!list.length && <tr><td colSpan={cols} className="empty">Нічого не знайдено</td></tr>}
-            {list.map((m, idx) => {
+            {!t.rows.length && <tr><td colSpan={cols} className="empty">Нічого не знайдено</td></tr>}
+            {t.rows.map((m, idx) => {
               const cells = columnStores.map((s) => priceOf(m.id, s.id));
               // найкраща — серед усіх постачальників, зокрема з ціною, внесеною вручну (вікна, двері)
               const found = supplierPrices.filter((p) => p.material_id === m.id);
@@ -229,7 +257,7 @@ export default function MarketPricesScreen() {
               const bestOffer = bestPrice && offerOf(bestPrice);
               const bestLink = bestPrice && linkOf(bestPrice, bestOffer);
               const cat = materialCategories.find((c) => c.id === m.category_id);
-              const header = cat && list[idx - 1]?.category_id !== cat.id;
+              const header = !t.sorted && cat && t.rows[idx - 1]?.category_id !== cat.id; // при сортуванні стовпчика групи категорій не показуємо
               const isOpen = openId === m.id;
               const rows = (offers[m.id] || []).filter((o) => (!storeFilter || o.supplier_id === storeFilter) && (showGone || o.active));
               return (
@@ -298,10 +326,11 @@ export default function MarketPricesScreen() {
                         ) : (
                           <table>
                             <thead>
-                              <tr><th>Магазин</th><th>Товар</th><th>Характеристики</th><th>Як продають, грн</th><th>За {m.unit}, грн</th><th>Інші одиниці</th><th>Наявність</th><th>Бачили</th><th></th></tr>
+                              <tr><ColHead t={ot} k="store">Магазин</ColHead><ColHead t={ot} k="title">Товар</ColHead><ColHead t={ot} k="attrs">Характеристики</ColHead><ColHead t={ot} k="price">Як продають, грн</ColHead><ColHead t={ot} k="unit">За {m.unit}, грн</ColHead><ColHead t={ot} k="other" noSort>Інші одиниці</ColHead><ColHead t={ot} k="stock">Наявність</ColHead><ColHead t={ot} k="seen">Бачили</ColHead><th>{(ot.active > 0 || ot.sorted) && <ColReset t={ot} />}</th></tr>
                             </thead>
                             <tbody>
-                              {rows.map((o) => {
+                              {!ot.rows.length && <tr><td colSpan={9} className="empty">За фільтром стовпчиків нічого не знайдено</td></tr>}
+                              {ot.rows.map((o) => {
                                 const store = stores.find((s) => s.id === o.supplier_id);
                                 const other = Object.entries(o.unit_prices || {}).filter(([u]) => u !== m.unit && u !== o.sale_unit);
                                 const dim = o.excluded || !o.active;
