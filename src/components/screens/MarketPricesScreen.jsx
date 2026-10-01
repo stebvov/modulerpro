@@ -7,13 +7,14 @@ import SettingsButton from "@/components/SettingsButton";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { daysAgo, isStale, linkify } from "@/lib/format";
+import { daysAgo, isStale } from "@/lib/format";
 import { getCategoryAndDescendantIds, flattenCategoryOrder } from "@/lib/categoryOrder";
 import { attrChips, fmtPrice } from "@/lib/market";
 import SearchFilter from "@/components/SearchFilter";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import TrackRuleModal from "@/components/modals/TrackRuleModal";
 import PriceSourcesModal from "@/components/modals/PriceSourcesModal";
+import ManualPricesPanel from "@/components/panels/ManualPricesPanel";
 
 const dateTime = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const dateOnly = (ts) => (ts ? new Date(ts).toLocaleDateString("uk-UA") : "—");
@@ -250,12 +251,7 @@ export default function MarketPricesScreen() {
                           <div className="empty">Завантаження…</div>
                         ) : !rows.length ? (
                           <div className="empty">
-                            {m.parse_rule ? "Парсер поки нічого не знайшов за цим правилом." : "Цей матеріал парсер не шукає — ціну вносять вручну в «Цінах постачальників»."}
-                            {found.filter((p) => p.source !== "parsing").map((p) => (
-                              <div key={p.id} className="note-preview" style={{ textAlign: "left" }}>
-                                <b>{suppliers.find((s) => s.id === p.supplier_id)?.name}: {fmtPrice(p.price)} грн / {m.unit}</b> · {dateOnly(p.updated_at)}<br />{linkify(p.note)}
-                              </div>
-                            ))}
+                            {m.parse_rule ? "У магазинах зі списку парсер цього товару не знайшов." : "Цей матеріал парсер не шукає — ціну вносять вручну."}
                           </div>
                         ) : (
                           <table>
@@ -296,6 +292,7 @@ export default function MarketPricesScreen() {
                             </tbody>
                           </table>
                         )}
+                        <ManualPricesPanel material={m} />
                       </td>
                     </tr>
                   )}
