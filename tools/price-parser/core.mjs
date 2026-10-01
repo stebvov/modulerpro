@@ -27,6 +27,7 @@ export async function crawl(site, sources, { maxPages = 0, firstPageOnly = false
   const adapter = SITES[site];
   const items = new Map();
   const stats = [];
+  const products = new Map(); // сторінка товару → його варіанти (той самий товар може бути в кількох джерелах)
   let blocked = false; // сайт відмовив на першій же сторінці — решту джерел не смикаємо
   for (const src of sources) {
     const seen = new Set();
@@ -42,7 +43,18 @@ export async function crawl(site, sources, { maxPages = 0, firstPageOnly = false
           if (p === 1) throw new Error("сторінки не існує (404)");
           break;
         }
-        const { items: found, total } = adapter.listing(html, url);
+        const { items: listed, links = [], total } = adapter.listing(html, url);
+        // магазин показує ціни лише на сторінках товарів (варіанти довжини, вологості) — відкриваємо кожен товар зі списку
+        const found = [...listed];
+        for (const link of links) {
+          if (!products.has(link)) {
+            if (timeUp(deadline)) throw new Error("забракло часу на обхід");
+            const page = await getHtml(link);
+            products.set(link, page.status === 404 ? [] : adapter.product(page.html, link));
+            pages++;
+          }
+          found.push(...products.get(link));
+        }
         let fresh = 0;
         for (const it of found) {
           if (!it.url || !(it.price > 0) || seen.has(it.url)) continue;

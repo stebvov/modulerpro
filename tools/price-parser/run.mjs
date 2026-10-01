@@ -72,7 +72,12 @@ if (args.probe) {
   const site = args.site;
   if (!SITES[site]) throw new Error(`--site=<${Object.keys(SITES).join("|")}>`);
   const { html, status } = await getHtml(args.probe);
-  const { items, total } = SITES[site].listing(html, args.probe);
+  const { items, total, links = [] } = SITES[site].listing(html, args.probe);
+  if (links.length) {
+    // ціни — на сторінках товарів: показуємо перший
+    console.log(`посилань на товари: ${links.length}; відкриваю перший — ${links[0]}`);
+    items.push(...SITES[site].product((await getHtml(links[0])).html, links[0]));
+  }
   console.log(`HTTP ${status}, товарів: ${items.length}${total ? ` із ${total}` : ""}`);
   for (const it of items) console.log(`${String(it.price).padStart(9)} ${it.unit || it.perUnit?.unit || it.unitHint || ""} | ${it.inStock === false ? "нема " : ""}${it.title} | ${JSON.stringify(it.props)} | ${it.url}`);
   process.exit(0);

@@ -281,6 +281,15 @@ export const SOURCES = {
   },
 };
 
+// виробники пиломатеріалів (знайдені пошуком 01.10.2026): продають і свіжопиляну, і суху нестругану деревину
+const aw = (slug) => `https://www.alba-wood.com.ua/${slug}?limit=100`;
+SOURCES.woodmax = {
+  lumber: ["https://woodmax.ua/cat/obreznaya-doska/", "https://woodmax.ua/cat/strogonnaya-doska/"],
+};
+SOURCES.albawood = {
+  lumber: [aw("brus-obriznyj"), aw("doshka-obrizna"), aw("rejka-obrizna"), aw("brus-suhyj"), aw("doshka-suha-obrizna"), aw("doshka-suha-strugana"), aw("brus-suhyj-struganyj")],
+};
+
 // Магазини, чиї сайти не пускають програми: парсер їх не обходить, сторінки надсилає людина зі свого браузера (/capture).
 // Тут — які сторінки варто надсилати (адреси з відкритих карт сайтів).
 const lm = (slug) => `https://www.leroymerlin.ua/f/${slug}`;

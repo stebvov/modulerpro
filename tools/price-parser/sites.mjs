@@ -1,6 +1,7 @@
 // Адаптери сайтів. Кожен уміє розібрати сторінку категорії:
-//   listing(html, pageUrl) → { items: [{ title, url, price, unit, inStock, extId, brand, props, unitHint }], total? }
+//   listing(html, pageUrl) → { items: [{ title, url, price, unit, inStock, extId, brand, props, unitHint }], total?, links? }
 //   pageUrl(base, n)       → адреса n-ї сторінки категорії (n ≥ 2)
+//   product(html, url)     → товари зі сторінки товару — для магазинів, де ціни варіантів видно лише там (listing дає links)
 //   lumberDefault          → чим вважати дошку, якщо в назві не сказано «свіжопиляна / суха / стругана»:
 //                            будмаркети продають стругану суху, склади пиломатеріалів — свіжопиляну
 // unit — як магазин підписує ціну («шт», «м.п.», «м²» …), unitHint — підказка «ціна вказана за …».
@@ -193,6 +194,78 @@ export const SITES = {
           inStock: !/rm-out-of-stock/.test(c),
           extId: first(/Код товару:\s*(\d+)/, c),
           props: propsFrom([...c.matchAll(/class="rm-module-attr-item">\s*<span>([^<]*)<\/span>\s*<span class="rm-module-attr-item-header">([^<]*)<\/span>/g)].map((x) => [x[1], x[2]])),
+        });
+      }
+      return { items };
+    },
+  },
+
+  // ── Woodmax (WooCommerce): у списку лише діапазон цін; ціни варіантів «довжина × суха/свіжопиляна» —
+  //    на сторінці товару в data-product_variations. Сторінки категорії: /page/N/. Ціна — за штуку. ──
+  woodmax: {
+    name: "Woodmax",
+    website: "https://woodmax.ua/",
+    lumberDefault: "fresh",
+    pageUrl: (base, n) => base.replace(/\/?$/, "/") + `page/${n}/`,
+    listing(html) {
+      const links = [...html.matchAll(/<a href="([^"]+)"[^>]*class="woocommerce-LoopProduct-link/g)].map((m) => decode(m[1]));
+      return { items: [], links: [...new Set(links)] };
+    },
+    product(html, url) {
+      const name = text(first(/<h1[^>]*>([\s\S]*?)<\/h1>/, html) || "");
+      const raw = first(/data-product_variations="([^"]+)"/, html);
+      if (!name || !raw) return [];
+      let variations;
+      try {
+        variations = JSON.parse(decode(raw));
+      } catch {
+        return [];
+      }
+      const items = [];
+      for (const v of variations) {
+        const a = v.attributes || {};
+        const len = num(a.attribute_pa_length); // «4000mm»
+        const wet = a.attribute_pa_humidity; // dry | raw | немає (стругана — завжди суха)
+        const price = num(v.display_price);
+        if (price == null) continue;
+        const sized = len ? name.replace(/(\d+)\s*[xх]\s*(\d+)\s*мм/i, `$1х$2х${len} мм`) : name;
+        const query = Object.entries(a).filter(([, val]) => val).map(([k, val]) => `${k}=${encodeURIComponent(val)}`).join("&");
+        items.push({
+          title: sized + (wet === "dry" ? ", суха (камерна сушка)" : wet === "raw" ? ", свіжопиляна" : ""),
+          url: query ? `${url}?${query}` : url,
+          price,
+          unit: "шт",
+          inStock: v.is_in_stock ?? null,
+          extId: v.variation_id ? String(v.variation_id) : null,
+          props: len ? { довжина: `${len} мм` } : {},
+        });
+      }
+      return items;
+    },
+  },
+
+  // ── Alba Wood (OpenCart): кожна довжина — окремий товар із ціною за штуку; увесь розділ на одній сторінці з ?limit=100 ──
+  albawood: {
+    name: "Alba Wood",
+    website: "https://www.alba-wood.com.ua/",
+    lumberDefault: "fresh",
+    pageUrl: (base, n) => withParam(base, "page", n),
+    listing(html) {
+      const items = [];
+      for (const c of cards(html, "pr-module-item product-layout")) {
+        const m = /<a href="?([^" >]+)"?[^>]*class="?pr-module-item-title[^>]*>([\s\S]*?)<\/a>/.exec(c);
+        const p = first(/class="?pr-price-new[^>]*>\s*([\d\s]+[.,]\d{2})/, c) ?? first(/([\d\s]+[.,]\d{2})\s*грн/, text(c.split("pr-module-item-price-box")[1] || ""));
+        if (!m || p == null) continue;
+        const price = num(p);
+        if (price == null) continue;
+        items.push({
+          title: text(m[2]),
+          url: decode(m[1]),
+          price,
+          unit: "шт",
+          inStock: /В наявності/.test(c) ? true : /Немає|Під замовлення|Очікується/.test(c) ? false : null,
+          extId: first(/data-product-id="?(\d+)/, c),
+          props: {},
         });
       }
       return { items };
