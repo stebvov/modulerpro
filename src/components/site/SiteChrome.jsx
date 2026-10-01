@@ -5,6 +5,19 @@ import { usePathname } from "next/navigation";
 import { phoneHref, siteHref } from "@/lib/site/format";
 import { trackVisit } from "@/lib/site/visitor";
 
+// який пункт меню підсвітити: сторінка пункту, вкладені (/modeli/…) або сторінки з поля «Підсвічувати також»
+const logical = (p) => (String(p || "/").split(/[?#]/)[0].replace(/^\/site(?=\/|$)/, "").replace(/\/+$/, "")) || "/";
+function activeNav(nav, pathname) {
+  const here = logical(pathname);
+  const hit = (h) => {
+    if (!h || /^(https?:|tel:|#)/.test(h)) return false;
+    const t = logical(h);
+    if (t === "/") return here === "/" && !String(h).includes("#");
+    return here === t || here.startsWith(t + "/");
+  };
+  return nav.findIndex((l) => hit(l.href) || String(l.also || "").split(",").map((x) => x.trim()).some(hit));
+}
+
 export function SiteHeader({ settings, base }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -12,6 +25,7 @@ export function SiteHeader({ settings, base }) {
   const brand = settings.brand || {};
   const nav = settings.nav || [];
   const cta = settings.header_cta || { label: "Обговорити проєкт", href: "#contact" };
+  const active = activeNav(nav, usePathname());
 
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
@@ -31,7 +45,9 @@ export function SiteHeader({ settings, base }) {
           {brand.logo ? <img src={brand.logo} alt={brand.name || "Moduler"} /> : <b>{brand.name || "Moduler"}</b>}
         </a>
         <nav className="s-nav__links" aria-label="Меню сайту">
-          {nav.map((l, i) => <a key={i} href={siteHref(base, l.href)} onClick={() => setOpen(false)}>{l.label}</a>)}
+          {nav.map((l, i) => (
+            <a key={i} href={siteHref(base, l.href)} className={i === active ? "on" : undefined} aria-current={i === active ? "page" : undefined} onClick={() => setOpen(false)}>{l.label}</a>
+          ))}
           {c.phone && <a className="s-nav__phone s-only-m" href={phoneHref(c.phone)}>📞 {c.phone_display || c.phone}</a>}
           <a className="s-btn s-btn--primary s-only-m" href={siteHref(base, cta.href)} onClick={() => setOpen(false)}>{cta.label}</a>
         </nav>

@@ -78,6 +78,9 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-nav__logo b { font-family: var(--f-display); font-size: 20px; color: var(--ink); }
 .s-nav__links { display: flex; gap: 22px; margin-left: auto; font-weight: 600; font-size: 15px; }
 .s-nav__links a:hover { color: var(--moss); }
+/* поточний розділ: колір + золота риска знизу (на телефоні — колір і жирний) */
+.s-nav__links a.on { color: var(--moss); font-weight: 700; position: relative; }
+@media (min-width: 900px) { .s-nav__links a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: var(--honey); } }
 .s-nav__right { display: flex; align-items: center; gap: 16px; }
 .s-nav__phone { font-weight: 700; white-space: nowrap; }
 .s-burger { display: none; width: 44px; height: 44px; border: 1px solid var(--line-2); border-radius: 10px; background: transparent; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; }
@@ -208,6 +211,9 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 /* ── Рівні комплектації ──────────────────── */
 .s-tiers { display: grid; gap: 14px; }
 @media (min-width: 900px) { .s-tiers { grid-template-columns: repeat(3, 1fr); } }
+/* 4 картки: 2 × 2 на середніх екранах, 4 в ряд на широких */
+@media (min-width: 900px) and (max-width: 1099px) { .s-tiers--n4 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .s-tiers--n4 { grid-template-columns: repeat(4, 1fr); } }
 .s-tier { background: var(--white); border: 1px solid var(--line); border-radius: var(--r); padding: 24px; display: flex; flex-direction: column; gap: 8px; }
 .s-tier--hl { background: var(--pine); color: #d5dfd8; border-color: var(--pine); box-shadow: var(--shadow); }
 .s-tier--hl h3 { color: var(--paper) !important; }

@@ -80,7 +80,8 @@ export const SETTINGS_SECTIONS = [
     { key: "showroom_url", label: "Шоурум на мапі", type: "text" },
   ] },
   { title: "Меню й підвал", key: "", fields: [
-    { key: "nav", label: "Пункти меню", type: "list", item: "Пункт", fields: [{ key: "label", label: "Назва", type: "text" }, { key: "href", label: "Посилання", type: "href" }] },
+    { key: "nav", label: "Пункти меню", type: "list", item: "Пункт", fields: [{ key: "label", label: "Назва", type: "text" }, { key: "href", label: "Посилання", type: "href" },
+      { key: "also", label: "Підсвічувати також на сторінках (через кому, напр. /avatar, /novi-petrivtsi)", type: "text" }] },
     link("header_cta", "Кнопка в шапці"),
     { key: "footer_text", label: "Текст у підвалі", type: "textarea" },
     { key: "footer_links", label: "Посилання в підвалі", type: "list", item: "Посилання", fields: [{ key: "label", label: "Назва", type: "text" }, { key: "href", label: "Посилання", type: "href" }] },

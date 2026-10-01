@@ -132,7 +132,7 @@ function Tiers({ b }) {
   return (
     <Section b={b}>
       <Head b={b} />
-      <div className="s-tiers">
+      <div className={`s-tiers s-tiers--n${(b.items || []).length}`}>
         {(b.items || []).map((t, i) => (
           <div key={i} className={`s-tier${t.highlight ? " s-tier--hl" : ""}`}>
             <div className="s-tier__n">{String(i + 1).padStart(2, "0")}</div>
