@@ -42,6 +42,9 @@ export default async function proxy(request) {
     return NextResponse.next({ request: { headers } });
   }
 
+  // парсер цін: розклад приходить без сесії — доступ перевіряє сам маршрут
+  if (path.startsWith("/api/price-parser")) return NextResponse.next();
+
   return updateSession(request);
 }
 

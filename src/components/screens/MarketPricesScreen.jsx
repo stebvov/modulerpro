@@ -38,6 +38,8 @@ export default function MarketPricesScreen() {
   const [ruleFor, setRuleFor] = useState(undefined); // undefined — закрито, null — нова позиція
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState({}); // parser_key → іде оновлення
+  const [runNotes, setRunNotes] = useState([]);
 
   const stores = useMemo(() => suppliers.filter((s) => s.parser_key).sort((a, b) => Number(b.parser_enabled) - Number(a.parser_enabled) || a.name.localeCompare(b.name, "uk")), [suppliers]);
   const activeStores = stores.filter((s) => s.parser_enabled);
@@ -77,6 +79,32 @@ export default function MarketPricesScreen() {
     setBusy(false);
   }
 
+  // Оновити ціни зараз: сервер обходить сайт магазину (1–4 хв на магазин) і пише в базу
+  async function refresh(list) {
+    setRunNotes([]);
+    setRunning((p) => ({ ...p, ...Object.fromEntries(list.map((s) => [s.parser_key, true])) }));
+    await Promise.all(list.map(async (s) => {
+      let note = null;
+      try {
+        const res = await fetch("/api/price-parser/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site: s.parser_key }) });
+        const json = await res.json().catch(() => ({}));
+        const r = json.results?.[0];
+        if (res.status === 504) note = "сервер не встиг обійти сайт за відведений час — спробуй ще раз";
+        else if (!res.ok || !r) note = json.error || `помилка ${res.status}`;
+        else if (r.error) note = r.error;
+      } catch (e) {
+        note = e.message;
+      }
+      if (note) setRunNotes((p) => [...p, `${s.name}: ${note}`]);
+      setRunning((p) => ({ ...p, [s.parser_key]: false }));
+      await reload(true);
+    }));
+    await loadMeta();
+    setOffers({});
+    if (openId) loadOffers(openId);
+  }
+  const anyRunning = Object.values(running).some(Boolean);
+
   const catOrder = flattenCategoryOrder(materialCategories);
   const allowedCategoryIds = categoryFilter ? getCategoryAndDescendantIds(categoryFilter, materialCategories) : null;
   const storeIds = new Set(stores.map((s) => s.id));
@@ -108,15 +136,23 @@ export default function MarketPricesScreen() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
         {stores.map((s) => {
           const bad = !s.parser_enabled || (s.parse_status && s.parse_status !== "ok") || (s.parsed_at && daysAgo(s.parsed_at) > 2);
+          const isRunning = running[s.parser_key];
           return (
-            <a key={s.id} href={s.website} target="_blank" rel="noreferrer" className="tag-check" style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
-              title={!s.parser_enabled ? s.parse_status || "обхід вимкнено" : s.parse_status && s.parse_status !== "ok" ? s.parse_status : "Відкрити сайт"}>
-              <span className={bad ? "stale" : "fresh"}>●</span> {s.name}
-              <span className="note" style={{ marginTop: 0 }}>{!s.parser_enabled ? "вручну" : s.parsed_at ? ago(s.parsed_at) : "ще не обходили"}</span>
-            </a>
+            <span key={s.id} className="tag-check" style={{ cursor: "default" }}
+              title={!s.parser_enabled ? s.parse_status || "обхід вимкнено" : s.parser_local ? "Сайт не пускає запити із сервера — ціни оновлюються лише з комп'ютера в Україні" : s.parse_status && s.parse_status !== "ok" ? s.parse_status : undefined}>
+              <span className={bad ? "stale" : "fresh"}>●</span>
+              <a href={s.website} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{s.name}</a>
+              <span className="note" style={{ marginTop: 0 }}>
+                {isRunning ? "оновлюється…" : !s.parser_enabled ? "вручну" : `${s.parser_local ? "з комп'ютера · " : ""}${s.parsed_at ? ago(s.parsed_at) : "ще не обходили"}`}
+              </span>
+              {canWriteCatalog && s.parser_enabled && !s.parser_local && (
+                <button className="btn small" disabled={isRunning} title="Оновити ціни цього магазину зараз" onClick={() => refresh([s])}>↻</button>
+              )}
+            </span>
           );
         })}
       </div>
+      {runNotes.map((n) => <div key={n} className="note stale" style={{ margin: "-6px 0 10px" }}>{n}</div>)}
 
       <div className="toolbar">
         <div className="toolbar-left">
@@ -126,6 +162,11 @@ export default function MarketPricesScreen() {
           </SearchFilter>
         </div>
         <div className="toolbar-actions">
+          {canWriteCatalog && (
+            <button className="btn" disabled={anyRunning} onClick={() => refresh(activeStores.filter((s) => !s.parser_local))} title="Обійти сайти магазинів зараз — кілька хвилин">
+              {anyRunning ? "Оновлюється…" : "↻ Оновити ціни"}
+            </button>
+          )}
           <button className="btn" onClick={() => setSourcesOpen(true)} title="Сторінки магазинів, які обходить парсер"><GearIcon /> Джерела</button>
           {canWriteCatalog && <button className="btn primary" onClick={() => setRuleFor(null)}>+ Позиція</button>}
         </div>

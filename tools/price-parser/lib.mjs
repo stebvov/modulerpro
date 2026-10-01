@@ -22,6 +22,7 @@ export async function getHtml(url, { gap = 900, timeout = 40000, tries = 3 } = {
           "Accept-Language": "uk-UA,uk;q=0.9",
         },
         redirect: "follow",
+        cache: "no-store",
         signal: AbortSignal.timeout(timeout),
       });
       if (res.status === 404) return { status: 404, html: "", url: res.url };
