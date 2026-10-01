@@ -36,6 +36,7 @@ import TeamScreen from "@/components/screens/TeamScreen";
 import TownsScreen from "@/components/screens/TownsScreen";
 import UkScreen from "@/components/screens/UkScreen";
 import RentScreen from "@/components/screens/RentScreen";
+import RentalScreen from "@/components/screens/RentalScreen";
 import PackagesScreen from "@/components/screens/PackagesScreen";
 import OwnerScreen from "@/components/screens/OwnerScreen";
 import IdeasScreen from "@/components/screens/IdeasScreen";
@@ -72,6 +73,7 @@ const SCREENS = {
   towns: () => <TownsScreen />,
   uk: () => <UkScreen />,
   rent: () => <RentScreen />,
+  rental: () => <RentalScreen />,
   users: () => <UsersScreen />,
   team: () => <TeamDataProvider><TeamScreen /></TeamDataProvider>,
   "access-groups": () => <AccessGroupsScreen />,

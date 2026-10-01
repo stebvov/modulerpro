@@ -52,6 +52,7 @@ export const MENU = [
     tabs: [
       { id: "uk", label: "Об'єкти й заявки" },
       { id: "rent", label: "Оренда й завантаженість" },
+      { id: "rental", label: "Облік оренди МОХО", need: "mp" },
       { id: "owners", label: "Кабінет власника" },
       { id: "uk-crm", label: "Воронка власників", need: "mp" },
       { id: "uk-fin", label: "Фінанси УК", need: "finance" },
