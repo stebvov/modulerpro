@@ -6,6 +6,7 @@ import { CASE_KINDS, SIZE_GROUPS } from "@/lib/site/blocks";
 import { CASE_FIELDS, MODEL_FIELDS, slugify } from "@/lib/site/schemas";
 import { caseKinds, imgSmall, isHiddenStr, money, modelPriceFrom } from "@/lib/site/format";
 import { Fields, LinkOptions } from "./Fields";
+import SiteSearch from "./SiteSearch";
 import { revalidateSite } from "./SitePagesScreen";
 import DeleteButton from "@/components/DeleteButton";
 import { ArrowDownIcon, ArrowUpIcon, ExternalIcon } from "@/components/Icon";
@@ -48,6 +49,15 @@ export default function SiteCollectionScreen({ kind }) {
     const { data, error } = await supabase.from(K.table).select("*").order("sort").order(K.titleKey);
     if (error) { setMsg("Не вдалося завантажити: " + error.message); return; }
     setRows(data || []);
+    // перехід із пошуку по сайту (?open=адреса): відкриваємо цей запис
+    const u = new URL(window.location.href);
+    const want = u.searchParams.get("open");
+    if (want) {
+      u.searchParams.delete("open");
+      window.history.replaceState(null, "", u.pathname + u.search);
+      const row = (data || []).find((r) => r.slug === want);
+      if (row) { setSelId(row.id); if (K.tabOf) setTab(K.tabOf(row)); }
+    }
   }, [supabase, K]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
@@ -107,6 +117,7 @@ export default function SiteCollectionScreen({ kind }) {
           <input className="se-search" placeholder="Пошук" value={q} onChange={(e) => setQ(e.target.value)} />
           <span className="note">{rows.filter((r) => r.published).length} на сайті · {rows.filter((r) => !r.published).length} приховано</span>
         </div>
+        <SiteSearch />
         <button type="button" className="btn primary" onClick={add}>{tab === "concept" ? "+ Розробка" : K.add}</button>
       </div>
       {msg && <div className="se-msg" onClick={() => setMsg("")}>{msg}</div>}

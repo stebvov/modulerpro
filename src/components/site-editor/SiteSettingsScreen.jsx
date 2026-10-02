@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SETTINGS_SECTIONS } from "@/lib/site/schemas";
 import { Fields, LinkOptions } from "./Fields";
+import SiteSearch from "./SiteSearch";
 import { revalidateSite } from "./SitePagesScreen";
 import "./editor.css";
 
@@ -41,6 +42,7 @@ export default function SiteSettingsScreen() {
       <LinkOptions pages={pages} />
       <div className="toolbar">
         <p className="se-intro" style={{ margin: 0 }}>Загальне для всіх сторінок сайту. Зміни з&apos;являються на сайті одразу.</p>
+        <SiteSearch />
         <span className="note">{status}</span>
       </div>
       {noRates && (

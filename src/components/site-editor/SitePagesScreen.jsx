@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { BLOCKS, BLOCK_ORDER, COMMON_FIELDS, newBlock } from "@/lib/site/blocks";
 import { PAGE_FIELDS, slugify } from "@/lib/site/schemas";
 import { Fields, LinkOptions } from "./Fields";
+import SiteSearch from "./SiteSearch";
 import DeleteButton from "@/components/DeleteButton";
 import { CopyIcon, DragIcon, ExternalIcon, EyeIcon, EyeOffIcon, MonitorIcon, PhoneIcon, TrashIcon } from "@/components/Icon";
 import "./editor.css";
@@ -25,6 +26,18 @@ const TEMPLATES = {
     ],
   },
 };
+
+// адреса з пошуку (?open=…&block=…) спрацьовує один раз — далі прибираємо її з рядка адреси
+function takeOpenParams() {
+  if (typeof window === "undefined") return null;
+  const u = new URL(window.location.href);
+  const open = u.searchParams.get("open");
+  if (!open) return null;
+  const res = { open, block: u.searchParams.get("block"), meta: u.searchParams.get("meta") };
+  ["open", "block", "meta"].forEach((k) => u.searchParams.delete(k));
+  window.history.replaceState(null, "", u.pathname + u.search);
+  return res;
+}
 
 export async function revalidateSite() {
   try { await fetch("/api/site/revalidate", { method: "POST" }); } catch { /* сайт оновиться сам за 10 хв */ }
@@ -105,6 +118,7 @@ export default function SitePagesScreen() {
   const pending = useRef(null);
   const drag = useRef(null);
   const listRef = useRef(null);
+  const linkRef = useRef(undefined); // перехід із пошуку по сайту: яку сторінку й блок відкрити після завантаження
 
   const page = pages.find((p) => p.id === pageId) || null;
   const hasDraft = !!page && page.draft != null;
@@ -113,11 +127,20 @@ export default function SitePagesScreen() {
     const { data, error } = await supabase.from("site_pages").select("*").order("sort").order("title");
     if (error) { setMsg("Не вдалося завантажити сторінки: " + error.message); return; }
     setPages(data || []);
-    const id = keepId && data.some((p) => p.id === keepId) ? keepId : data?.[0]?.id;
+    // перехід із пошуку по сайту: одразу відкриваємо потрібну сторінку й блок
+    if (linkRef.current === undefined) linkRef.current = takeOpenParams();
+    const want = keepId ? null : linkRef.current;
+    const wanted = want && data.find((p) => p.slug === want.open);
+    const id = wanted ? wanted.id : keepId && data.some((p) => p.id === keepId) ? keepId : data?.[0]?.id;
     if (id) {
       const p = data.find((x) => x.id === id);
       setPageId(id);
       setBlocks(p.draft ?? p.blocks ?? []);
+    }
+    if (wanted && want.meta) setTab("page");
+    else if (wanted && want.block) {
+      setSel(want.block); setTab("blocks");
+      setTimeout(() => listRef.current?.querySelector(`[data-id="${want.block}"]`)?.scrollIntoView({ block: "nearest" }), 400);
     }
   }, [supabase]);
 
@@ -156,6 +179,7 @@ export default function SitePagesScreen() {
   }, [saveDraft]);
 
   async function openPage(id) {
+    linkRef.current = null;
     await flush();
     const p = pages.find((x) => x.id === id);
     setPageId(id); setBlocks(p?.draft ?? p?.blocks ?? []); setSel(null); setStatus("idle"); setMsg("");
@@ -214,6 +238,13 @@ export default function SitePagesScreen() {
     setTimeout(() => listRef.current?.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 50);
   }, []);
 
+  // знахідка з пошуку: сторінка → її блок або вкладка «Сторінка і Google»
+  async function openFound(id, blockId, meta) {
+    if (id !== pageId) await openPage(id);
+    if (meta) { setSel(null); setTab("page"); setMobileView("edit"); }
+    else if (blockId) selectBlock(blockId);
+  }
+
   function addBlock(type) {
     const b = newBlock(type);
     const i = blocks.findIndex((x) => x.id === sel);
@@ -232,9 +263,10 @@ export default function SitePagesScreen() {
       <LinkOptions pages={pages} />
       <div className="se-bar">
         <select className="se-pagesel" value={pageId || ""} onChange={(e) => openPage(e.target.value)} aria-label="Сторінка">
-          {pages.map((p) => <option key={p.id} value={p.id}>{p.title}{p.draft != null ? " •" : ""}{!p.published ? " (прихована)" : ""}</option>)}
+          {pages.map((p) => <option key={p.id} value={p.id}>{p.title}{p.slug === "home" ? "" : ` · /${p.slug}`}{p.draft != null ? " •" : ""}{!p.published ? " (прихована)" : ""}</option>)}
         </select>
         <button type="button" className="btn" onClick={() => setCreating({ title: "", slug: "", tpl: "landing" })}>+ Сторінка</button>
+        <SiteSearch pages={pages.map((p) => (p.id === pageId ? { ...p, draft: blocks } : p))} onOpenBlock={openFound} />
         <a className="btn" href={siteUrl} target="_blank" rel="noopener"><ExternalIcon /> Відкрити на сайті</a>
         <div className="se-bar__right">
           <span className={`se-status se-status--${hasDraft ? "draft" : "live"}`}>

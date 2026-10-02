@@ -81,7 +81,7 @@ export const SETTINGS_SECTIONS = [
   ] },
   { title: "Меню й підвал", key: "", fields: [
     { key: "nav", label: "Пункти меню", type: "list", item: "Пункт", fields: [{ key: "label", label: "Назва", type: "text" }, { key: "href", label: "Посилання", type: "href" },
-      { key: "also", label: "Підсвічувати також на сторінках (через кому, напр. /avatar, /novi-petrivtsi)", type: "text" },
+      { key: "also", label: "Підсвічувати також на сторінках (через кому, напр. /avatar, /villa-8)", type: "text" },
       { key: "items", label: "Підпункти — випадний список (назва пункту веде на його «Посилання», стрілка поруч відкриває список; на цих сторінках угорі зʼявляється перемикач)", type: "list", item: "Підпункт", fields: [
         { key: "label", label: "Назва", type: "text" }, { key: "href", label: "Посилання", type: "href" }, { key: "text", label: "Коротке пояснення під назвою", type: "text" },
       ] }] },
