@@ -82,16 +82,18 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 /* поточний розділ: колір + золота риска знизу (на телефоні — колір і жирний) */
 .s-nav__links a.on { color: var(--moss); font-weight: 700; position: relative; }
 @media (min-width: 900px) { .s-nav__links a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: var(--honey); } }
-/* пункт меню з підпунктами: кнопка + випадний список */
+/* пункт меню з підпунктами: назва — посилання на головну сторінку розділу, стрілка поруч — випадний список */
 .s-nav__group { position: relative; }
-.s-nav__top { font: inherit; font-weight: 600; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; position: relative; }
+.s-nav__head { display: inline-flex; align-items: center; gap: 1px; }
+.s-nav__top { font-weight: 600; color: inherit; position: relative; }
 .s-nav__top:hover, .s-nav__top.on { color: var(--moss); }
 .s-nav__top.on { font-weight: 700; }
+.s-nav__more { font: inherit; color: inherit; background: none; border: 0; padding: 4px 3px; cursor: pointer; display: inline-flex; align-items: center; border-radius: 6px; }
+.s-nav__more:hover, .s-nav__group.open .s-nav__more { color: var(--moss); }
 .s-nav__caret { font-size: 11px; transition: transform .15s; }
 .s-nav__drop a b { display: block; font-weight: 700; }
 .s-nav__drop a small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 2px; line-height: 1.35; }
 @media (min-width: 900px) {
-  .s-nav__top.on::after { content: ""; position: absolute; left: 0; right: 16px; bottom: -7px; height: 2px; border-radius: 2px; background: var(--honey); }
   .s-nav__drop { position: absolute; top: 100%; left: -16px; padding-top: 16px; width: 330px; opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .15s, transform .15s, visibility .15s; }
   .s-nav__group:hover .s-nav__drop, .s-nav__group.open .s-nav__drop { opacity: 1; visibility: visible; transform: none; }
   .s-nav__group:hover .s-nav__caret, .s-nav__group.open .s-nav__caret { transform: rotate(180deg); }
@@ -102,12 +104,17 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
   .s-nav__links .s-nav__panel a.on::after { display: none; }
 }
 @media (max-width: 899px) {
-  /* на телефоні підпункти розкриті одразу: назва групи — підзаголовок */
-  .s-nav__group { border-bottom: 1px solid var(--line); padding: 14px 0 4px; }
-  .s-nav__top { pointer-events: none; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-  .s-nav__top.on { color: var(--moss); }
-  .s-nav__caret { display: none; }
-  .s-nav__links .s-nav__drop a { display: block; padding: 10px 0; border-bottom: 0; }
+  /* на телефоні: назва розділу веде на його сторінку, стрілка праворуч розгортає підпункти (поточний розділ розгорнуто одразу) */
+  .s-nav__group { border-bottom: 1px solid var(--line); }
+  .s-nav__head { display: flex; align-items: stretch; justify-content: space-between; }
+  .s-nav__links .s-nav__head .s-nav__top { flex: 1; border-bottom: 0; }
+  .s-nav__more { width: 52px; justify-content: center; padding: 0; font-size: 20px; border-left: 1px solid var(--line); border-radius: 0; }
+  .s-nav__caret { font-size: 14px; }
+  .s-nav__group.open .s-nav__caret { transform: rotate(180deg); }
+  .s-nav__drop { display: none; padding: 0 0 10px 14px; }
+  .s-nav__group.open .s-nav__drop { display: block; }
+  .s-nav__links .s-nav__drop a { display: block; padding: 9px 0; border-bottom: 0; font-size: 17px; }
+  .s-nav__links .s-nav__drop a small { font-size: 13px; }
 }
 /* перемикач між розділами однієї групи — смуга під шапкою */
 .s-subnav { background: var(--paper); border-bottom: 1px solid var(--line); }
@@ -473,6 +480,11 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-foot__grid { display: grid; gap: 28px; }
 @media (min-width: 800px) { .s-foot__grid { grid-template-columns: 1.4fr 1fr 1fr 1fr; } }
 .s-foot__grid > div { display: flex; flex-direction: column; gap: 8px; }
+/* розділи сайту: усі опубліковані сторінки; коли їх багато — у дві колонки, а сама колонка ширша */
+@media (min-width: 800px) { .s-foot__grid--map { grid-template-columns: 1.2fr 1fr 1.7fr 1fr; } }
+.s-foot__links { display: flex; flex-direction: column; gap: 8px; }
+.s-foot__links--2 { display: block; columns: 2; column-gap: 24px; }
+.s-foot__links--2 a { display: block; margin-bottom: 8px; break-inside: avoid; }
 .s-foot__logo { height: 34px; width: auto; align-self: flex-start; margin-bottom: 6px; }
 .s-foot h4 { color: var(--paper); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
 .s-foot a:hover { color: var(--honey-2); }

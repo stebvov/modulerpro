@@ -1,13 +1,32 @@
 // Підвал сайту + нижня панель швидкого зв'язку на телефоні.
 import { phoneHref, siteHref, telegramHref, viberHref } from "@/lib/site/format";
 
-export function SiteFooter({ settings, base }) {
+// Жодна опублікована сторінка не має загубитись: до посилань підвалу дописуємо підпункти меню
+// і сторінки, на які немає входу ні в меню, ні в підвалі (нова сторінка з конструктора зʼявиться тут сама).
+const pathOf = (h) => String(h || "").split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+function footerLinks(settings, pages) {
+  const base = settings.footer_links?.length ? settings.footer_links : settings.nav || [];
+  const out = [];
+  const have = new Set(["/"]);
+  const add = (label, href) => {
+    if (!label || !href || /^(https?:|tel:|mailto:|#)/.test(href) || have.has(pathOf(href))) return;
+    have.add(pathOf(href));
+    out.push({ label, href });
+  };
+  base.forEach((l) => add(l?.label, l?.href));
+  (settings.nav || []).forEach((l) => { add(l?.label, l?.href); (Array.isArray(l?.items) ? l.items : []).forEach((k) => add(k?.label, k?.href)); });
+  (pages || []).forEach((p) => { if (p.slug !== "home") add(p.nav_label || p.title, `/${p.slug}`); });
+  return out;
+}
+
+export function SiteFooter({ settings, base, pages }) {
   const c = settings.contacts || {};
   const brand = settings.brand || {};
-  const links = settings.footer_links || settings.nav || [];
+  const links = footerLinks(settings, pages);
+  const wide = links.length > 8; // багато розділів — у дві колонки
   return (
     <footer className="s-foot">
-      <div className="s-wrap s-foot__grid">
+      <div className={`s-wrap s-foot__grid${wide ? " s-foot__grid--map" : ""}`}>
         <div>
           {brand.logo_light ? <img className="s-foot__logo" src={brand.logo_light} alt={brand.name || "Moduler"} /> : <b>{brand.name || "Moduler"}</b>}
           {settings.footer_text && <p>{settings.footer_text}</p>}
@@ -23,8 +42,10 @@ export function SiteFooter({ settings, base }) {
           {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
         </div>
         <div>
-          <h4>Сайт</h4>
-          {links.map((l, i) => <a key={i} href={siteHref(base, l.href)}>{l.label}</a>)}
+          <h4>Розділи сайту</h4>
+          <nav className={`s-foot__links${wide ? " s-foot__links--2" : ""}`} aria-label="Усі розділи сайту">
+            {links.map((l, i) => <a key={i} href={siteHref(base, l.href)}>{l.label}</a>)}
+          </nav>
         </div>
         <div>
           <h4>Де ми</h4>

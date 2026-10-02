@@ -73,9 +73,13 @@ export function SiteHeader({ settings, base, navAs }) {
             const cur = i === active ? activeKid(sub, hit) : -1;
             return (
               <div key={i} className={`s-nav__group${drop === i ? " open" : ""}`}>
-                <button type="button" className={`s-nav__top${i === active ? " on" : ""}`} aria-haspopup="true" aria-expanded={drop === i} onClick={() => setDrop(drop === i ? -1 : i)}>
-                  {l.label}<span className="s-nav__caret" aria-hidden>▾</span>
-                </button>
+                {/* назва розділу — посилання на його головну сторінку; стрілка поруч розкриває підпункти (на компʼютері — ще й наведення) */}
+                <span className="s-nav__head">
+                  <a href={siteHref(base, l.href || sub[0].href)} className={`s-nav__top${i === active ? " on" : ""}`} aria-current={i === active && cur < 0 ? "page" : undefined} onClick={() => { setOpen(false); setDrop(-1); }}>{l.label}</a>
+                  <button type="button" className="s-nav__more" aria-haspopup="true" aria-expanded={drop === i} aria-label={`Підрозділи: ${l.label}`} onClick={() => setDrop(drop === i ? -1 : i)}>
+                    <span className="s-nav__caret" aria-hidden>▾</span>
+                  </button>
+                </span>
                 <div className="s-nav__drop">
                   <div className="s-nav__panel">
                     {sub.map((k, j) => (
@@ -95,7 +99,8 @@ export function SiteHeader({ settings, base, navAs }) {
         <div className="s-nav__right">
           {c.phone && <a className="s-nav__phone s-only-d" href={phoneHref(c.phone)}>{c.phone_display || c.phone}</a>}
           <a className="s-btn s-btn--primary s-btn--sm s-only-d" href={siteHref(base, cta.href)}>{cta.label}</a>
-          <button type="button" className="s-burger" aria-label="Меню" aria-expanded={open} onClick={() => setOpen(!open)}><span /><span /><span /></button>
+          {/* на телефоні меню відкривається з розгорнутим поточним розділом, решта — згорнуті */}
+          <button type="button" className="s-burger" aria-label="Меню" aria-expanded={open} onClick={() => { setOpen(!open); setDrop(!open && group.length ? active : -1); }}><span /><span /><span /></button>
         </div>
       </div>
     </header>

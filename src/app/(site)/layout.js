@@ -2,7 +2,7 @@
 import "./site.css";
 import Script from "next/script";
 import { Manrope, Unbounded } from "next/font/google";
-import { getBase, getModels, getOrigin, getSettings } from "@/lib/site/data";
+import { getBase, getModels, getOrigin, getPagesList, getSettings } from "@/lib/site/data";
 import { SiteHeader, SiteScripts } from "@/components/site/SiteChrome";
 import { SiteFooter, StickyBar } from "@/components/site/SiteFooter";
 
@@ -25,7 +25,7 @@ export async function generateMetadata() {
 export const viewport = { themeColor: "#1E3D2F", width: "device-width", initialScale: 1 };
 
 export default async function SiteLayout({ children }) {
-  const [settings, base, origin, models] = await Promise.all([getSettings(), getBase(), getOrigin(), getModels()]);
+  const [settings, base, origin, models, pages] = await Promise.all([getSettings(), getBase(), getOrigin(), getModels(), getPagesList()]);
   // сторінка розробки живе за адресою /modeli/…, але в меню належить до «Індивідуальних проєктів»
   const navAs = Object.fromEntries(models.filter((m) => m.kind === "concept").map((m) => [`/modeli/${m.slug}`, `/proekty/${m.slug}`]));
   const a = settings.analytics || {};
@@ -49,7 +49,7 @@ export default async function SiteLayout({ children }) {
         <a className="s-skip" href="#main">До змісту</a>
         <SiteHeader settings={settings} base={base} navAs={navAs} />
         <main id="main">{children}</main>
-        <SiteFooter settings={settings} base={base} />
+        <SiteFooter settings={settings} base={base} pages={pages} />
         <StickyBar settings={settings} base={base} />
         <SiteScripts />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(org).replace(/</g, "\\u003c") }} />
