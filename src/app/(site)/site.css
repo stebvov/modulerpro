@@ -80,14 +80,14 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-nav__links { display: flex; gap: 22px; margin-left: auto; font-weight: 600; font-size: 15px; }
 .s-nav__links a:hover { color: var(--moss); }
 /* поточний розділ: колір + золота риска знизу (на телефоні — колір і жирний) */
-.s-nav__links a.on { color: var(--moss); font-weight: 700; position: relative; }
+.s-nav__links a.on { color: var(--moss); position: relative; }
+@media (max-width: 899px) { .s-nav__links a.on { font-weight: 700; } }
 @media (min-width: 900px) { .s-nav__links a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: var(--honey); } }
 /* пункт меню з підпунктами: назва — посилання на головну сторінку розділу, стрілка поруч — випадний список */
 .s-nav__group { position: relative; }
 .s-nav__head { display: inline-flex; align-items: center; gap: 1px; }
 .s-nav__top { font-weight: 600; color: inherit; position: relative; }
 .s-nav__top:hover, .s-nav__top.on { color: var(--moss); }
-.s-nav__top.on { font-weight: 700; }
 .s-nav__more { font: inherit; color: inherit; background: none; border: 0; padding: 4px 3px; cursor: pointer; display: inline-flex; align-items: center; border-radius: 6px; }
 .s-nav__more:hover, .s-nav__group.open .s-nav__more { color: var(--moss); }
 .s-nav__caret { font-size: 11px; transition: transform .15s; }
@@ -141,7 +141,13 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
   .s-nav__links .s-btn { margin-top: 20px; border: 0; }
   .s-nav__links .s-nav__phone { color: var(--moss); }
 }
-@media (min-width: 900px) and (max-width: 1099px) { .s-nav__links { gap: 16px; font-size: 14px; } .s-nav__phone { display: none; } }
+@media (min-width: 900px) {
+  .s-nav__links { flex: none; }
+  .s-nav__links > a, .s-nav__top { white-space: nowrap; }
+  .s-nav__group:last-of-type .s-nav__drop { left: auto; right: -16px; }
+}
+@media (min-width: 900px) and (max-width: 1279px) { .s-nav__phone { display: none; } }
+@media (min-width: 900px) and (max-width: 1099px) { .s-nav__links { gap: 14px; font-size: 14px; } }
 
 /* ── Перший екран ────────────────────────── */
 .s-hero { position: relative; color: var(--paper); background: var(--pine-2); overflow: hidden; isolation: isolate; }
