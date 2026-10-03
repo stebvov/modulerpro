@@ -12,11 +12,34 @@ import SupplierModal from "@/components/modals/SupplierModal";
 const stars = (n) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "без оцінки");
 
 export default function SuppliersScreen() {
-  const { suppliers, materialCategories, supplierCategoryLinks, supplierContacts } = useAppData();
+  const { supabase, suppliers, materials, materialCategories, supplierCategoryLinks, supplierContacts, supplierPrices, reload } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [filling, setFilling] = useState(false);
+  const [fillNote, setFillNote] = useState("");
+
+  // Категорії постачальника — з товарів, на які в нього є ціни. Лише додаємо відсутні, нічого не прибираємо.
+  async function fillCategories() {
+    const have = new Set(supplierCategoryLinks.map((l) => `${l.supplier_id}|${l.category_id}`));
+    const add = new Map();
+    for (const p of supplierPrices) {
+      const cat = materials.find((m) => m.id === p.material_id)?.category_id;
+      const key = `${p.supplier_id}|${cat}`;
+      if (cat && !have.has(key)) add.set(key, { supplier_id: p.supplier_id, category_id: cat });
+    }
+    const rows = [...add.values()];
+    const touched = new Set(rows.map((r) => r.supplier_id)).size;
+    const without = suppliers.filter((s) => !supplierPrices.some((p) => p.supplier_id === s.id) && !supplierCategoryLinks.some((l) => l.supplier_id === s.id)).length;
+    const rest = without ? ` Без цін і без категорій лишилось постачальників: ${without} — їм категорії треба проставити вручну.` : "";
+    if (!rows.length) return setFillNote(`Усі категорії вже проставлені за товарами, на які є ціни.${rest}`);
+    setFilling(true);
+    const { error } = await supabase.from("supplier_category_links").insert(rows);
+    await reload(true);
+    setFilling(false);
+    setFillNote(error ? `Не вдалося: ${error.message}` : `Додано категорій: ${rows.length} (постачальників: ${touched}) — за товарами, на які в них є ціни.${rest}`);
+  }
 
   // стовпчики: за чим сортувати й що показувати у списку фільтра
   const cols = useMemo(() => {
@@ -52,10 +75,16 @@ export default function SuppliersScreen() {
         <div className="toolbar-actions">
           <ColReset t={t} />
           {canWriteCatalog && (
+            <button className="btn" disabled={filling} onClick={fillCategories} title="Проставити постачальникам категорії за товарами, на які в них є ціни (наявні категорії не змінюються)">
+              {filling ? "Заповнюю…" : "Заповнити категорії автоматично"}
+            </button>
+          )}
+          {canWriteCatalog && (
             <button className="btn primary" onClick={() => openModal(null)}>+ Новий постачальник</button>
           )}
         </div>
       </div>
+      {fillNote && <p className="note" style={{ marginTop: -6 }}>{fillNote}</p>}
       <div className="table-scroll">
       <table>
         <thead>

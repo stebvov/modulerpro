@@ -17,6 +17,8 @@ import CategoryTreeSelect from "@/components/CategoryTreeSelect";
 import TrackRuleModal from "@/components/modals/TrackRuleModal";
 import PriceSourcesModal from "@/components/modals/PriceSourcesModal";
 import ManualPricesPanel from "@/components/panels/ManualPricesPanel";
+import InfoTip from "@/components/InfoTip";
+import StickyScroll from "@/components/StickyScroll";
 
 const dateTime = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const dateOnly = (ts) => (ts ? new Date(ts).toLocaleDateString("uk-UA") : "—");
@@ -233,13 +235,13 @@ export default function MarketPricesScreen() {
         {lastRun && <> Останній обхід: {dateTime(lastRun.finished_at || lastRun.started_at)}.</>}
       </p>
 
-      <div className="table-scroll">
-        <table>
+      <StickyScroll>
+        <table className="dense market-table">
           <thead>
             <tr>
               <ColHead t={t} k="name">Матеріал</ColHead>
               <ColHead t={t} k="unit">Од.</ColHead>
-              <ColHead t={t} k="best">Найкраща ціна за одиницю</ColHead>
+              <ColHead t={t} k="best"><span title="Найкраща (найнижча) ціна за одиницю матеріалу серед усіх постачальників">Найкраща</span></ColHead>
               {columnStores.map((s) => <ColHead t={t} k={`s:${s.id}`} key={s.id}>{s.name}</ColHead>)}
               <ColHead t={t} k="updated">Оновлено</ColHead>
             </tr>
@@ -263,21 +265,21 @@ export default function MarketPricesScreen() {
               return (
                 <Fragment key={m.id}>
                   {header && (
-                    <tr><td colSpan={cols} style={{ background: "var(--accent-bg)", fontWeight: 600, fontSize: 12 }}>{cat.icon ? `${cat.icon} ` : ""}{cat.name}</td></tr>
+                    <tr><td colSpan={cols} style={{ background: "var(--accent-bg)", fontWeight: 600, fontSize: 12 }}><span className="sticky-left">{cat.icon ? `${cat.icon} ` : ""}{cat.name}</span></td></tr>
                   )}
                   <tr style={{ cursor: "pointer" }} title="Клік — показати знайдені товари" onClick={(e) => { if (!e.target.closest("a,button,.btn")) toggle(m.id); }}>
                     <td>
                       {isOpen ? "▾" : "▸"} {m.icon ? `${m.icon} ` : ""}{m.name}
+                      <InfoTip text={m.spec} image={m.image_url} />
                       {!m.parse_rule && <span className="badge draft" style={{ marginLeft: 6 }}>ціна вручну</span>}
-                      {m.spec && <div className="note" style={{ marginTop: 2, maxWidth: 460, whiteSpace: "normal" }}>{m.spec}</div>}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{m.unit}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {bestPrice ? (
                         <>
                           {bestLink ? <a href={bestLink} target="_blank" rel="noreferrer" title={bestOffer?.title || "Відкрити товар на сайті"}><b>{fmtPrice(best)}</b></a> : <b>{fmtPrice(best)}</b>}
-                          <span className="note"> грн/{m.unit}</span>
-                          <div className="note" style={{ marginTop: 0 }}>{bestStore?.name}{bestOffer ? ` · продають по ${fmtPrice(bestOffer.price)} грн/${bestOffer.sale_unit || "шт"}` : ""}</div>
+                          <span className="note"> /{m.unit}</span>
+                          <span className="sub-clip" style={{ maxWidth: 120 }} title={`${bestStore?.name || ""}${bestOffer ? ` · продають по ${fmtPrice(bestOffer.price)} грн/${bestOffer.sale_unit || "шт"}` : ""}`}>{bestStore?.name}</span>
                         </>
                       ) : "—"}
                     </td>
@@ -308,6 +310,7 @@ export default function MarketPricesScreen() {
                   {isOpen && (
                     <tr>
                       <td colSpan={cols} style={{ background: "var(--bg, #faf9f5)", padding: 12 }}>
+                        <div className="sticky-view">
                         <div className="seg-row" style={{ marginBottom: 8 }}>
                           <button className={`seg-btn${!storeFilter ? " active" : ""}`} onClick={() => setStoreFilter("")}>Усі магазини</button>
                           {columnStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (
@@ -364,6 +367,7 @@ export default function MarketPricesScreen() {
                           </table>
                         )}
                         <ManualPricesPanel material={m} />
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -372,7 +376,7 @@ export default function MarketPricesScreen() {
             })}
           </tbody>
         </table>
-      </div>
+      </StickyScroll>
 
       <TrackRuleModal open={ruleFor !== undefined} material={ruleFor || null} groups={groups} onClose={() => setRuleFor(undefined)} onSaved={() => setRuleFor(undefined)} />
       <PriceSourcesModal open={sourcesOpen} sources={sources} stores={stores} canWrite={canWriteCatalog} onClose={() => setSourcesOpen(false)} onChanged={loadMeta} />

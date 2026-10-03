@@ -630,3 +630,45 @@ select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { mi
 .col-pop .col-cnt { margin-left: 8px; color: var(--text-muted); font-size: 11px; }
 .col-pop .col-on { color: var(--accent); font-weight: 600; }
 .col-pop .col-sep { border-bottom: 1px solid var(--border); }
+/* Ціни постачальників (02.10): щільні таблиці, різниця цін, підказка-опис, закріплена назва й смуга прокрутки */
+table.dense { font-size: 12.5px; }
+table.dense th, table.dense td { padding: 5px 8px; vertical-align: middle; }
+table.dense th.num, table.dense td.num { text-align: right; white-space: nowrap; }
+table.dense th.num .col-head { justify-content: flex-end; }
+tr.row-click { cursor: pointer; }
+tr.row-click:hover > td { background: #f7f5ef; }
+tr.row-mark > td { background: var(--accent-bg); }
+.cell-clip { display: inline-block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.sub-clip { display: block; max-width: 440px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.3; color: var(--text-muted); }
+.btn.small.icon { width: 24px; min-height: 22px; height: 22px; padding: 0; font-size: 12px; vertical-align: middle; }
+.diff-up { color: var(--danger); white-space: nowrap; }
+.diff-down { color: var(--success); white-space: nowrap; }
+.diff-pct { font-size: 11px; opacity: .85; }
+.group-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; margin: 0 0 6px; }
+.group-head a { text-decoration: none; }
+.group-head a:hover { text-decoration: underline; }
+.stat-row { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; font-size: 13px; margin: 10px 0; padding: 8px 10px; background: var(--bg); border-radius: var(--r); }
+.mat-info { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 4px; }
+.mat-info img { width: 96px; height: 96px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; flex: none; }
+.thumb { width: 44px; height: 44px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; flex: none; }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.info-tip { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 5px; padding: 0; border: 1px solid var(--border-strong); border-radius: 50%; background: var(--card); color: var(--text-secondary); font: italic 700 10px/1 Georgia, serif; cursor: help; vertical-align: 1px; }
+.info-tip:hover, .info-tip:focus-visible { border-color: var(--accent); color: var(--accent); }
+.info-pop { z-index: 1100; background: var(--card); border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 10px 12px; font-size: 12.5px; line-height: 1.45; color: var(--text); pointer-events: none; white-space: pre-line; box-sizing: border-box; }
+.info-pop img { display: block; max-width: 100%; max-height: 150px; object-fit: contain; border-radius: var(--r-sm); margin-bottom: 8px; }
+/* StickyScroll: перший стовпець стоїть на місці, смуга прокрутки прилипає до низу екрана */
+.sticky-x { scrollbar-width: none; }
+.sticky-x::-webkit-scrollbar { display: none; }
+.sticky-x > table > thead > tr > th:first-child,
+.sticky-x > table > tbody > tr > td:first-child { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
+.sticky-x > table > tbody > tr > td:first-child { background: var(--card); max-width: min(340px, 46vw); }
+.sticky-x > table > tbody > tr.row-click:hover > td:first-child { background: #f7f5ef; }
+.sticky-x > table > tbody > tr > td[colspan] { box-shadow: none; max-width: none; }
+.sticky-xbar { position: sticky; bottom: 0; z-index: 6; overflow-x: auto; overflow-y: hidden; background: var(--card); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--r) var(--r); }
+.sticky-xbar > div { height: 1px; }
+.sticky-left { position: sticky; left: 12px; }
+.sticky-view { position: sticky; left: 12px; width: calc(var(--view-w, 100%) - 24px); max-width: 100%; overflow-x: auto; }
+.market-table td:first-child { min-width: 220px; }
+.price-list > tbody > tr > td:first-child { min-width: 240px; }
+.price-list .sub-clip { max-width: 320px; }
+td.group-row { background: var(--accent-bg); font-weight: 600; font-size: 12px; }

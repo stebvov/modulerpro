@@ -3,6 +3,13 @@
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
+// заголовки запиту сторінки — спільні для обходу сайтів і розбору одного товару за посиланням
+export const HEADERS = {
+  "User-Agent": UA,
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "uk-UA,uk;q=0.9",
+};
+
 const lastHit = new Map(); // хост → час останнього запиту
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -16,11 +23,7 @@ export async function getHtml(url, { gap = 900, timeout = 40000, tries = 3 } = {
     lastHit.set(host, Date.now());
     try {
       const res = await fetch(url, {
-        headers: {
-          "User-Agent": UA,
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "uk-UA,uk;q=0.9",
-        },
+        headers: HEADERS,
         redirect: "follow",
         cache: "no-store",
         signal: AbortSignal.timeout(timeout),
