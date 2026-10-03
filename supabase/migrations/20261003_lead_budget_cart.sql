@@ -1,0 +1,2 @@
+-- 2026-10-03 (MCP lead_budget_amount_currency): leads.budget_amount, leads.budget_currency (budget_range — текстом для сумісності).
+-- deals.template_lines — кошик: [{kind house|service|product|custom, ref_id, template_id (будинок), label, unit_price (грн), unit_price_cur, currency, quantity, from_package}].

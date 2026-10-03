@@ -109,6 +109,8 @@ export function serviceTemplateUnitPrice(serviceTemplateId, serviceTemplateItems
 export function orderItemsProductionTotal(items, { templates, services, serviceTemplateItems, serviceTemplates }) {
   return (items || []).reduce((sum, l) => {
     const qty = Number(l.quantity) || 0;
+    // кошик угоди: ціна зафіксована в самій позиції (у гривні)
+    if (l.unit_price != null && !(l.kind === "service" && !l.ref_id)) return sum + (Number(l.unit_price) || 0) * qty;
     if (l.kind === "house") {
       const tpl = templates.find((t) => t.id === l.template_id);
       if (!tpl || tpl.base_cost_per_m2 == null) return sum;

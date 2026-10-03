@@ -1,8 +1,8 @@
 "use client";
 import SettingsButton from "@/components/SettingsButton";
 import SearchFilter from "@/components/SearchFilter";
-import SelectSearch from "@/components/SelectSearch";
-import { treeOptions, inBranch } from "@/lib/tree";
+import { useAppData } from "@/context/DataContext";
+import { fmtCurrency } from "@/lib/format";
 import { flagOf } from "@/lib/site/leadMeta";
 
 import { useMemo, useState } from "react";
@@ -11,7 +11,7 @@ import { useCrmData } from "@/context/CrmDataContext";
 import DealModal from "@/components/modals/DealModal";
 import CrmSettingsModal from "@/components/modals/CrmSettingsModal";
 import MarginThresholdModal from "@/components/modals/MarginThresholdModal";
-import { computeProductionCostSnapshot, curr, fmtDate, fmtDateTime, stageColor } from "@/lib/crm";
+import { computeProductionCostSnapshot, fmtDate, fmtDateTime, stageColor } from "@/lib/crm";
 
 function AttentionReport({ rows, onOpenDeal, onClose }) {
   const sorted = [...rows].sort((a, b) => (b.days_without_attention || 0) - (a.days_without_attention || 0));
@@ -57,15 +57,16 @@ function AttentionReport({ rows, onOpenDeal, onClose }) {
 
 export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
   const {
-    loading, error, pipelines: allPipelines, pipelineStages, dealsKanban, deals, dealServices, leadCategoryLinks, productCategories,
+    loading, error, pipelines: allPipelines, pipelineStages, dealsKanban, deals, dealServices,
     templates, serviceTemplates, bomItems, extraCosts, supplierPrices, marginAlerts, supabase, reload,
   } = useCrmData();
+  const { currency, exchangeRates, showDecimals } = useAppData();
+  const money = (uah) => fmtCurrency(uah, currency, exchangeRates, showDecimals);
   const { canWriteCrm: canWriteCatalog } = useAuth(); // для CRM — право змінювати угоди
   const [pipelineId, setPipelineId] = useState(null);
   // розділ «УК і сервіс» має свою воронку; в основних продажах її не показуємо
   const pipelines = useMemo(() => (onlySlug ? allPipelines.filter((p) => p.slug === onlySlug) : allPipelines.filter((p) => p.slug !== hideSlug)), [allPipelines, onlySlug, hideSlug]);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [modal, setModal] = useState(null);
 
   const activePipelineId = pipelineId || pipelines[0]?.id || null;
@@ -75,16 +76,11 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
     [pipeline, pipelineStages]
   );
 
-  function categoriesOfLead(leadId) {
-    return leadCategoryLinks.filter((l) => l.lead_id === leadId).map((l) => productCategories.find((c) => c.id === l.category_id)).filter(Boolean);
-  }
-
   const pipelineDeals = pipeline ? dealsKanban.filter((d) => d.pipeline_id === pipeline.id) : [];
   const filtered = pipelineDeals.filter((d) => {
     const q = search.trim().toLowerCase();
     const matchesQuery = !q || (d.lead_name || "").toLowerCase().includes(q) || (d.lead_region || "").toLowerCase().includes(q);
-    const matchesCategory = !categoryFilter || categoriesOfLead(d.lead_id).some((c) => inBranch(productCategories, c.id, categoryFilter));
-    return matchesQuery && matchesCategory;
+    return matchesQuery;
   });
 
   function byStage(stageId) {
@@ -133,7 +129,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ textAlign: "right" }}>
             <div className="note" style={{ textTransform: "uppercase" }}>Разом у воронці</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)" }}>{curr(grandTotal)} грн</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--accent)" }}>{money(grandTotal)}</div>
           </div>
           <button className="btn" style={{ position: "relative" }} title="Ліди без уваги" onClick={() => setModal({ mode: "report" })}>
             📋
@@ -148,9 +144,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
 
       <div className="toolbar">
         <div className="toolbar-left" style={{ flex: 1, flexWrap: "wrap" }}>
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук за іменем, регіоном..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
-            <SelectSearch value={categoryFilter} options={treeOptions(productCategories)} onChange={setCategoryFilter} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
-          </SearchFilter>
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук за іменем, регіоном..." />
         </div>
       </div>
 
@@ -165,7 +159,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{stage.label}</h3>
                 </div>
-                <div className="note" style={{ color, marginTop: 4, fontWeight: 600 }}>{stageDeals.length} · {curr(stageTotal)} грн</div>
+                <div className="note" style={{ color, marginTop: 4, fontWeight: 600 }}>{stageDeals.length} · {money(stageTotal)}</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 40 }}>
                 {stageDeals.length === 0 && <div className="kanban-empty">Порожньо</div>}
@@ -197,8 +191,8 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                         {d.template_lines?.length ? (
                           d.template_lines.map((l, i) => {
                             let itemLabel = l.label;
-                            if (l.kind === "house") itemLabel = templates.find((t) => t.id === l.template_id)?.name || "?";
-                            else if (l.kind === "service") itemLabel = serviceTemplates.find((t) => t.id === l.template_id)?.name || "?";
+                            if (!itemLabel && l.kind === "house") itemLabel = templates.find((t) => t.id === l.template_id)?.name || "?";
+                            else if (!itemLabel && l.kind === "service") itemLabel = serviceTemplates.find((t) => t.id === l.template_id)?.name || "?";
                             return (
                               <span key={i}>
                                 {i > 0 && ", "}
@@ -210,7 +204,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                           d.template_name ? (
                             <>{d.template_name}{d.area_m2 ? <> · {d.area_m2} м²</> : null}{d.quantity > 1 && <> · ×{d.quantity}</>}</>
                           ) : (
-                            <>{categoriesOfLead(d.lead_id).map((c) => c.name).join(", ") || "Індивідуальний"}</>
+                            <>Без позицій</>
                           )
                         )}
                       </div>
@@ -228,7 +222,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                           {services.map((s) => (
                             <div key={s.id} className="note" style={{ display: "flex", justifyContent: "space-between" }}>
                               <span>{s.service_type.replace("_", " ")}{s.variant ? ` (${s.variant})` : ""}</span>
-                              <span>{s.calc_method === "середнє" ? "≈" : ""}{curr(s.price)} грн</span>
+                              <span>{s.calc_method === "середнє" ? "≈" : ""}{money(s.price)}</span>
                             </div>
                           ))}
                         </div>
@@ -236,12 +230,12 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 10, flexWrap: "wrap", gap: 4 }}>
                         {Number(d.production_price || d.estimated_price) > 0 && (
                           <span style={{ fontSize: 15, fontWeight: 600, color: d.is_custom ? "var(--text-secondary)" : "var(--text)" }}>
-                            {d.is_custom ? "≈" : ""}{curr((Number(d.production_price || d.estimated_price)) * (d.quantity || 1))} грн
+                            {d.is_custom ? "≈" : ""}{money((Number(d.production_price || d.estimated_price)) * (d.quantity || 1))}
                           </span>
                         )}
                         {Number(d.services_price_total) > 0 && (
                           <span style={{ fontSize: 11, color: "#C1652F" }}>
-                            {Number(d.production_price || d.estimated_price) > 0 ? "+" : ""}{curr(d.services_price_total)} грн{Number(d.production_price || d.estimated_price) > 0 ? " посл." : ""}
+                            {Number(d.production_price || d.estimated_price) > 0 ? "+" : ""}{money(d.services_price_total)}{Number(d.production_price || d.estimated_price) > 0 ? " посл." : ""}
                           </span>
                         )}
                       </div>
