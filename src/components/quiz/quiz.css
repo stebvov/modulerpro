@@ -68,3 +68,5 @@
   .qz-start { min-height: 380px; }
   .qz-cards { grid-template-columns: 1fr 1fr; }
 }
+
+.qz-testbar { background: #fff4d6; color: #7a5200; border: 1px solid #f0d58a; border-radius: 12px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; text-align: center; }

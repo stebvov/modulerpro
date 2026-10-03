@@ -524,11 +524,22 @@ function QuizStats({ quiz }) {
   const supabase = useMemo(() => createClient(), []);
   const [days, setDays] = useState(30);
   const [rows, setRows] = useState(null);
+  const [reload, setReload] = useState(0);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [msg, setMsg] = useState("");
   useEffect(() => {
     let on = true;
     supabase.rpc("quiz_funnel", { p_quiz: quiz.id, p_from: since(days) }).then(({ data }) => { if (on) setRows(data || []); });
     return () => { on = false; };
-  }, [supabase, quiz.id, days]);
+  }, [supabase, quiz.id, days, reload]);
+  // скинути статистику: перегляди, старти, кроки (заявки в CRM лишаються)
+  async function resetStats() {
+    if (!confirmReset) { setConfirmReset(true); setTimeout(() => setConfirmReset(false), 4000); return; }
+    const { error } = await supabase.from("quiz_events").delete().eq("quiz_id", quiz.id);
+    setConfirmReset(false);
+    setMsg(error ? "Не вдалося: " + error.message : "Статистику скинуто");
+    setReload((k) => k + 1);
+  }
   const get = (kind, step = -1) => rows?.find((r) => r.kind === kind && r.step === step)?.sessions || 0;
   const views = get("view"), starts = get("start"), leads = get("lead");
   const qs = (quiz.questions || []).filter((x) => x.title);
@@ -568,6 +579,11 @@ function QuizStats({ quiz }) {
             })}
           </div>
           <p className="note">Рахуються унікальні відвідування (одна людина в одній вкладці — один раз). Велике падіння на кроці — сигнал спростити або прибрати це питання.</p>
+          <p className="note">🧪 Ваші власні проходи не рахуються: коли ви увійшли в систему, квіз відкривається в тестовому режимі (жовта смужка вгорі). Для перевірки з іншого браузера додайте до посилання <code>?test=1</code>.</p>
+          <div className="qze-row" style={{ alignItems: "center", marginTop: 8 }}>
+            <button className="btn small danger" onClick={resetStats}>{confirmReset ? "Точно скинути? Натисніть ще раз" : "↺ Скинути статистику"}</button>
+            {msg && <span className="note">{msg}</span>}
+          </div>
         </>
       )}
     </div>
@@ -579,7 +595,7 @@ function QuizAnswers({ quiz }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
     let on = true;
-    supabase.from("quiz_responses").select("id,created_at,answers,contact,lead_id").eq("quiz_id", quiz.id).order("created_at", { ascending: false }).limit(200)
+    supabase.from("quiz_responses").select("*").eq("quiz_id", quiz.id).order("created_at", { ascending: false }).limit(200)
       .then(({ data }) => { if (on) setRows(data || []); });
     return () => { on = false; };
   }, [supabase, quiz.id]);
@@ -593,6 +609,7 @@ function QuizAnswers({ quiz }) {
             <b>{r.contact?.name || "—"}</b>
             <a href={`tel:${r.contact?.phone || ""}`}>{r.contact?.phone}</a>
             {r.contact?.via && <span className="badge draft">{r.contact.via}</span>}
+            {r.is_test && <span className="badge" style={{ background: "var(--amber-bg)", color: "var(--amber)" }}>🧪 тест</span>}
             <span className="note">{new Date(r.created_at).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
             <Link className="btn small" href="/?s=crm">У CRM →</Link>
           </div>

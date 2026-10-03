@@ -1,0 +1,2 @@
+-- 2026-10-03 (MCP quiz_test_mode): quiz_responses.is_test; quiz_submit приймає p.test лише від сервера (service_role, людина увійшла в систему) —
+-- такі заявки йдуть у CRM з «🧪 ТЕСТ», не рахуються в quiz_events; dispatch шле вебхукам "test": true, Telegram з «🧪 ТЕСТ», Facebook CAPI пропускає.

@@ -30,7 +30,8 @@ function utmString() {
   } catch { return ""; }
 }
 
-export default function QuizPlayer({ quiz, preview = false, embed = false }) {
+// test — тестовий режим: людина увійшла в систему (або ?test=1). Статистика й пікселі не рахуються, заявка позначається «🧪 ТЕСТ».
+export default function QuizPlayer({ quiz, preview = false, embed = false, test = false }) {
   const questions = useMemo(() => (quiz.questions || []).filter((q) => q && q.title), [quiz.questions]);
   const start = quiz.start || {};
   const contact = quiz.contact || {};
@@ -48,7 +49,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
   const tracked = useRef(new Set());
 
   function track(kind, step = -1) {
-    if (preview || !quiz.slug) return;
+    if (preview || test || !quiz.slug) return;
     const key = kind + ":" + step;
     if (tracked.current.has(key)) return;
     tracked.current.add(key);
@@ -103,7 +104,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
     setState("sending");
     const list = questions.map((x) => ({ q: x.title, a: answerText(x, answers[x.id]) })).filter((x) => x.a);
     const eventId = newEventId();
-    const body = { ...fbCookies(), event_id: eventId, url: location.href.slice(0, 500), slug: quiz.slug, sid: sid.current, name: f.name, phone: f.phone, company: f.company || "", contact_via: contact.ask_via === false ? "" : via, answers: list, utm: utmString() };
+    const body = { ...fbCookies(), event_id: eventId, url: location.href.slice(0, 500), slug: quiz.slug, sid: sid.current, name: f.name, phone: f.phone, company: f.company || "", contact_via: contact.ask_via === false ? "" : via, answers: list, utm: utmString(), ...(test ? { test: true } : {}) };
     let meta = null;
     try { meta = await visitorMeta({ formStartedAt: startedAt.current, form: { kind: "квіз", quiz: quiz.title } }); } catch { /* */ }
     let data = null, error = null;
@@ -117,7 +118,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
     }
     if (error || !data?.ok) { setState("idle"); setErr(data?.error || "Не вдалося надіслати. Спробуйте ще раз."); return; }
     setState("done");
-    quizEvent("lead", { quiz: quiz.title, slug: quiz.slug, event_id: eventId });
+    if (!test) quizEvent("lead", { quiz: quiz.title, slug: quiz.slug, event_id: eventId });
     try { window.parent?.postMessage({ type: "moduler-quiz-lead", slug: quiz.slug, event_id: eventId }, "*"); } catch { /* */ }
     if (thanks.redirect && /^https?:\/\//.test(thanks.redirect)) { (embed ? window.top : window).location.href = thanks.redirect; return; }
     go(n + 1);
@@ -130,6 +131,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
 
   return (
     <div className={`qz${embed ? " qz--embed" : ""}${preview ? " qz--preview" : ""}`} style={{ "--qz-accent": design.accent || "#2f6b4f" }}>
+      {test && <div className="qz-testbar">🧪 Тестовий режим: ви увійшли в систему — проходження не йде в статистику, а заявка прийде з позначкою «ТЕСТ».</div>}
       {pos === -1 && (
         <div className="qz-start" style={start.image ? { backgroundImage: `linear-gradient(90deg, rgba(10,20,15,.82), rgba(10,20,15,.35)), url(${start.image})` } : undefined}>
           <div className="qz-start__body">
