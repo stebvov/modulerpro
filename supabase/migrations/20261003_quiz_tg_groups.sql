@@ -1,0 +1,3 @@
+-- 2026-10-03 (MCP quiz_tg_groups_owner_toggle): quiz_integrations.notify_owner (особисті сповіщення засновнику можна вимкнути);
+-- quiz_tg_groups() — групи, де вже є бот (tg_chats), для вибору в налаштуваннях квізу; site_lead_notify поважає moduler.skip_owner_tg;
+-- repeat_notify шле і в групи квізу.

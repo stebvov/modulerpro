@@ -86,3 +86,6 @@
 .qze-hook input[type="checkbox"] { width: auto; }
 .qze-hook__name { flex: 1 1 140px; min-width: 0; }
 .qze-hook__url { flex: 3 1 240px; min-width: 0; }
+
+.qze-tg-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px 12px; }
+.qze-tg-groups .qze-check { margin-bottom: 6px; }

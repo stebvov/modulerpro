@@ -443,13 +443,16 @@ function IntegrationsEditor({ q, setPart }) {
   const [row, setRow] = useState(null);
   const [state, setState] = useState("");
   const [loadErr, setLoadErr] = useState("");
+  const [groups, setGroups] = useState([]);
   useEffect(() => {
     let on = true;
     supabase.from("quiz_integrations").select("*").eq("quiz_id", q.id).maybeSingle().then(({ data, error }) => {
       if (!on) return;
       if (error) setLoadErr(error.message);
-      setRow(data || { quiz_id: q.id, webhooks: [], tg_chats: "", fb_capi_token: "", fb_test_code: "" });
+      setRow(data || { quiz_id: q.id, webhooks: [], tg_chats: "", fb_capi_token: "", fb_test_code: "", notify_owner: true });
     });
+    // групи Telegram, де вже є бот Іван
+    supabase.rpc("quiz_tg_groups").then(({ data }) => { if (on) setGroups(data || []); });
     return () => { on = false; };
   }, [supabase, q.id]);
   const upd = (patch) => { setRow((r) => ({ ...r, ...patch })); setState("dirty"); };
@@ -504,11 +507,29 @@ function IntegrationsEditor({ q, setPart }) {
           <button className="btn small" onClick={() => upd({ webhooks: [...hooks, { name: "", url: "", on: true }] })}>+ Вебхук</button>
           <p className="note">На кожну заявку надсилаємо POST JSON: name, phone, contact_via, answers (питання → відповідь), answers_text, utm, page, source, city, lead_id, quiz. У Make/Zapier створіть «Custom webhook», вставте адресу сюди — далі передавайте дані в будь-який сервіс.</p>
 
-          <h4 className="qze-h">Telegram — додаткові чати</h4>
-          <div className="form-row"><label>ID чатів або @канали через кому</label>
-            <input value={row.tg_chats || ""} onChange={(e) => upd({ tg_chats: e.target.value })} placeholder="-1001234567890, @moduler_leads" />
-          </div>
-          <p className="note">Засновнику заявки приходять завжди. Сюди — інші чати (напр. група відділу продажу): додайте туди бота системи, а ID групи можна дізнатися, переславши повідомлення з неї боту @userinfobot.</p>
+          <h4 className="qze-h">Telegram — куди бот надсилає заявки</h4>
+          <label className="qze-check"><input type="checkbox" checked={row.notify_owner !== false} onChange={(e) => upd({ notify_owner: e.target.checked })} /> Надсилати засновнику особисто</label>
+          {(() => {
+            const ids = (row.tg_chats || "").split(/[,;\s]+/).filter(Boolean);
+            const toggle = (id, on) => upd({ tg_chats: (on ? [...new Set([...ids, String(id)])] : ids.filter((x) => x !== String(id))).join(", ") });
+            const known = new Set(groups.map((g) => String(g.chat_id)));
+            const other = ids.filter((x) => !known.has(x));
+            return (
+              <>
+                <div className="qze-tg-groups">
+                  {groups.map((g) => (
+                    <label key={g.chat_id} className="qze-check"><input type="checkbox" checked={ids.includes(String(g.chat_id))} onChange={(e) => toggle(g.chat_id, e.target.checked)} /> 👥 {g.title}</label>
+                  ))}
+                  {!groups.length && <span className="note">Бот ще не доданий у жодну групу.</span>}
+                </div>
+                <div className="form-row" style={{ marginTop: 8 }}><label>Інші чати чи канали (ID або @назва, через кому)</label>
+                  <input value={other.join(", ")} onChange={(e) => upd({ tg_chats: [...ids.filter((x) => known.has(x)), ...e.target.value.split(/[,;\s]+/).filter(Boolean)].join(", ") })} placeholder="@moduler_leads" />
+                </div>
+                {row.notify_owner === false && !ids.length && <p className="note" style={{ color: "var(--danger)" }}>Увага: особисті сповіщення вимкнено і жодної групи не вибрано — у Telegram заявки не прийдуть (у CRM потраплять).</p>}
+              </>
+            );
+          })()}
+          <p className="note">Щоб група зʼявилась у списку — додайте в неї бота Івана (бот системи), і вона підтягнеться сама. Тестові заявки (з позначкою «🧪 ТЕСТ») йдуть туди ж.</p>
 
           <div className="qze-row" style={{ marginTop: 14, alignItems: "center" }}>
             <button className="btn primary" disabled={state === "saving" || state === "" || state === "saved"} onClick={saveRow}>{state === "saving" ? "Зберігаю…" : "Зберегти інтеграції"}</button>
