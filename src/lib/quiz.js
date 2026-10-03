@@ -69,13 +69,23 @@ export function nextIndex(questions, i, answer) {
 }
 
 // відповідь людиною прочитаним текстом — для ліда в CRM
+// число повзунка: 25 000 $ / $25 000 / 40 м²; на максимумі — «+», якщо так задано
+export function fmtSlider(q, v, atEnd = false) {
+  const n = Number(v);
+  const num = Number.isFinite(n) ? n.toLocaleString("uk-UA") : String(v ?? "");
+  const unit = (q.unit || "").trim();
+  const plus = atEnd && q.max_plus && n >= Number(q.max) ? "+" : "";
+  if (!unit) return num + plus;
+  return ["$", "€", "₴"].includes(unit) ? `${unit}${num}${plus}` : `${num}${plus} ${unit}`;
+}
+
 export function answerText(q, a) {
   if (a == null || a === "" || (Array.isArray(a) && !a.length)) return "";
   if (q.type === "list" || q.type === "cards") {
     const ids = Array.isArray(a) ? a : [a];
     return ids.map((id) => q.options.find((o) => o.id === id)?.label || "").filter(Boolean).join(", ");
   }
-  if (q.type === "slider") return `${a} ${q.unit || ""}`.trim();
+  if (q.type === "slider") return fmtSlider(q, a, true);
   if (q.type === "date") { try { return new Date(a).toLocaleDateString("uk-UA"); } catch { return String(a); } }
   return String(a);
 }

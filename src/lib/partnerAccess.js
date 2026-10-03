@@ -1,11 +1,16 @@
-// Tab keys a "partner" role's access group can be granted — must match the
-// `key` on each AppShell TAB_GROUPS entry. Фінанси/Users/Team are
-// intentionally never offered here: partners never get financial or
-// user-management access regardless of group settings.
+// Розділи, які можна відкрити ролі з обмеженим доступом. key — або група меню (src/lib/menu.js, відкриває всю групу),
+// або id окремої вкладки (відкриває лише її). Фінанси, користувачі й команда тут свідомо не пропонуються.
 export const PARTNER_TAB_OPTIONS = [
+  { key: "crm", label: "CRM (ліди й угоди)" },
+  { key: "quizzes", label: "Квізи (лише конструктор)" },
+  { key: "marketing", label: "Маркетинг (увесь розділ, разом із квізами)" },
   { key: "catalog", label: "Каталог" },
-  { key: "crm", label: "CRM" },
   { key: "production", label: "Виробництво" },
   { key: "services", label: "Послуги" },
-  { key: "marketing", label: "Маркетинг" },
+];
+
+// готові заготовки ролей
+export const ROLE_PRESETS = [
+  { name: "Налаштування квізів", description: "Конструктор квізів: питання, дизайн, публікація, інтеграції, статистика й заявки квізів. Без доступу до CRM.", tabs: ["quizzes"], crm_edit: false },
+  { name: "Менеджер лідів", description: "Ліди й угоди лише вибраних воронок CRM: перегляд і робота з угодами.", tabs: ["crm"], crm_edit: true },
 ];

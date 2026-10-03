@@ -24,7 +24,8 @@ export async function POST(request) {
   };
 
   const answers = Array.isArray(body.answers) ? body.answers.slice(0, 60).map((a) => ({ q: s(a?.q, 200) || "", a: s(a?.a, 500) || "" })) : [];
-  const p = { slug: s(body.slug, 60), sid: s(body.sid, 64), name: s(body.name, 120), phone: s(body.phone, 40), company: s(body.company, 100), contact_via: s(body.contact_via, 40), utm: s(body.utm, 300), answers };
+  const p = { slug: s(body.slug, 60), sid: s(body.sid, 64), name: s(body.name, 120), phone: s(body.phone, 40), company: s(body.company, 100), contact_via: s(body.contact_via, 40), utm: s(body.utm, 300), answers,
+    fbp: s(body.fbp, 120), fbc: s(body.fbc, 300), event_id: s(body.event_id, 64), url: s(body.url, 500) };
   try { p.meta = buildLeadMeta(body.meta && typeof body.meta === "object" ? body.meta : {}, srv); } catch (e) { console.error("quiz lead meta", e); }
 
   let sb;

@@ -240,7 +240,8 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
     supabase, leads, leadContacts, leadCategoryLinks, deals, dealActivities, teamMembers, productCategories,
     templates, serviceTemplates, services, serviceTemplateItems, bomItems, extraCosts, supplierPrices, marginAlerts, reload,
   } = useCrmData();
-  const { canWriteCatalog, profile } = useAuth();
+  const { canWriteCrm, canWriteCatalog: canDelete, profile } = useAuth();
+  const canWriteCatalog = canWriteCrm;
 
   const [savedId, setSavedId] = useState(dealId || null);
   const [pkgs, setPkgs] = useState({ list: [], items: [] });
@@ -716,7 +717,7 @@ export default function DealModal({ open, dealId, pipeline, onClose, onSaved }) 
         </div>
 
         <div className="modal-actions">
-          {savedId && canWriteCatalog && (
+          {savedId && canDelete && (
             <button className="btn" style={{ color: "var(--danger)", marginRight: "auto" }} onClick={handleDelete} disabled={saving}>
               Видалити ліда
             </button>

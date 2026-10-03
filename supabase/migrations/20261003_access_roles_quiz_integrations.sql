@@ -1,0 +1,15 @@
+-- Застосовано через Supabase MCP 2026-10-03: quiz_integrations_tables, access_roles_policies, quiz_dispatch_integrations.
+-- Ролі доступу (роль «partner» + partner_groups):
+--   partner_groups.crm_edit — роль може змінювати угоди/ліди лише у своїх воронках (partner_group_pipelines);
+--   partner_groups.description — опис ролі;
+--   вкладка «quizzes» (або «marketing») у partner_group_tabs → доступ до конструктора квізів.
+--   Функції: partner_has_tab(text), quiz_can(), crm_can_edit_pipeline(uuid), crm_can_edit_any().
+--   Політики deals/leads/deal_activities/lead_contacts/quizzes/quiz_* змінено через ALTER POLICY на ці функції;
+--   storage.objects: site_files_insert_quiz (фото квізів у бакет site).
+-- Інтеграції квізу:
+--   quizzes.tracking jsonb — публічні ID: fb_pixel, tiktok_pixel, ga4, gtm (вставляються на сторінку /q/<slug>);
+--   quiz_integrations (RLS: quiz_can) — webhooks [{url,name,on}], tg_chats, fb_capi_token, fb_test_code;
+--   quiz_private.dispatch(quiz, lead, payload) — через pg_net: вебхуки (POST JSON), Telegram-чати, Facebook Conversions API (Lead,
+--   event_id = той самий, що в пікселі браузера; телефон/імʼя/країна — SHA-256). Схема quiz_private не відкрита через API.
+--   quiz_submit викликає dispatch після створення ліда; повторна відправка тієї ж сесії не дублюється.
+-- site_submit_lead: p.pipeline приймає будь-який існуючий slug воронки (раніше лише houses/partners/uk-owners).

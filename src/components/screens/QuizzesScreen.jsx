@@ -22,6 +22,7 @@ function copy(text, done) {
 
 export default function QuizzesScreen() {
   const supabase = useMemo(() => createClient(), []);
+  const pipelines = usePipelines();
   const [rows, setRows] = useState(null);
   const [stats, setStats] = useState({});
   const [days, setDays] = useState(30);
@@ -92,7 +93,7 @@ export default function QuizzesScreen() {
                 <div className="qzs-item__head" onClick={() => setOpenId(r.id)}>
                   <span className={`badge ${r.published ? "active" : "draft"}`}>{r.published ? "Опубліковано" : "Чернетка"}</span>
                   <h3>{r.title}</h3>
-                  <div className="note">{(r.questions || []).length} питань · воронка «{PIPELINES.find(([k]) => k === r.pipeline)?.[1] || r.pipeline}»</div>
+                  <div className="note">{(r.questions || []).length} питань · воронка «{pipelines.find(([k]) => k === r.pipeline)?.[1] || r.pipeline}»</div>
                 </div>
                 <div className="qzs-kpi">
                   <div><b>{s.views || 0}</b><span>переглядів</span></div>
@@ -116,7 +117,22 @@ export default function QuizzesScreen() {
 }
 
 // ───────────────────────── Редактор ─────────────────────────
-const TABS = [["questions", "Питання"], ["start", "Старт"], ["finish", "Контакти і фінал"], ["publish", "Дизайн і публікація"], ["stats", "Статистика"], ["answers", "Заявки"]];
+const TABS = [["questions", "Питання"], ["start", "Старт"], ["finish", "Контакти і фінал"], ["publish", "Дизайн і публікація"], ["integrations", "Інтеграції"], ["stats", "Статистика"], ["answers", "Заявки"]];
+const NO_PREVIEW = ["stats", "answers", "integrations"];
+
+// воронки CRM з бази (бачите лише дозволені вашій ролі); якщо жодної — стандартні назви
+function usePipelines() {
+  const supabase = useMemo(() => createClient(), []);
+  const [list, setList] = useState(PIPELINES);
+  useEffect(() => {
+    let on = true;
+    supabase.from("pipelines").select("slug,name").order("sort_order").then(({ data }) => {
+      if (on && data?.length) setList(data.map((x) => [x.slug, x.name]));
+    });
+    return () => { on = false; };
+  }, [supabase]);
+  return list;
+}
 
 function QuizEditor({ initial, onClose, onDeleted }) {
   const supabase = useMemo(() => createClient(), []);
@@ -203,7 +219,7 @@ function QuizEditor({ initial, onClose, onDeleted }) {
         {TABS.map(([id, l]) => <button key={id} className={`subtab${tab === id ? " active" : ""}`} onClick={() => setTab(id)}>{l}</button>)}
       </div>
 
-      <div className={`qze-body${showPreview && !["stats", "answers"].includes(tab) ? " with-preview" : ""}`}>
+      <div className={`qze-body${showPreview && !NO_PREVIEW.includes(tab) ? " with-preview" : ""}`}>
         <div className="qze-panel">
           {tab === "questions" && <QuestionsEditor questions={q.questions || []} setQuestions={setQuestions} />}
           {tab === "start" && <StartEditor start={q.start || {}} set={setPart("start")} />}
@@ -211,10 +227,11 @@ function QuizEditor({ initial, onClose, onDeleted }) {
           {tab === "publish" && (
             <PublishEditor q={q} set={set} setPart={setPart} url={url} onRemove={remove} confirmDel={confirmDel} />
           )}
+          {tab === "integrations" && <IntegrationsEditor q={q} setPart={setPart} />}
           {tab === "stats" && <QuizStats quiz={q} />}
           {tab === "answers" && <QuizAnswers quiz={q} />}
         </div>
-        {showPreview && !["stats", "answers"].includes(tab) && (
+        {showPreview && !NO_PREVIEW.includes(tab) && (
           <div className="qze-preview">
             <div className="qze-preview__bar"><span className="note">Попередній перегляд — заявки звідси не надсилаються</span><button className="btn small" onClick={() => setPreviewKey((k) => k + 1)}>↺ З початку</button></div>
             <QuizPlayer key={previewKey} quiz={q} preview />
@@ -312,8 +329,11 @@ function QuestionsEditor({ questions, setQuestions }) {
                       <div key={k} className="form-row"><label>{l}</label><input type="number" value={x[k] ?? ""} onChange={(e) => upd(x.id, { [k]: e.target.value === "" ? "" : +e.target.value })} /></div>
                     ))}
                     <div className="form-row"><label>Одиниця</label><input value={x.unit || ""} onChange={(e) => upd(x.id, { unit: e.target.value })} placeholder="м², $, осіб" /></div>
+                    <label className="qze-check"><input type="checkbox" checked={!!x.max_plus} onChange={(e) => upd(x.id, { max_plus: e.target.checked })} /> «+» на максимумі</label>
                   </div>
                 )}
+
+                <div className="form-row"><label>Фото збоку від цього питання (замість загального)</label><ImageField value={x.image} onChange={(image) => upd(x.id, { image })} /></div>
 
                 <div className="form-row"><label>Після цього питання</label>
                   <select value={x.goto || ""} onChange={(e) => upd(x.id, { goto: e.target.value })}>{gotoOptions.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -369,13 +389,17 @@ function FinishEditor({ q, setPart }) {
 
 function PublishEditor({ q, set, setPart, url, onRemove, confirmDel }) {
   const d = q.design || {};
+  const pipelines = usePipelines();
   const [copied, setCopied] = useState("");
   const code = embedCode(PUBLIC_ORIGIN, q.slug);
   return (
     <div>
       <h4 className="qze-h">Куди йдуть заявки</h4>
       <div className="form-row"><label>Воронка CRM</label>
-        <select value={q.pipeline} onChange={(e) => set({ pipeline: e.target.value })}>{PIPELINES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        <select value={q.pipeline} onChange={(e) => set({ pipeline: e.target.value })}>
+          {!pipelines.some(([k]) => k === q.pipeline) && <option value={q.pipeline}>{q.pipeline}</option>}
+          {pipelines.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
       </div>
       <p className="note">Кожна заявка → лід у «Продажах (CRM)» з усіма відповідями, угода в першому етапі воронки, сповіщення в Telegram.</p>
 
@@ -401,6 +425,97 @@ function PublishEditor({ q, set, setPart, url, onRemove, confirmDel }) {
       <h4 className="qze-h">Небезпечна зона</h4>
       <button className="btn danger" onClick={onRemove}>{confirmDel ? "Точно видалити? Натисніть ще раз" : "🗑 Видалити квіз"}</button>
       <p className="note">Разом із квізом зникнуть статистика й історія відповідей; самі ліди в CRM залишаться.</p>
+    </div>
+  );
+}
+
+const ID_RE = { fb_pixel: /^\d{6,20}$/, tiktok_pixel: /^[A-Z0-9]{10,30}$/, ga4: /^G-[A-Z0-9]{4,20}$/, gtm: /^GTM-[A-Z0-9]{4,12}$/ };
+const TRACKERS = [
+  ["fb_pixel", "Facebook Pixel — ID", "напр. 1130725709483660", "Події: PageView, QuizStart, Lead (з тим самим event_id, що й Conversions API — Facebook не задвоїть)."],
+  ["tiktok_pixel", "TikTok Pixel — ID", "напр. CABC1234567890XYZ", "Події: Pageview, ClickButton (старт), SubmitForm (заявка)."],
+  ["ga4", "Google Analytics 4 — Measurement ID", "G-XXXXXXXXXX", "Події: page_view, quiz_start, generate_lead."],
+  ["gtm", "Google Tag Manager — ID контейнера", "GTM-XXXXXXX", "У dataLayer: quiz_view, quiz_start, quiz_step, quiz_lead — тригери налаштовуються в GTM."],
+];
+
+function IntegrationsEditor({ q, setPart }) {
+  const supabase = useMemo(() => createClient(), []);
+  const tr = q.tracking || {};
+  const [row, setRow] = useState(null);
+  const [state, setState] = useState("");
+  const [loadErr, setLoadErr] = useState("");
+  useEffect(() => {
+    let on = true;
+    supabase.from("quiz_integrations").select("*").eq("quiz_id", q.id).maybeSingle().then(({ data, error }) => {
+      if (!on) return;
+      if (error) setLoadErr(error.message);
+      setRow(data || { quiz_id: q.id, webhooks: [], tg_chats: "", fb_capi_token: "", fb_test_code: "" });
+    });
+    return () => { on = false; };
+  }, [supabase, q.id]);
+  const upd = (patch) => { setRow((r) => ({ ...r, ...patch })); setState("dirty"); };
+  async function saveRow() {
+    setState("saving");
+    const clean = { ...row, webhooks: (row.webhooks || []).filter((w) => w.url?.trim()).map((w) => ({ ...w, url: w.url.trim() })), updated_at: new Date().toISOString() };
+    const bad = clean.webhooks.find((w) => !/^https:\/\//.test(w.url));
+    if (bad) { setState("Вебхук має починатися з https://"); return; }
+    const { error } = await supabase.from("quiz_integrations").upsert(clean);
+    setState(error ? "Не збережено: " + error.message : "saved");
+  }
+  const hooks = row?.webhooks || [];
+
+  return (
+    <div className="qze-int">
+      <h4 className="qze-h">Пікселі та аналітика (у браузері відвідувача)</h4>
+      {TRACKERS.map(([k, l, ph, hint]) => {
+        const v = tr[k] || "";
+        const bad = v && !ID_RE[k].test(v);
+        return (
+          <div key={k} className="form-row">
+            <label>{l}</label>
+            <input value={v} placeholder={ph} onChange={(e) => setPart("tracking")({ [k]: e.target.value.trim() })} style={bad ? { borderColor: "var(--danger)" } : undefined} />
+            <span className="note">{bad ? "Схоже, ID має інший формат — перевірте." : hint}</span>
+          </div>
+        );
+      })}
+      <p className="note">Зберігаються автоматично. Пікселі працюють на сторінці квізу й у вставці через iframe.</p>
+
+      {loadErr ? (
+        <p className="note" style={{ color: "var(--danger)" }}>Серверні інтеграції ще не ввімкнено в базі: {loadErr}</p>
+      ) : row && (
+        <>
+          <h4 className="qze-h">Facebook Conversions API (з сервера)</h4>
+          <div className="form-row"><label>Маркер доступу (Events Manager → Налаштування → Conversions API → Створити маркер)</label>
+            <input type="password" autoComplete="off" value={row.fb_capi_token || ""} onChange={(e) => upd({ fb_capi_token: e.target.value.trim() })} placeholder={tr.fb_pixel ? "EAAG…" : "Спершу вкажіть ID пікселя вище"} />
+          </div>
+          <div className="form-row"><label>Тестовий код подій (необовʼязково, лише на час перевірки)</label>
+            <input value={row.fb_test_code || ""} onChange={(e) => upd({ fb_test_code: e.target.value.trim() })} placeholder="TEST12345" />
+          </div>
+          <p className="note">Сервер надсилає Lead з телефоном та імʼям у зашифрованому вигляді (SHA-256), IP і браузером відвідувача — так Facebook краще знаходить людей навіть з блокувальниками реклами.</p>
+
+          <h4 className="qze-h">Вебхуки → Zapier, Make, APIxDrive, KeyCRM, Pipedrive, Kommo, SendPulse, Mailchimp…</h4>
+          {hooks.map((w, i) => (
+            <div key={i} className="qze-hook">
+              <input type="checkbox" checked={w.on !== false} title="Увімкнено" onChange={(e) => upd({ webhooks: hooks.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)) })} />
+              <input className="qze-hook__name" value={w.name || ""} placeholder="Назва (напр. KeyCRM через Make)" onChange={(e) => upd({ webhooks: hooks.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+              <input className="qze-hook__url" value={w.url || ""} placeholder="https://hook.eu1.make.com/…" onChange={(e) => upd({ webhooks: hooks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+              <button className="btn small" onClick={() => upd({ webhooks: hooks.filter((_, j) => j !== i) })}>✕</button>
+            </div>
+          ))}
+          <button className="btn small" onClick={() => upd({ webhooks: [...hooks, { name: "", url: "", on: true }] })}>+ Вебхук</button>
+          <p className="note">На кожну заявку надсилаємо POST JSON: name, phone, contact_via, answers (питання → відповідь), answers_text, utm, page, source, city, lead_id, quiz. У Make/Zapier створіть «Custom webhook», вставте адресу сюди — далі передавайте дані в будь-який сервіс.</p>
+
+          <h4 className="qze-h">Telegram — додаткові чати</h4>
+          <div className="form-row"><label>ID чатів або @канали через кому</label>
+            <input value={row.tg_chats || ""} onChange={(e) => upd({ tg_chats: e.target.value })} placeholder="-1001234567890, @moduler_leads" />
+          </div>
+          <p className="note">Засновнику заявки приходять завжди. Сюди — інші чати (напр. група відділу продажу): додайте туди бота системи, а ID групи можна дізнатися, переславши повідомлення з неї боту @userinfobot.</p>
+
+          <div className="qze-row" style={{ marginTop: 14, alignItems: "center" }}>
+            <button className="btn primary" disabled={state === "saving" || state === "" || state === "saved"} onClick={saveRow}>{state === "saving" ? "Зберігаю…" : "Зберегти інтеграції"}</button>
+            <span className="note">{state === "saved" ? "✓ Збережено" : state === "dirty" ? "Є незбережені зміни" : state.startsWith("Не") || state.startsWith("Веб") ? <span style={{ color: "var(--danger)" }}>{state}</span> : ""}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

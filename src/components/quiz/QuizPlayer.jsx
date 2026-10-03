@@ -3,9 +3,10 @@
 // Те саме бачить відвідувач на /q/<slug> і команда в попередньому перегляді конструктора (preview — без статистики й заявок).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { answerText, nextIndex } from "@/lib/quiz";
+import { answerText, fmtSlider, nextIndex } from "@/lib/quiz";
 import { trackVisit, visitorMeta } from "@/lib/site/visitor";
 import { buildLeadMeta } from "@/lib/site/leadMeta";
+import { fbCookies, newEventId, quizEvent } from "./track";
 import "./quiz.css";
 
 let client;
@@ -52,6 +53,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
     if (tracked.current.has(key)) return;
     tracked.current.add(key);
     sb().rpc("quiz_track", { p_slug: quiz.slug, p_sid: sid.current, p_kind: kind, p_step: step }).then(() => {}, () => {});
+    quizEvent(kind, { quiz: quiz.title, slug: quiz.slug, ...(kind === "step" ? { step: step + 1 } : {}) });
   }
 
   useEffect(() => {
@@ -100,7 +102,8 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
     if (preview) { go(n + 1); return; }
     setState("sending");
     const list = questions.map((x) => ({ q: x.title, a: answerText(x, answers[x.id]) })).filter((x) => x.a);
-    const body = { slug: quiz.slug, sid: sid.current, name: f.name, phone: f.phone, company: f.company || "", contact_via: contact.ask_via === false ? "" : via, answers: list, utm: utmString() };
+    const eventId = newEventId();
+    const body = { ...fbCookies(), event_id: eventId, url: location.href.slice(0, 500), slug: quiz.slug, sid: sid.current, name: f.name, phone: f.phone, company: f.company || "", contact_via: contact.ask_via === false ? "" : via, answers: list, utm: utmString() };
     let meta = null;
     try { meta = await visitorMeta({ formStartedAt: startedAt.current, form: { kind: "квіз", quiz: quiz.title } }); } catch { /* */ }
     let data = null, error = null;
@@ -114,13 +117,16 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
     }
     if (error || !data?.ok) { setState("idle"); setErr(data?.error || "Не вдалося надіслати. Спробуйте ще раз."); return; }
     setState("done");
-    try { window.gtag?.("event", "generate_lead"); window.fbq?.("track", "Lead"); window.parent?.postMessage({ type: "moduler-quiz-lead", slug: quiz.slug }, "*"); } catch { /* */ }
+    quizEvent("lead", { quiz: quiz.title, slug: quiz.slug, event_id: eventId });
+    try { window.parent?.postMessage({ type: "moduler-quiz-lead", slug: quiz.slug, event_id: eventId }, "*"); } catch { /* */ }
     if (thanks.redirect && /^https?:\/\//.test(thanks.redirect)) { (embed ? window.top : window).location.href = thanks.redirect; return; }
     go(n + 1);
   }
 
   const progress = pos < 0 ? 0 : Math.min(100, Math.round((Math.min(pos, n) / Math.max(n, 1)) * 100));
-  const side = design.image && pos >= 0 && pos <= n;
+  // фото збоку: своє в питання → загальне з дизайну (на формі контактів — загальне)
+  const sideImg = (q?.image || design.image) && pos >= 0 && pos <= n ? q?.image || design.image : "";
+  const side = !!sideImg;
 
   return (
     <div className={`qz${embed ? " qz--embed" : ""}${preview ? " qz--preview" : ""}`} style={{ "--qz-accent": design.accent || "#2f6b4f" }}>
@@ -173,9 +179,9 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
                 )}
                 {q.type === "slider" && (
                   <div className="qz-slider">
-                    <div className="qz-slider__val">{a ?? Math.round(((+q.min || 0) + (+q.max || 100)) / 2)} {q.unit}</div>
+                    <div className="qz-slider__val">{fmtSlider(q, a ?? Math.round(((+q.min || 0) + (+q.max || 100)) / 2), true)}</div>
                     <input type="range" min={+q.min || 0} max={+q.max || 100} step={+q.step || 1} value={a ?? Math.round(((+q.min || 0) + (+q.max || 100)) / 2)} onChange={(e) => answer(+e.target.value)} />
-                    <div className="qz-slider__ends"><span>{q.min} {q.unit}</span><span>{q.max} {q.unit}</span></div>
+                    <div className="qz-slider__ends"><span>{fmtSlider(q, q.min)}</span><span>{fmtSlider(q, q.max, true)}</span></div>
                   </div>
                 )}
                 {q.type === "date" && <input className="qz-input" type="date" value={a || ""} onChange={(e) => answer(e.target.value)} />}
@@ -213,7 +219,7 @@ export default function QuizPlayer({ quiz, preview = false, embed = false }) {
               </form>
             )}
           </div>
-          {side && <div className="qz-side" style={{ backgroundImage: `url(${design.image})` }} />}
+          {side && <div className="qz-side" style={{ backgroundImage: `url(${sideImg})` }} />}
         </div>
       )}
 

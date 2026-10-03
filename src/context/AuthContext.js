@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [partnerTabs, setPartnerTabs] = useState(null);
+  const [partnerCrmEdit, setPartnerCrmEdit] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
       if (!currentUser) {
         setProfile(null);
         setPartnerTabs(null);
+        setPartnerCrmEdit(false);
         return;
       }
       const { data } = await supabase
@@ -30,8 +32,12 @@ export function AuthProvider({ children }) {
       if (data?.role === "partner" && data.partner_group_id) {
         const { data: tabs } = await supabase.from("partner_group_tabs").select("tab_key").eq("partner_group_id", data.partner_group_id);
         setPartnerTabs(new Set((tabs || []).map((t) => t.tab_key)));
+        // роль може мати право змінювати угоди у своїх воронках (база все одно перевіряє кожну воронку)
+        const { data: grp } = await supabase.from("partner_groups").select("*").eq("id", data.partner_group_id).maybeSingle();
+        setPartnerCrmEdit(!!grp?.crm_edit);
       } else {
         setPartnerTabs(null);
+        setPartnerCrmEdit(false);
       }
     },
     [supabase]
@@ -80,6 +86,8 @@ export function AuthProvider({ children }) {
     refreshProfile: () => loadProfile(user),
     canWriteCatalog: role === "admin" || role === "manager",
     canWriteFinance: role === "admin" || role === "accountant",
+    // CRM: адмін і менеджер — усе; роль із доступом — лише якщо їй дозволено змінювати угоди (у своїх воронках)
+    canWriteCrm: role === "admin" || role === "manager" || (role === "partner" && partnerCrmEdit),
     isAdmin: role === "admin",
     isPartner: role === "partner",
     // null = no tab restriction (non-partner roles); Set = the only tab

@@ -2,14 +2,17 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
+import QuizPixels from "@/components/quiz/QuizPixels";
 
 export const dynamic = "force-dynamic";
 
 async function getQuiz(slug) {
   if (!/^[a-z0-9][a-z0-9-]{1,59}$/.test(slug || "")) return null;
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data } = await sb.from("quizzes").select("slug,title,start,questions,contact,thanks,design").eq("slug", slug).eq("published", true).maybeSingle();
-  return data;
+  const { data } = await sb.from("quizzes").select("*").eq("slug", slug).eq("published", true).maybeSingle();
+  if (!data) return null;
+  const { slug: s, title, start, questions, contact, thanks, design, tracking } = data; // лише публічне
+  return { slug: s, title, start, questions, contact, thanks, design, tracking: tracking || {} };
 }
 
 export async function generateMetadata({ params }) {
@@ -31,6 +34,7 @@ export default async function QuizPage({ params, searchParams }) {
   const embed = sp?.embed === "1";
   return (
     <main style={{ padding: embed ? 0 : "clamp(12px, 4vw, 40px) 12px", minHeight: "100vh", display: "flex", alignItems: embed ? "stretch" : "center" }}>
+      <QuizPixels tracking={quiz.tracking} />
       <QuizPlayer quiz={quiz} embed={embed} />
     </main>
   );

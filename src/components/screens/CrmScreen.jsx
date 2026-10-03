@@ -60,7 +60,7 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
     loading, error, pipelines: allPipelines, pipelineStages, dealsKanban, deals, dealServices, leadCategoryLinks, productCategories,
     templates, serviceTemplates, bomItems, extraCosts, supplierPrices, marginAlerts, supabase, reload,
   } = useCrmData();
-  const { canWriteCatalog } = useAuth();
+  const { canWriteCrm: canWriteCatalog } = useAuth(); // для CRM — право змінювати угоди
   const [pipelineId, setPipelineId] = useState(null);
   // розділ «УК і сервіс» має свою воронку; в основних продажах її не показуємо
   const pipelines = useMemo(() => (onlySlug ? allPipelines.filter((p) => p.slug === onlySlug) : allPipelines.filter((p) => p.slug !== hideSlug)), [allPipelines, onlySlug, hideSlug]);

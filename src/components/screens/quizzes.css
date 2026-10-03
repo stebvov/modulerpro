@@ -81,3 +81,8 @@
   .qzs-kpi { justify-content: space-between; }
   .qzs-kpi > div { align-items: flex-start; }
 }
+
+.qze-hook { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.qze-hook input[type="checkbox"] { width: auto; }
+.qze-hook__name { flex: 1 1 140px; min-width: 0; }
+.qze-hook__url { flex: 3 1 240px; min-width: 0; }

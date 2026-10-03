@@ -83,4 +83,4 @@ export function contactHref(type, value) {
   return null;
 }
 
-export const roleLabels = { admin: "Адмін", manager: "Менеджер", accountant: "Бухгалтер", partner: "Партнер" };
+export const roleLabels = { admin: "Адмін", manager: "Менеджер", accountant: "Бухгалтер", partner: "Роль із доступом" };
