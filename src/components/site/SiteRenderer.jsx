@@ -8,6 +8,7 @@ import Calculator from "./Calculator";
 import LeadForm from "./LeadForm";
 import DaylightImage from "./DaylightImage";
 import InvestCalc from "./InvestCalc";
+import Vacancies from "./Vacancies";
 
 export function Btn({ link, base, kind = "primary", className = "" }) {
   if (!link?.label) return null;
@@ -448,6 +449,12 @@ const RENDER = {
   },
   text: TextBlock,
   cta_band: CtaBand,
+  vacancies: ({ b, ctx }) => (
+    <Section b={b}>
+      <Head b={b} center />
+      <Vacancies initial={ctx.vacancies} emptyText={b.empty} formTitle={b.form_title} steps={b.steps} />
+    </Section>
+  ),
   lead_form: ({ b, ctx }) => (
     <Section b={b} className="s-formsec">
       <Head b={b} center />

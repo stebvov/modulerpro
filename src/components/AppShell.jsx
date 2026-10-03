@@ -51,6 +51,12 @@ import SiteSettingsScreen from "@/components/site-editor/SiteSettingsScreen";
 import Ledger from "@/components/finance/Ledger";
 import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
 import UnitsPanel from "@/components/panels/UnitsPanel";
+import HrMyScreen from "@/components/hr/HrMyScreen";
+import HrHiringScreen from "@/components/hr/HrHiringScreen";
+import HrLearningScreen from "@/components/hr/HrLearningScreen";
+import HrOnboardingScreen from "@/components/hr/HrOnboardingScreen";
+import HrQualityScreen from "@/components/hr/HrQualityScreen";
+import HrRolesScreen from "@/components/hr/HrRolesScreen";
 
 // Екрани Moduler Pro (React). Вкладки "pult-*" показує PultFrame.
 const SCREENS = {
@@ -91,6 +97,12 @@ const SCREENS = {
   "site-models": () => <SiteCollectionScreen kind="models" />,
   "site-cases": () => <SiteCollectionScreen kind="cases" />,
   "site-settings": () => <SiteSettingsScreen />,
+  "hr-me": () => <HrMyScreen />,
+  "hr-hiring": () => <HrHiringScreen />,
+  "hr-learning": () => <HrLearningScreen />,
+  "hr-onboarding": () => <HrOnboardingScreen />,
+  "hr-quality": () => <HrQualityScreen />,
+  "hr-roles": () => <HrRolesScreen />,
 };
 
 const isPult = (id) => id?.startsWith("pult-");
@@ -104,7 +116,7 @@ function usePultMember(email) {
   useEffect(() => {
     if (!email) return;
     let on = true;
-    supabase.from("task_members").select("id,name,is_owner,can_manage,fin_all,active,avatar_url").ilike("email", email).eq("active", true).maybeSingle()
+    supabase.from("task_members").select("id,name,is_owner,can_manage,fin_all,active,avatar_url,hr_admin").ilike("email", email).eq("active", true).maybeSingle()
       .then(({ data }) => { if (on) setMember(data || null); });
     return () => { on = false; };
   }, [supabase, email]);
@@ -147,6 +159,7 @@ export default function AppShell() {
       : need === "mgr" ? !!(member?.can_manage || member?.is_owner)
       : need === "finance" ? canWriteFinance
       : need === "admin" ? isAdmin
+      : need === "hr" ? !!(isAdmin || member?.is_owner || member?.can_manage || member?.hr_admin)
       : need === "unitowner" ? unitOwner
       : true;
     let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) })).filter((x) => x.tabs.length);

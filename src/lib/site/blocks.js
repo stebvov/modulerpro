@@ -231,6 +231,15 @@ export const BLOCKS = {
     fields: [title, { key: "text", label: "Текст", type: "textarea" }, cta("cta_primary", "Головна кнопка"), cta("cta_secondary", "Друга кнопка")],
     defaults: { theme: "dark", cta_primary: { label: "Залишити заявку", href: "#contact" } },
   },
+  vacancies: {
+    label: "Вакансії й відгук", icon: "🧑‍💼",
+    hint: "Показує відкриті вакансії із системи («Люди: найм і розвиток» → вакансія → «Показувати на сайті») і форму відгуку. Відгук стає карткою кандидата й приходить у Telegram.",
+    fields: [eyebrow, title, lead,
+      { key: "empty", label: "Текст, коли відкритих вакансій немає", type: "textarea" },
+      { key: "form_title", label: "Заголовок форми відгуку", type: "text" },
+      { key: "steps", label: "Як ми наймаємо (кроки)", type: "list", item: "Крок", fields: [{ key: "title", label: "Крок", type: "text" }, { key: "text", label: "Пояснення", type: "text" }] }],
+    defaults: { theme: "light", anchor: "vacancies", eyebrow: "Команда", title: "Відкриті *вакансії*", steps: [] },
+  },
   lead_form: {
     label: "Форма заявки", icon: "✉️",
     hint: "Заявка стає угодою в CRM (воронку можна вибрати нижче) і приходить у Telegram. Варіанти «Що плануєте» — у Налаштуваннях сайту.",
@@ -244,7 +253,7 @@ export const BLOCKS = {
   },
 };
 
-export const BLOCK_ORDER = ["hero", "audience", "projects", "models", "choice", "calculator", "invest", "table", "team", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "lead_form"];
+export const BLOCK_ORDER = ["hero", "audience", "projects", "models", "choice", "calculator", "invest", "table", "team", "tiers", "features", "cases", "reviews", "steps", "faq", "showroom", "text_image", "stats", "photo_band", "gallery", "video", "text", "cta_band", "vacancies", "lead_form"];
 
 // спільні поля кожного блоку (показуються в конструкторі внизу форми)
 export const COMMON_FIELDS = [

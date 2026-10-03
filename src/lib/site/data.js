@@ -42,10 +42,17 @@ export const getCases = cached(async () => {
   return stripHidden(data || []);
 }, "cases");
 
+// відкриті вакансії з позначкою «показувати на сайті» (розділ системи «Люди: найм і розвиток»)
+export const getVacancies = cached(async () => {
+  const { data } = await anon().from("hr_vacancies").select("id,title,city,format,conditions,description,sort,created_at")
+    .eq("status", "open").eq("on_site", true).order("sort").order("created_at");
+  return data || [];
+}, "vacancies");
+
 // усе, що потрібно блокам сторінки, одним викликом
 export async function getSiteContext() {
-  const [settings, models, cases] = await Promise.all([getSettings(), getModels(), getCases()]);
-  return { settings, models, cases, base: await getBase() };
+  const [settings, models, cases, vacancies] = await Promise.all([getSettings(), getModels(), getCases(), getVacancies()]);
+  return { settings, models, cases, vacancies, base: await getBase() };
 }
 
 // proxy ставить x-site-base: "" на домені moduler.pro, інакше сайт живе під /site

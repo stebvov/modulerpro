@@ -1,0 +1,43 @@
+/* Тест: власні стилі, бо компонент живе і в системі, і на публічному сайті */
+.box { max-width: 760px; margin: 0 auto; background: #fff; color: #1c2a22; border: 1px solid #e3ded1; border-radius: 12px; padding: 24px; font-size: 15px; line-height: 1.5; text-align: left; }
+.box p { margin: 0 0 12px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #5c7a67; margin-bottom: 6px; }
+.h { font-size: 22px; line-height: 1.25; margin: 0 0 12px; color: #15211b; }
+.h3 { font-size: 16px; margin: 20px 0 10px; color: #15211b; }
+.muted { color: #6b7a70; font-size: 13px; }
+.facts { margin: 0 0 18px; padding-left: 20px; display: grid; gap: 4px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.btn { min-height: 40px; padding: 0 18px; border-radius: 8px; border: 1px solid #cfc8b8; background: #fff; color: #1c2a22; font: inherit; font-weight: 600; cursor: pointer; }
+.btn:hover { border-color: #2f6b4f; }
+.btn:disabled { opacity: .6; cursor: default; }
+.primary { background: #2f6b4f; border-color: #2f6b4f; color: #fff; }
+.primary:hover { background: #24553e; }
+.top { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fff; padding: 4px 0 12px; margin-bottom: 8px; border-bottom: 1px solid #e3ded1; }
+.timer { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; padding: 6px 12px; border-radius: 8px; background: #f2eee4; white-space: nowrap; }
+.timerLow { background: #fde8e4; color: #b3261e; }
+.q { border: 1px solid #e3ded1; border-radius: 10px; padding: 14px 16px; margin: 0 0 12px; min-width: 0; }
+.qt { font-weight: 600; padding: 0; margin-bottom: 10px; display: block; width: 100%; }
+.qt span { color: #5c7a67; margin-right: 2px; }
+.qt em { font-style: normal; font-weight: 500; font-size: 12px; color: #6b7a70; margin-left: 8px; white-space: nowrap; }
+.opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.opt:hover { background: #f6f3ea; }
+.opt input { margin: 4px 0 0; width: 16px; height: 16px; flex: none; accent-color: #2f6b4f; }
+.ta { width: 100%; box-sizing: border-box; border: 1px solid #cfc8b8; border-radius: 8px; padding: 10px 12px; font: inherit; resize: vertical; }
+.err { background: #fde8e4; color: #b3261e; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.ok { font-size: 36px; }
+.score { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 10px; background: #f2eee4; }
+.score b { font-size: 30px; white-space: nowrap; }
+.pass { background: #e4f1e8; color: #1f5a3c; }
+.fail { background: #fde8e4; color: #8f2018; }
+.qok { border-color: #b9d8c4; }
+.qbad { border-color: #efb9b2; }
+.qok .qt em { color: #1f5a3c; }
+.qbad .qt em { color: #b3261e; }
+.opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.opts li { padding: 4px 8px; border-radius: 6px; }
+.opts i { font-style: normal; color: #6b7a70; font-size: 12px; }
+.right { background: #e4f1e8; color: #1f5a3c; font-weight: 600; }
+.wrong { background: #fde8e4; color: #8f2018; }
+.explain { margin-top: 10px; font-size: 13.5px; color: #44524a; border-left: 3px solid #c8893f; padding-left: 10px; }
+.openAns { white-space: pre-wrap; background: #f6f3ea; border-radius: 8px; padding: 10px 12px; }
+@media (max-width: 560px) { .box { padding: 16px; border-radius: 0; border-left: 0; border-right: 0; } .h { font-size: 19px; } }

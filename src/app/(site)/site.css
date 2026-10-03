@@ -626,3 +626,27 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-rv { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .s-rv.s-in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .s-rv { opacity: 1; transform: none; } }
+
+/* ── Вакансії (блок vacancies) і тест кандидата ─────────────────────────── */
+.s-vacs { display: grid; gap: 16px; max-width: 860px; margin: 0 auto; }
+.s-vacs__empty { text-align: center; color: var(--muted); font-size: 17px; }
+.s-vac { background: var(--white); border: 1px solid var(--line); border-radius: var(--r); padding: 22px 24px; display: grid; gap: 12px; justify-items: start; color: var(--text); }
+.s-vac__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; width: 100%; }
+.s-vac h3 { font-family: var(--f-display); font-size: 20px; line-height: 1.25; color: var(--ink); }
+.s-vac__meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--muted); }
+.s-vac__cond { font-size: 15px; }
+.s-vac__more { width: 100%; }
+.s-vac__more summary { cursor: pointer; font-weight: 700; color: var(--moss); }
+.s-vac__more[open] summary { margin-bottom: 10px; }
+.s-vacs__steps { list-style: none; counter-reset: st; display: grid; gap: 10px; padding: 0; margin: 12px 0; }
+@media (min-width: 720px) { .s-vacs__steps { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+.s-vacs__steps li { counter-increment: st; background: var(--cloud); border-radius: var(--r-sm); padding: 14px 16px; display: grid; gap: 4px; font-size: 14px; color: var(--text); }
+.s-vacs__steps li::before { content: counter(st); font-family: var(--f-display); font-size: 18px; color: var(--honey-3, #b9742c); }
+.s-vacs__steps li span { color: var(--muted); }
+.s-vacs__ftitle { font-family: var(--f-display); font-size: 20px; color: var(--ink); }
+.s-vacs .s-form { width: 100%; margin-top: 8px; }
+.s-body .hr-text { font-size: 15px; line-height: 1.6; }
+.s-body .hr-text p { margin: 0 0 10px; }
+.s-body .hr-text h4 { font-size: 16px; margin: 16px 0 6px; }
+.s-body .hr-text ul, .s-body .hr-text ol { margin: 0 0 10px; padding-left: 22px; display: grid; gap: 4px; list-style: revert; }
+.s-testsec { padding-top: 32px; padding-bottom: 64px; min-height: 60vh; }
