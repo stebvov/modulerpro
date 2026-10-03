@@ -80,7 +80,7 @@ export default function Vacancies({ initial, emptyText, formTitle, steps }) {
           <div className="s-form s-form--done" role="status">
             <div className="s-form__ok">🌿</div>
             <h3>Дякуємо! Відгук отримали</h3>
-            <p>Ми уважно читаємо кожен відгук і відповідаємо всім. Якщо ваш досвід підходить — запросимо на коротку розмову телефоном.</p>
+            <p>Ми переглянемо ваш відгук і зв&apos;яжемося з вами. Наступний крок — коротка розмова телефоном.</p>
           </div>
         ) : (
           <form className="s-form" onSubmit={submit} noValidate>
