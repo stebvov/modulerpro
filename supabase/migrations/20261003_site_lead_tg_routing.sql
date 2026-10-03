@@ -1,0 +1,2 @@
+-- 2026-10-03 (MCP site_lead_tg_routing): lead_notify (scope 'site': notify_owner, tg_chats; RLS mod_can) — куди бот шле заявки з форм сайту;
+-- site_lead_notify: квізові заявки (moduler.lead_origin='quiz') — за налаштуванням квізу, форми сайту — за lead_notify; site_lead_tg_chat(l, chat).

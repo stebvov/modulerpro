@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SETTINGS_SECTIONS } from "@/lib/site/schemas";
 import { Fields, LinkOptions } from "./Fields";
 import SiteSearch from "./SiteSearch";
+import TgTargets from "@/components/TgTargets";
 import { revalidateSite } from "./SitePagesScreen";
 import "./editor.css";
 
@@ -49,6 +50,12 @@ export default function SiteSettingsScreen() {
         <div className="se-tip se-tip--warn">💡 Калькулятор ще без ставок за м² — на сайті він не показує суму, лише збирає контакт. Заповніть «Калькулятор → Ставки за м²», щоб покупець одразу бачив орієнтовну ціну.</div>
       )}
       {!value.contacts?.telegram && <div className="se-tip">💡 Додайте Telegram у «Контакти» — на телефоні з’явиться кнопка Telegram у нижній панелі.</div>}
+      <div className={`se-sec${open === "tg" ? " open" : ""}`}>
+        <button type="button" className="se-sec__head" onClick={() => setOpen(open === "tg" ? "" : "tg")}>
+          <span className="se-caret">{open === "tg" ? "▾" : "▸"}</span> 📨 Заявки з форм сайту → Telegram
+        </button>
+        {open === "tg" && <div className="se-sec__body"><SiteLeadTelegram /></div>}
+      </div>
       {SETTINGS_SECTIONS.map((s) => {
         const sub = s.key ? value[s.key] || {} : value;
         return (
@@ -66,5 +73,35 @@ export default function SiteSettingsScreen() {
         );
       })}
     </div>
+  );
+}
+
+// куди бот надсилає заявки з форм сайту (квізи налаштовуються окремо — у самому квізі)
+function SiteLeadTelegram() {
+  const supabase = useMemo(() => createClient(), []);
+  const [row, setRow] = useState(null);
+  const [status, setStatus] = useState("");
+  const timer = useRef(null);
+  useEffect(() => {
+    supabase.from("lead_notify").select("*").eq("scope", "site").maybeSingle()
+      .then(({ data, error }) => { if (error) setStatus("Не завантажено: " + error.message); setRow(data || { scope: "site", notify_owner: true, tg_chats: "" }); });
+  }, [supabase]);
+  function upd(patch) {
+    const next = { ...row, ...patch };
+    setRow(next);
+    setStatus("Зберігаю…");
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      const { error } = await supabase.from("lead_notify").upsert({ ...next, updated_at: new Date().toISOString() });
+      setStatus(error ? "Не збережено: " + error.message : "Збережено");
+    }, 600);
+  }
+  if (!row) return <div className="note">Завантаження…</div>;
+  return (
+    <>
+      <div className="se-tip">Заявки з форм на сайті (кнопки «Залишити заявку», калькулятор тощо). Для квізів — окреме налаштування в самому квізі → «Інтеграції».</div>
+      <TgTargets notifyOwner={row.notify_owner} chats={row.tg_chats} onChange={upd} />
+      <span className="note">{status}</span>
+    </>
   );
 }

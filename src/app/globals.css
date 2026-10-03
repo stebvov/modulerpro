@@ -672,3 +672,8 @@ tr.row-mark > td { background: var(--accent-bg); }
 .price-list > tbody > tr > td:first-child { min-width: 240px; }
 .price-list .sub-clip { max-width: 320px; }
 td.group-row { background: var(--accent-bg); font-weight: 600; font-size: 12px; }
+
+/* Куди бот шле заявки (TgTargets) */
+.tg-targets__groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px 12px; }
+.tg-targets__row { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 6px; cursor: pointer; }
+.tg-targets__row input { width: auto; min-height: 0; }
