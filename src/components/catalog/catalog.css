@@ -1,0 +1,60 @@
+/* Каталог: папки зліва + список праворуч */
+.cat-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.cat-layout > main { min-width: 0; }
+
+.ft { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; position: sticky; top: 10px; }
+.ft-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px; }
+.ft-tree { display: flex; flex-direction: column; gap: 1px; max-height: 60vh; overflow-y: auto; }
+.ft-node { display: flex; align-items: center; gap: 6px; width: 100%; border: 1px solid transparent; background: none; border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left; }
+.ft-node:hover { background: var(--bg); }
+.ft-node.on { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.ft-node.drop { border-color: var(--accent); border-style: dashed; background: var(--accent-bg); }
+.ft-node--none { color: var(--text-secondary); margin-top: 4px; }
+.ft-ico { flex: none; width: 18px; text-align: center; }
+.ft-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-n { flex: none; font-size: 11px; color: var(--text-muted); }
+.ft-actions { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display: grid; gap: 6px; }
+.ft-actions .note { margin: 0; }
+.ft-actions__row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.ft-hint { margin-top: 8px; }
+.ft-mobile { display: none; }
+.ft-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.ft-chips::-webkit-scrollbar { display: none; }
+.ft-chips > * { flex-shrink: 0; }
+
+/* картка, яку тягнуть на папку */
+.card[draggable="true"], .cat-row[draggable="true"] { cursor: grab; }
+
+/* ручний порядок */
+.ord-btns { display: inline-flex; gap: 2px; }
+.ord-btns button { border: 1px solid var(--border-strong); background: var(--card); border-radius: 5px; width: 26px; height: 24px; font-size: 11px; cursor: pointer; color: var(--text-secondary); padding: 0; }
+.ord-btns button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.ord-btns button:disabled { opacity: .35; cursor: default; }
+
+.folder-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-secondary); background: var(--bg); border-radius: 10px; padding: 2px 8px; }
+
+/* Товари */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.prod-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.prod-card__img { aspect-ratio: 4 / 3; background: var(--bg) center / contain no-repeat; display: grid; place-items: center; font-size: 30px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.prod-card__body { padding: 10px 12px; display: grid; gap: 4px; }
+.prod-card__body h3 { margin: 0; font-size: 14px; line-height: 1.3; }
+.prod-price { font-size: 17px; font-weight: 700; color: var(--accent); }
+.prod-sub { font-size: 12px; color: var(--text-muted); }
+.prod-import { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--accent-bg); border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+.prod-import input { flex: 1 1 260px; min-width: 0; }
+.prod-calc { background: var(--bg); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; }
+.prod-calc .row { margin: 0; }
+.prod-calc b { color: var(--accent); font-size: 16px; }
+
+@media (max-width: 900px) {
+  .cat-layout { grid-template-columns: 1fr; }
+  .ft { position: static; padding: 8px; }
+  .ft-tree, .ft-hint { display: none; }
+  .ft-mobile { display: block; }
+  .ft-head { margin-bottom: 6px; }
+}
+
+/* тераса: назва, ш × д = площа, включена */
+.form-row .size-row--terrace { flex-wrap: wrap; }
+.form-row .size-row--terrace .tag-check input { width: auto; flex: none; }

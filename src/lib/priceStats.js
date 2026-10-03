@@ -42,5 +42,6 @@ export const diffGroup = (d) => (!d ? "" : Math.abs(d.pct) < 0.05 ? "однак�
 
 // сума для щільних списків: у гривні копійки лише для дрібних сум (до 100 грн — ціни за штуку), решта — цілими;
 // в іншій валюті — як усюди в системі. Точна ціна — у картці матеріалу.
-export const money = (v, currency, exchangeRates, showDecimals) =>
-  v == null ? "—" : currency === "UAH" ? fmtPrice(v, Math.abs(v) >= 100 ? 0 : 2) : fmtCurrency(v, currency, exchangeRates, showDecimals);
+// Без копійок (галочка вимкнена) — цілими; лише зовсім дрібні ціни (до 10) лишаються з копійками, щоб не стати «0».
+export const money = (v, currency, exchangeRates, showDecimals = true) =>
+  v == null ? "—" : currency === "UAH" ? fmtPrice(v, Math.abs(v) >= (showDecimals ? 100 : 10) ? 0 : 2) : fmtCurrency(v, currency, exchangeRates, showDecimals);

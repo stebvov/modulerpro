@@ -1,8 +1,6 @@
 "use client";
-import SettingsButton from "@/components/SettingsButton";
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
-import { treeOptions, inBranch } from "@/lib/tree";
 
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
@@ -10,7 +8,9 @@ import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
 import { templateProductionCost } from "@/lib/crm";
 import TemplateModal from "@/components/modals/TemplateModal";
-import ProductCategoriesPanel from "@/components/panels/ProductCategoriesPanel";
+import FolderTree, { dragItem, inFolder, useFolders } from "@/components/catalog/FolderTree";
+import OrderButtons from "@/components/catalog/OrderButtons";
+import { swapOrder } from "@/lib/reorder";
 import CompareScreen from "@/components/screens/CompareScreen";
 
 // 1 модуль, 2 модулі, 5 модулів
@@ -24,12 +24,13 @@ function modulesWord(n) {
 const STATUS_OPTIONS = [{ value: "active", label: "Активний" }, { value: "draft", label: "Чернетка" }, { value: "archived", label: "Архів" }];
 
 export default function CatalogScreen() {
-  const { supabase, templates, bomItems, extraCosts, supplierPrices, siteModels, productCategoryLinks, productCategories, templateFiles, currency, exchangeRates, showDecimals, reload } =
+  const { supabase, templates, bomItems, extraCosts, supplierPrices, siteModels, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
+  const folders = useFolders("models");
+  const [folder, setFolder] = useState("");
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [moduleMin, setModuleMin] = useState("");
   const [moduleMax, setModuleMax] = useState("");
   const [areaMin, setAreaMin] = useState("");
@@ -38,7 +39,6 @@ export default function CatalogScreen() {
   const [priceMax, setPriceMax] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
-  const [showCategoriesPage, setShowCategoriesPage] = useState(false);
   const [compareSelection, setCompareSelection] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
 
@@ -46,7 +46,7 @@ export default function CatalogScreen() {
   const list = templates.filter((t) => {
     if (q && !(t.name || "").toLowerCase().includes(q)) return false;
     if (statusFilter && t.status !== statusFilter) return false;
-    if (categoryFilter && !productCategoryLinks.some((l) => l.template_id === t.id && inBranch(productCategories, l.category_id, categoryFilter))) return false;
+    if (!inFolder(folders, t.folder_id, folder)) return false;
     const moduleCount = t.module_count ?? 0;
     if (moduleMin && moduleCount < parseFloat(moduleMin)) return false;
     if (moduleMax && moduleCount > parseFloat(moduleMax)) return false;
@@ -61,11 +61,10 @@ export default function CatalogScreen() {
     return true;
   });
 
-  const activeCount = [statusFilter, categoryFilter, moduleMin || moduleMax, areaMin || areaMax, priceMin || priceMax].filter(Boolean).length;
+  const activeCount = [statusFilter, moduleMin || moduleMax, areaMin || areaMax, priceMin || priceMax].filter(Boolean).length;
 
   function resetFilters() {
     setStatusFilter("");
-    setCategoryFilter("");
     setModuleMin("");
     setModuleMax("");
     setAreaMin("");
@@ -96,25 +95,17 @@ export default function CatalogScreen() {
     }
   }
 
+  // порядок — у межах того, що зараз видно (папка, фільтри): міняємо місцями з сусідом
   async function moveTemplate(id, dir) {
-    const idx = templates.findIndex((t) => t.id === id);
-    const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= templates.length) return;
-    const a = templates[idx];
-    const b = templates[swapIdx];
-    await Promise.all([
-      supabase.from("product_templates").update({ sort_order: b.sort_order }).eq("id", a.id),
-      supabase.from("product_templates").update({ sort_order: a.sort_order }).eq("id", b.id),
-    ]);
+    const idx = list.findIndex((t) => t.id === id);
+    const b = list[idx + dir];
+    if (idx < 0 || !b) return;
+    await swapOrder(supabase, "product_templates", templates, list[idx], b);
     await reload(true);
   }
-
-  if (showCategoriesPage) {
-    return (
-      <div>
-        <ProductCategoriesPanel onBack={() => setShowCategoriesPage(false)} />
-      </div>
-    );
+  async function moveToFolder(id, folderId) {
+    await supabase.from("product_templates").update({ folder_id: folderId || null }).eq("id", id);
+    await reload(true);
   }
 
   return (
@@ -122,7 +113,6 @@ export default function CatalogScreen() {
       <div className="toolbar">
         {!showCompare && (
           <SearchFilter value={search} onChange={setSearch} placeholder="Пошук моделі…" active={activeCount} onReset={resetFilters}>
-            <SelectSearch value={categoryFilter} options={treeOptions(productCategories)} onChange={setCategoryFilter} placeholder="Усі категорії" emptyLabel="Усі категорії" width={220} ariaLabel="Категорія" />
             <SelectSearch value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} placeholder="Усі статуси" emptyLabel="Усі статуси" width={160} ariaLabel="Статус" />
             <div className="sf-range"><span>Модулі</span>
               <input type="number" min="0" placeholder="від" aria-label="Модулів від" value={moduleMin} onChange={(e) => setModuleMin(nonNegative(e.target.value))} />
@@ -146,9 +136,6 @@ export default function CatalogScreen() {
             ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
           </button>
           {canWriteCatalog && (
-            <SettingsButton title="Категорії моделей будинків" onClick={() => setShowCategoriesPage(true)} />
-          )}
-          {canWriteCatalog && (
             <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>
           )}
         </div>
@@ -157,21 +144,24 @@ export default function CatalogScreen() {
       {showCompare && <CompareScreen compareSelection={compareSelection} />}
 
       {!showCompare && (
-      <>
+      <div className="cat-layout">
+      <FolderTree scope="models" items={templates} selected={folder} onSelect={setFolder} canEdit={canWriteCatalog} onMoveItem={moveToFolder} />
+      <main>
       {!list.length ? (
         <div className="empty">Немає моделей за цим пошуком і фільтром</div>
       ) : (
         <div className="grid">
           {list.map((t) => {
             const bom = bomItems.filter((b) => b.template_id === t.id);
-            const cats = productCategoryLinks.filter((l) => l.template_id === t.id).map((l) => productCategories.find((c) => c.id === l.category_id)).filter(Boolean);
+            const fold = folders.find((f) => f.id === t.folder_id);
+            const li = list.indexOf(t);
             const totalUah = templateTotalUah(t);
             const costUah = canWriteCatalog ? templateProductionCost(t.id, bomItems, extraCosts, supplierPrices, templates) : 0;
             const onSite = siteModels.filter((m) => m.template_id === t.id);
             const terraceM2 = Math.round((t.terraces || []).reduce((s, x) => s + (Number(x.area) || 0), 0) * 100) / 100;
             const photo = templateFiles.filter((f) => f.template_id === t.id && f.kind === "photo").sort((a, b) => a.sort_order - b.sort_order)[0];
             return (
-              <div className="card" key={t.id} onClick={() => openModal(t)}>
+              <div className="card" key={t.id} onClick={() => openModal(t)} {...dragItem(t.id, canWriteCatalog)}>
                 <div className="card-photo">
                   {photo ? <img src={photo.url} alt={t.name} loading="lazy" decoding="async" /> : "фото модуля"}
                 </div>
@@ -180,10 +170,13 @@ export default function CatalogScreen() {
                   <div className="row"><span className="tag tag--site" title="Ця модель показана на сайті">на сайті: {onSite.map((m) => m.name).join(", ")}</span></div>
                 )}
                 <div className="row">
-                  <span>{cats.map((c) => <span className="tag" key={c.id}>{c.name}</span>)}{!cats.length && "—"}</span>
+                  <span>{fold ? <span className="folder-tag">📁 {fold.name}</span> : <span className="note" style={{ margin: 0 }}>без папки</span>}</span>
                   <span className={`badge ${t.status}`}>{statusLabels[t.status] || t.status}</span>
                 </div>
                 <div className="row"><span>Площа</span><span>{t.area_m2} м²{terraceM2 ? ` + тераса ${terraceM2} м²` : ""}{t.module_count ? ` · ${t.module_count} ${modulesWord(t.module_count)}` : ""}</span></div>
+                {(t.width_m || t.bedrooms != null || t.bathrooms != null || t.object_type) && (
+                  <div className="row"><span>{t.object_type || "Параметри"}</span><span>{[t.width_m && t.length_m && `${t.width_m}×${t.length_m} м`, t.bedrooms != null && (t.bedrooms ? `${t.bedrooms} сп.` : "студія"), t.bathrooms != null && `${t.bathrooms} с/в`].filter(Boolean).join(" · ")}</span></div>
+                )}
                 {totalUah != null ? (
                   <div className="cost-block">
                     <div className="cost-main">{fmtCurrency(totalUah, currency, exchangeRates, showDecimals)}</div>
@@ -209,10 +202,7 @@ export default function CatalogScreen() {
                     порівняти
                   </label>
                   {canWriteCatalog && (
-                    <div className="reorder-mini">
-                      <button type="button" onClick={() => moveTemplate(t.id, -1)} title="Вище">▲</button>
-                      <button type="button" onClick={() => moveTemplate(t.id, 1)} title="Нижче">▼</button>
-                    </div>
+                    <OrderButtons onMove={(d) => moveTemplate(t.id, d)} first={li === 0} last={li === list.length - 1} disabled={!!q} />
                   )}
                 </div>
               </div>
@@ -220,7 +210,8 @@ export default function CatalogScreen() {
           })}
         </div>
       )}
-      </>
+      </main>
+      </div>
       )}
 
       <TemplateModal

@@ -40,6 +40,7 @@ import UkScreen from "@/components/screens/UkScreen";
 import RentScreen from "@/components/screens/RentScreen";
 import RentalScreen from "@/components/screens/RentalScreen";
 import PackagesScreen from "@/components/screens/PackagesScreen";
+import ProductsScreen from "@/components/screens/ProductsScreen";
 import OwnerScreen from "@/components/screens/OwnerScreen";
 import IdeasScreen from "@/components/screens/IdeasScreen";
 import QuizzesScreen from "@/components/screens/QuizzesScreen";
@@ -67,6 +68,7 @@ const SCREENS = {
   "catalog-services": () => <ServicesCatalogScreen />,
   "service-templates": () => <ServiceTemplatesScreen />,
   packages: () => <PackagesScreen />,
+  products: () => <ProductsScreen />,
   owners: () => <OwnerScreen />,
   owner: () => <OwnerScreen />,
   ideas: () => <IdeasScreen />,

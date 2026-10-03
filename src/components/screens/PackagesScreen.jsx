@@ -12,6 +12,9 @@ import SelectSearch from "@/components/SelectSearch";
 import DeleteButton from "@/components/DeleteButton";
 import { templateProductionCost, curr } from "@/lib/crm";
 import TreeCategoriesPanel from "@/components/panels/TreeCategoriesPanel";
+import OrderButtons from "@/components/catalog/OrderButtons";
+import { swapOrder } from "@/lib/reorder";
+import "@/components/catalog/catalog.css";
 
 
 function usePackageMath() {
@@ -74,7 +77,7 @@ function PackageEditor({ pkg, items: initialItems, cats, onClose, onSaved, onCat
     const payload = { name: form.name.trim(), category_id: form.category_id || null, description: form.description.trim() || null, status: form.status,
       markup_percent: form.markup_percent === "" ? null : Number(form.markup_percent), price_override: form.price_override === "" ? null : Number(form.price_override), updated_at: new Date().toISOString() };
     let id = pkg?.id;
-    const r = id ? await supabase.from("packages").update(payload).eq("id", id) : await supabase.from("packages").insert(payload).select("id").single();
+    const r = id ? await supabase.from("packages").update(payload).eq("id", id) : await supabase.from("packages").insert({ ...payload, sort: Math.floor(Date.now() / 1000) }).select("id").single();
     if (r.error) { setErr(r.error.message); setBusy(false); return; }
     id = id || r.data.id;
     await supabase.from("package_items").delete().eq("package_id", id);
@@ -190,6 +193,13 @@ export default function PackagesScreen() {
   const inCat = (id) => { if (!cat) return true; let x = cats.find((c) => c.id === id); while (x) { if (x.id === cat) return true; x = cats.find((c) => c.id === x.parent_id); } return false; };
   const list = pkgs.filter((p) => inCat(p.category_id) && (!s || [p.name, p.description].join(" ").toLowerCase().includes(s)));
   const catName = (id) => cats.find((c) => c.id === id)?.name || "без категорії";
+  async function move(p, dir) {
+    const i = list.indexOf(p);
+    const b = list[i + dir];
+    if (!b) return;
+    await swapOrder(supabase, "packages", pkgs, p, b, "sort");
+    load();
+  }
   return (
     <div>
       <p className="note">Пакет — кілька будинків, послуги й інші позиції одним продуктом: котеджне містечко, база відпочинку, дохідна нерухомість, «будинок + фундамент + доставка + монтаж». Пакет додається в угоду CRM одним вибором.</p>
@@ -215,6 +225,11 @@ export default function PackagesScreen() {
                 <span style={{ fontWeight: 700, color: "var(--accent)" }}>{curr(t.final)} грн</span>
                 <span className="note" style={{ marginTop: 0, color: t.margin < 0 ? "var(--danger)" : "var(--success)" }}>маржа {t.pct.toFixed(0)}%</span>
               </div>
+              {canWriteCatalog && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                  <OrderButtons onMove={(d) => move(p, d)} first={list.indexOf(p) === 0} last={list.indexOf(p) === list.length - 1} disabled={!!s} />
+                </div>
+              )}
             </div>
           );
         })}

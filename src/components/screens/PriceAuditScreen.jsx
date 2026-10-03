@@ -3,7 +3,7 @@ import SearchFilter from "@/components/SearchFilter";
 
 import { useMemo, useState } from "react";
 import { useAppData } from "@/context/DataContext";
-import { fmtCurrency } from "@/lib/format";
+import { fmtCurrency, fmtUahAmount } from "@/lib/format";
 import { getCategoryAndDescendantIds } from "@/lib/categoryOrder";
 import { useColumns } from "@/lib/useColumns";
 import ColHead, { ColReset } from "@/components/ColHead";
@@ -34,7 +34,7 @@ export default function PriceAuditScreen() {
     name: { value: (r) => r.m.name },
     cat: { value: (r) => r.cat },
     n: { value: (r) => r.n },
-    cheapest: { value: (r) => r.cheapest, text: (v) => `${Number(v).toLocaleString("uk-UA")} грн` },
+    cheapest: { value: (r) => r.cheapest, text: (v) => fmtUahAmount(v, showDecimals) },
     state: { value: (r) => r.state },
   }), []);
   const t = useColumns(base, cols);

@@ -219,6 +219,35 @@ function MultiField({ f, value, onChange }) {
   );
 }
 
+// тераси: назва, ширина × довжина (площа рахується), включена чи опція
+function TerracesField({ value, onChange }) {
+  const list = Array.isArray(value) ? value : [];
+  const num = (t) => { const x = t.replace(",", ".").replace(/[^\d.]/g, ""); return x === "" ? null : Number(x); };
+  const upd = (i, patch) => onChange(list.map((t, j) => {
+    if (j !== i) return t;
+    const n = { ...t, ...patch };
+    if (("w" in patch || "l" in patch) && n.w > 0 && n.l > 0) n.area = Math.round(n.w * n.l * 100) / 100;
+    return n;
+  }));
+  return (
+    <div className="se-terraces">
+      {list.map((t, i) => (
+        <div key={i} className="se-terrace">
+          <input value={t.name || ""} placeholder="Тераса" onChange={(e) => upd(i, { name: e.target.value })} />
+          <input inputMode="decimal" value={t.w ?? ""} placeholder="ш" onChange={(e) => upd(i, { w: num(e.target.value) })} />
+          <span>×</span>
+          <input inputMode="decimal" value={t.l ?? ""} placeholder="д" onChange={(e) => upd(i, { l: num(e.target.value) })} />
+          <span>=</span>
+          <input inputMode="decimal" value={t.area ?? ""} placeholder="м²" onChange={(e) => upd(i, { area: num(e.target.value) })} />
+          <label className="se-check"><input type="checkbox" checked={t.included !== false} onChange={(e) => upd(i, { included: e.target.checked })} /> включена</label>
+          <button type="button" className="btn small" onClick={() => onChange(list.filter((_, j) => j !== i))}>✕</button>
+        </div>
+      ))}
+      <button type="button" className="btn small" onClick={() => onChange([...list, { name: "Тераса", w: null, l: null, area: null, included: true }])}>+ Тераса</button>
+    </div>
+  );
+}
+
 function TemplateField({ value, onChange }) {
   const { templates, currency, exchangeRates } = useAppData();
   const tpl = (templates || []).find((t) => t.id === value);
@@ -271,6 +300,7 @@ function FieldInput({ f, value, onChange, data, onPatch }) {
     case "list": return <ListField f={f} value={value} onChange={onChange} />;
     case "strings": return <StringsField f={f} value={value} onChange={onChange} />;
     case "template": return <TemplateField value={value} onChange={onChange} />;
+    case "terraces": return <TerracesField value={value} onChange={onChange} />;
     case "group": {
       const v = value || {};
       return <div className="se-group">{f.fields.map((s) => <Field key={s.key} f={s} value={v[s.key]} onChange={(x) => onChange({ ...v, [s.key]: x })} />)}</div>;
@@ -284,18 +314,26 @@ function FieldInput({ f, value, onChange, data, onPatch }) {
 export function Field({ f, value, onChange, data, onPatch }) {
   if (f.type === "bool") return <div className="form-row"><FieldInput f={f} value={value} onChange={onChange} /></div>;
   const len = typeof value === "string" ? value.length : 0;
+  // параметр береться з моделі в каталозі — тут лише показуємо (щоб змінити тут, вимкніть «Брати параметри з каталогу»)
+  const locked = f.synced && data?.template_id && data?.sync_params !== false;
   return (
-    <div className="form-row">
+    <div className={`form-row${locked ? " se-locked" : ""}`} title={locked ? "З каталогу системи. Змінюйте в картці моделі (Каталог → Моделі будинків) або вимкніть «Брати параметри з каталогу» нижче." : undefined}>
       {f.label && (
         <label>
           {f.label}
+          {locked && <span className="se-hint"> · 🔗 з каталогу</span>}
           {f.hint && <span className="se-hint"> · {f.hint}</span>}
           {f.max && <span className={`se-count${len > f.max ? " over" : ""}`}>{len}/{f.max}</span>}
         </label>
       )}
-      <FieldInput f={f} value={value} onChange={onChange} data={data} onPatch={onPatch} />
+      {locked ? <input value={f.options ? (f.options.find(([k]) => String(k) === String(value))?.[1] ?? "") : f.type === "terraces" ? terracesText(value) : value ?? ""} readOnly /> : <FieldInput f={f} value={value} onChange={onChange} data={data} onPatch={onPatch} />}
     </div>
   );
+}
+
+// «Тераса 3 × 4 м = 12 м² (включена)» — для показу
+export function terracesText(v) {
+  return (Array.isArray(v) ? v : []).map((t) => `${t.name || "Тераса"}${t.w && t.l ? ` ${String(t.w).replace(".", ",")} × ${String(t.l).replace(".", ",")} м` : ""} = ${String(t.area).replace(".", ",")} м²${t.included === false ? " (опція)" : ""}`).join("; ");
 }
 
 export function Fields({ fields, value, onChange }) {

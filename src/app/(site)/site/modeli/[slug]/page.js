@@ -70,7 +70,14 @@ export default async function ModelPage({ params }) {
     m.area_m2 && ["Площа", `${String(Number(m.area_m2)).replace(".", ",")} м²`],
     m.modules && ["Модулів", String(m.modules).replace(".", ",")],
     m.bedrooms != null && ["Спальні", m.bedrooms ? String(m.bedrooms) : "студія"],
+    m.bathrooms != null && m.bathrooms > 0 && ["Санвузли", String(m.bathrooms)],
     m.dimensions && ["Габарити", m.dimensions],
+    m.height_m && ["Висота", `${String(Number(m.height_m)).replace(".", ",")} м`],
+    ...(Array.isArray(m.terraces) ? m.terraces : []).filter((t) => Number(t.area) > 0).map((t) => [
+      t.name || "Тераса",
+      `${t.w && t.l ? `${String(t.w).replace(".", ",")} × ${String(t.l).replace(".", ",")} м · ` : ""}${String(Number(t.area)).replace(".", ",")} м²${t.included === false ? " · опція" : ""}`,
+    ]),
+    m.object_type && ["Тип", m.object_type],
     m.build_time && ["Виготовлення", m.build_time],
   ].filter(Boolean);
   const ld = {
@@ -92,7 +99,7 @@ export default async function ModelPage({ params }) {
           <h1 className="s-hero__title">{m.name}</h1>
           {m.tagline && <p className="s-hero__sub">{m.tagline}</p>}
           {!!facts.length && (
-            <div className="s-facts">{facts.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
+            <div className="s-facts">{facts.map(([k, v], i) => <div key={`${k}-${i}`}><span>{k}</span><b>{v}</b></div>)}</div>
           )}
           {from ? <div className="s-price-chip">від {money(from, m.currency)}</div> : !concept && <div className="s-price-chip">Ціну порахуємо під вашу ділянку</div>}
           <div className="s-actions">

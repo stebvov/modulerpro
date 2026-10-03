@@ -49,6 +49,12 @@ export function fmtCurrency(amountUah, currency, exchangeRates, showDecimals = t
   );
 }
 
+// сума в гривні для простих списків: копійки лише якщо вони є і галочка «Показувати копійки» увімкнена
+export function fmtUahAmount(n, showDecimals = true) {
+  if (n == null || n === "") return "—";
+  return Number(n).toLocaleString("uk-UA", { maximumFractionDigits: showDecimals ? 2 : 0 }) + " грн";
+}
+
 export function templateTotalUah(t) {
   if (t.base_cost_per_m2 == null) return null;
   return Number(t.base_cost_per_m2) * Number(t.area_m2);

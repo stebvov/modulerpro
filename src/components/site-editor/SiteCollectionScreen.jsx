@@ -6,7 +6,6 @@ import { CASE_KINDS, SIZE_GROUPS } from "@/lib/site/blocks";
 import { CASE_FIELDS, MODEL_FIELDS, slugify } from "@/lib/site/schemas";
 import { caseKinds, imgSmall, isHiddenStr, money, modelPriceFrom } from "@/lib/site/format";
 import { Fields, LinkOptions } from "./Fields";
-import SiteSearch from "./SiteSearch";
 import { revalidateSite } from "./SitePagesScreen";
 import DeleteButton from "@/components/DeleteButton";
 import { ArrowDownIcon, ArrowUpIcon, ExternalIcon } from "@/components/Icon";
@@ -18,7 +17,7 @@ const visiblePhotos = (x) => (x.photos || []).filter((u) => !isHiddenStr(u));
 const KINDS = {
   models: {
     table: "site_models", fields: MODEL_FIELDS, one: "модель", add: "+ Модель", path: "modeli", titleKey: "name",
-    blank: (tab) => ({ name: tab === "concept" ? "Нова розробка" : "Нова модель", kind: tab === "concept" ? "concept" : "ready", slug: `model-${Date.now().toString(36)}`, size_group: 1, currency: "USD", published: false, photos: [], plans: [], features: [], highlights: [] }),
+    blank: (tab) => ({ name: tab === "concept" ? "Нова розробка" : "Нова модель", kind: tab === "concept" ? "concept" : "ready", slug: `model-${Date.now().toString(36)}`, size_group: 1, currency: "USD", published: false, photos: [], plans: [], features: [], highlights: [], terraces: [] }),
     sub: (x) => [x.popular && "★ популярна", SIZE_GROUPS[x.size_group], x.area_m2 && `${Number(x.area_m2)} м²`, x.kind === "concept" ? "розробка" : modelPriceFrom(x) ? `від ${money(modelPriceFrom(x), x.currency)}` : "без ціни"].filter(Boolean).join(" · "),
     warn: (x) => (x.kind !== "concept" && !modelPriceFrom(x) ? "Немає ціни — на сайті буде «порахуємо під вас»" : !visiblePhotos(x).length ? "Немає фото" : ""),
     tabs: [["ready", "Готові моделі"], ["concept", "Індивідуальні проєкти"], ["", "Усі"]],
@@ -77,6 +76,11 @@ export default function SiteCollectionScreen({ kind }) {
       const { error } = await supabase.from(K.table).update(patch).eq("id", next.id);
       if (error) { setStatus(""); setMsg(error.code === "23505" ? "Така адреса вже зайнята." : "Не збережено: " + error.message); return; }
       setStatus("Збережено · на сайті"); setMsg("");
+      // параметри з каталогу могли підтягнутись (база підставила) — оновлюємо картку
+      if (patch.template_id && patch.sync_params !== false) {
+        const { data: fresh } = await supabase.from(K.table).select("*").eq("id", next.id).maybeSingle();
+        if (fresh) setRows((rs) => rs.map((r) => (r.id === fresh.id ? { ...r, ...Object.fromEntries(["area_m2", "modules", "bedrooms", "bathrooms", "dimensions", "height_m", "object_type", "size_group", "terraces"].map((k) => [k, fresh[k]])) } : r)));
+      }
       revalidateSite();
     }, 800);
   }
@@ -114,10 +118,9 @@ export default function SiteCollectionScreen({ kind }) {
       )}
       <div className="toolbar">
         <div className="toolbar-left">
-          <input className="se-search" placeholder="Пошук" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="se-search" type="search" placeholder={kind === "models" ? "Пошук моделі…" : "Пошук кейсу…"} value={q} onChange={(e) => setQ(e.target.value)} />
           <span className="note">{rows.filter((r) => r.published).length} на сайті · {rows.filter((r) => !r.published).length} приховано</span>
         </div>
-        <SiteSearch />
         <button type="button" className="btn primary" onClick={add}>{tab === "concept" ? "+ Розробка" : K.add}</button>
       </div>
       {msg && <div className="se-msg" onClick={() => setMsg("")}>{msg}</div>}

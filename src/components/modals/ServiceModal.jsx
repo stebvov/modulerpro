@@ -3,9 +3,11 @@ import DeleteButton from "@/components/DeleteButton";
 
 import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
+import { FolderSelect, NO_FOLDER } from "@/components/catalog/FolderTree";
 
-export default function ServiceModal({ open, service, onClose, onSaved }) {
-  const { supabase, serviceCategories, reload } = useAppData();
+export default function ServiceModal({ open, service, onClose, onSaved, defaultFolder }) {
+  const { supabase, serviceCategories, services, reload } = useAppData();
+  const [folderId, setFolderId] = useState(null);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -23,13 +25,14 @@ export default function ServiceModal({ open, service, onClose, onSaved }) {
     setCategoryId(service?.category_id || serviceCategories[0]?.id || "");
     setUnit(service?.unit || "послуга");
     setBasePrice(service?.base_price ?? "");
-  }, [open, service, serviceCategories]);
+    setFolderId(service ? service.folder_id || null : defaultFolder && defaultFolder !== NO_FOLDER ? defaultFolder : null);
+  }, [open, service, serviceCategories, defaultFolder]);
 
   if (!open) return null;
 
   async function handleSave() {
     if (!name.trim()) { setError("Вкажи назву послуги."); return; }
-    if (!categoryId) { setError("Обери категорію."); return; }
+    if (!categoryId) { setError("Обери тип послуги."); return; }
     setSaving(true);
     setError("");
     try {
@@ -39,10 +42,11 @@ export default function ServiceModal({ open, service, onClose, onSaved }) {
         category_id: categoryId,
         unit: unit.trim() || "послуга",
         base_price: basePrice === "" ? null : Number(basePrice),
+        folder_id: folderId || null,
       };
       const { error: e } = service
         ? await supabase.from("services").update(payload).eq("id", service.id)
-        : await supabase.from("services").insert([payload]);
+        : await supabase.from("services").insert([{ ...payload, sort_order: services.length ? Math.max(...services.map((x) => x.sort_order ?? 0)) + 1 : 0 }]);
       if (e) throw e;
       await reload(true);
       onSaved?.();
@@ -67,9 +71,13 @@ export default function ServiceModal({ open, service, onClose, onSaved }) {
           </div>
         </div>
         <div className="form-row">
-          <label>Категорія *</label>
+          <label>Папка</label>
+          <FolderSelect scope="services" value={folderId} onChange={setFolderId} />
+        </div>
+        <div className="form-row">
+          <label>Тип послуги * (для виконання: доставка, монтаж…)</label>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— обери категорію —</option>
+            <option value="">— обери тип —</option>
             {serviceCategories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
           </select>
         </div>

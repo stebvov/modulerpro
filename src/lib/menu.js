@@ -29,8 +29,9 @@ export const MENU = [
     key: "catalog", label: "📚 Каталог", need: "mp",
     tabs: [
       { id: "catalog", label: "Моделі будинків" },
-      { id: "packages", label: "📦 Пакети" },
       { id: "catalog-services", label: "Послуги" },
+      { id: "products", label: "🛒 Товари" },
+      { id: "packages", label: "📦 Пакети" },
     ],
   },
   {

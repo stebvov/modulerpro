@@ -1,0 +1,8 @@
+-- 2026-10-03 (Supabase MCP: catalog_folders_and_products, model_params_site_sync, dims_text_fix)
+-- catalog_folders (scope models|services|products, вкладені через parent_id) + folder_id у product_templates і services.
+-- product_templates: width_m, length_m, height_m, object_type, bedrooms, bathrooms; terraces [{name,w,l,area,included}].
+-- site_models: bathrooms, height_m, object_type, terraces, sync_params (true — параметри беруться з каталогу).
+--   Тригер site_models_params (before insert/update of template_id, sync_params) і product_templates_to_site (after update параметрів)
+--   переносять площу, модулі, спальні, с/в, висоту, тип, габарити (dims_text), групу площі (size_group_of), тераси.
+-- catalog_products: товари з посилання (ціна продавця → націнка % або своя ціна), folder_id, sort_order, status.
+-- Дані: bedrooms перенесено з site_models у каталог; sort_order моделей перенумеровано 0..n-1 (порядок не змінився).

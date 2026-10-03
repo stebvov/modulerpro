@@ -21,7 +21,9 @@
 .se-main { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 14px; align-items: start; }
 .se-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-height: calc(100vh - 170px); overflow-y: auto; padding-right: 4px; position: sticky; top: 10px; }
 .se-right { position: sticky; top: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.se-tabs { display: flex; gap: 6px; }
+.se-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; max-width: 100%; padding-bottom: 2px; }
+.se-tabs::-webkit-scrollbar { display: none; }
+.se-tabs > * { flex-shrink: 0; }
 .se-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
 .se-devices { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .se-devices .note { margin: 0 0 0 6px; }
@@ -205,3 +207,16 @@
 .se-find__item mark { background: #fde9b8; color: inherit; border-radius: 3px; padding: 0 1px; }
 .se-find__empty { padding: 10px 8px; font-size: 13px; color: var(--text-muted); }
 @media (max-width: 700px) { .se-find { max-width: none; flex-basis: 100%; } }
+
+@media (max-width: 700px) {
+  .se-coll .toolbar-left { flex: 1 1 100%; flex-wrap: wrap; }
+  .se-coll .se-search { min-width: 0; flex: 1 1 100%; }
+  .se-coll__main:not(.has-sel) .se-coll__list { grid-template-columns: 1fr; }
+}
+
+/* параметр із каталогу — лише показ */
+.se-locked input[readonly] { background: var(--bg); color: var(--text-secondary); }
+.se-terraces { display: grid; gap: 6px; }
+.se-terrace { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.se-terrace input:not([type="checkbox"]) { width: 64px; flex: 0 1 64px; min-width: 0; }
+.se-terrace input:first-child { flex: 1 1 120px; width: auto; }

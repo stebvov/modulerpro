@@ -4,12 +4,12 @@ import SearchFilter from "@/components/SearchFilter";
 import { useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
-import { statusLabels } from "@/lib/format";
+import { statusLabels, fmtUahAmount } from "@/lib/format";
 import { serviceTemplateUnitPrice } from "@/lib/crm";
 import ServiceTemplateModal from "@/components/modals/ServiceTemplateModal";
 
 export default function ServiceTemplatesScreen() {
-  const { serviceTemplates, serviceTemplateItems, services } = useAppData();
+  const { serviceTemplates, serviceTemplateItems, services, showDecimals } = useAppData();
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,7 +47,7 @@ export default function ServiceTemplatesScreen() {
                 <h3>{t.name}</h3>
                 <div className="row"><span>{items.length} послуг</span><span className={`badge ${t.status}`}>{statusLabels[t.status] || t.status}</span></div>
                 <div className="cost-block">
-                  <div className="cost-main">{total.toLocaleString("uk-UA")} грн</div>
+                  <div className="cost-main">{fmtUahAmount(total, showDecimals)}</div>
                 </div>
               </div>
             );

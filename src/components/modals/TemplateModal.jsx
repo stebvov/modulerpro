@@ -7,6 +7,15 @@ import FileLightbox from "@/components/FileLightbox";
 import PdfPreviewModal from "@/components/PdfPreviewModal";
 import { CURRENCIES, convert, fmtCurrency } from "@/lib/format";
 import { priceFromCost, marginFromMarkup } from "@/lib/crm";
+import { FolderSelect } from "@/components/catalog/FolderTree";
+import { SIZE_GROUPS } from "@/lib/site/blocks";
+import { slugify } from "@/lib/site/schemas";
+
+// тип обʼєкта — підказки (можна вписати свій)
+const OBJECT_TYPES = ["Житловий будинок", "Дача", "Гостьовий будинок", "Глемпінг / кемпінг", "Баня / SPA", "Офіс / комерційний", "Житло для працівників"];
+// група площі для сайту — від площі будинку (як у базі: size_group_of)
+const stamp = () => Date.now().toString(36);
+const sizeGroupOf = (a) => (!(a > 0) ? null : a < 30 ? 1 : a < 50 ? 2 : a < 100 ? 3 : 4);
 
 const FILE_COLLAPSE_THRESHOLD = 10;
 const NO_GROUP = "__none";
@@ -22,14 +31,16 @@ function emptyExtraRow(defaultGroupId) {
   return { key: Math.random().toString(36).slice(2), group_id: defaultGroupId || "", label: "", amount: "" };
 }
 // сума для поля вводу: без зайвих копійок
-function toInput(n) {
-  return n == null ? "" : String(Math.round(Number(n) * 100) / 100);
+function toInput(n, decimals = true) {
+  return n == null ? "" : String(decimals ? Math.round(Number(n) * 100) / 100 : Math.round(Number(n)));
 }
 const MAX_MODULES = 20;
 const round2 = (n) => Math.round(n * 100) / 100;
 function emptyTerrace() {
-  return { key: Math.random().toString(36).slice(2), name: "", area: "" };
+  return { key: Math.random().toString(36).slice(2), name: "", w: "", l: "", area: "", included: true };
 }
+const numOrNull = (v) => (v === "" || v == null || Number.isNaN(parseFloat(v)) ? null : parseFloat(v));
+const intOrNull = (v) => (v === "" || v == null || Number.isNaN(parseInt(v, 10)) ? null : parseInt(v, 10));
 const validSize = (m) => parseFloat(m?.w) > 0 && parseFloat(m?.l) > 0;
 // площа за розмірами модулів — лише коли розміри вказано для всіх
 function modulesArea(rows) {
@@ -47,7 +58,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     materialCategories,
     supplierPrices,
     bomGroups,
-    productCategories,
     productCategoryLinks,
     bomItems,
     extraCosts,
@@ -55,6 +65,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     templates,
     currency,
     exchangeRates,
+    showDecimals,
+    siteModels,
     reload,
   } = useAppData();
 
@@ -65,6 +77,10 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   const [sameModules, setSameModules] = useState(true);
   const [modRows, setModRows] = useState([]);
   const [terraceRows, setTerraceRows] = useState([]);
+  // параметри для сайту й CRM
+  const [params, setParams] = useState({ width_m: "", length_m: "", height_m: "", object_type: "", bedrooms: "", bathrooms: "" });
+  const [folderId, setFolderId] = useState(null);
+  const [siteBusy, setSiteBusy] = useState(false);
   const [status, setStatus] = useState("draft");
   // собівартість: з BOM або однією сумою за прайсом; ціна клієнту = собівартість × (1 + націнка) ÷ (1 − податок)
   const [costMode, setCostMode] = useState("bom");
@@ -115,13 +131,22 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     setModRows(same ? mods.slice(0, 1) : mods);
     setTerraceRows(
       Array.isArray(template?.terraces)
-        ? template.terraces.map((t) => ({ ...emptyTerrace(), name: t.name || "", area: t.area != null ? String(t.area) : "" }))
+        ? template.terraces.map((t) => ({ ...emptyTerrace(), name: t.name || "", w: t.w != null ? String(t.w) : "", l: t.l != null ? String(t.l) : "", area: t.area != null ? String(t.area) : "", included: t.included !== false }))
         : []
     );
     setStatus(template ? template.status : "draft");
+    setFolderId(template?.folder_id || null);
+    setParams({
+      width_m: template?.width_m != null ? String(template.width_m) : "",
+      length_m: template?.length_m != null ? String(template.length_m) : "",
+      height_m: template?.height_m != null ? String(template.height_m) : "",
+      object_type: template?.object_type || "",
+      bedrooms: template?.bedrooms != null ? String(template.bedrooms) : "",
+      bathrooms: template?.bathrooms != null ? String(template.bathrooms) : "",
+    });
     setCostMode(template?.cost_mode || "bom");
     setFixedCur(currency);
-    setFixedCost(template?.fixed_cost != null ? toInput(convert(template.fixed_cost, currency, exchangeRates)) : "");
+    setFixedCost(template?.fixed_cost != null ? toInput(convert(template.fixed_cost, currency, exchangeRates), showDecimals) : "");
     setFixedTouched(false);
     setMarkup(template && Number(template.markup_percent) ? String(Number(template.markup_percent)) : "");
     setTax(template && Number(template.tax_percent) ? String(Number(template.tax_percent)) : "");
@@ -150,9 +175,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
 
   if (!open) return null;
 
-  function toggleCategory(id) {
-    setSelectedCats((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
-  }
   function updateBomRow(key, patch) {
     setBomRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
@@ -256,7 +278,13 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     else setModules(moduleCount, false, modList.map((m, j) => (j === i ? { ...m, ...patch } : m)));
   }
   function editTerrace(key, patch) {
-    setTerraceRows((prev) => prev.map((t) => (t.key === key ? { ...t, ...patch } : t)));
+    setTerraceRows((prev) => prev.map((t) => {
+      if (t.key !== key) return t;
+      const next = { ...t, ...patch };
+      // розміри вказано — площа рахується сама
+      if (("w" in patch || "l" in patch) && validSize(next)) next.area = String(round2(parseFloat(next.w) * parseFloat(next.l)));
+      return next;
+    }));
   }
   function sizePayload() {
     return {
@@ -264,13 +292,20 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       modules: modList.every(validSize) ? modList.map((m) => ({ w: parseFloat(m.w), l: parseFloat(m.l) })) : [],
       terraces: terraceRows
         .filter((t) => parseFloat(t.area) > 0)
-        .map((t) => ({ name: t.name.trim() || "Тераса", area: parseFloat(t.area) })),
+        .map((t) => ({ name: t.name.trim() || "Тераса", area: parseFloat(t.area), ...(validSize(t) ? { w: parseFloat(t.w), l: parseFloat(t.l) } : {}), included: t.included !== false })),
+      width_m: numOrNull(params.width_m),
+      length_m: numOrNull(params.length_m),
+      height_m: numOrNull(params.height_m),
+      object_type: params.object_type.trim() || null,
+      bedrooms: intOrNull(params.bedrooms),
+      bathrooms: intOrNull(params.bathrooms),
+      folder_id: folderId || null,
     };
   }
 
   function changeFixedCur(code) {
     setFixedCur(code);
-    if (!fixedTouched && template?.fixed_cost != null) setFixedCost(toInput(convert(template.fixed_cost, code, exchangeRates)));
+    if (!fixedTouched && template?.fixed_cost != null) setFixedCost(toInput(convert(template.fixed_cost, code, exchangeRates), showDecimals));
   }
   function pricingPayload() {
     return {
@@ -378,8 +413,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   async function handleSave() {
     setError("");
     const areaNum = parseFloat(area);
-    if (!name.trim() || !areaNum || !selectedCats.length) {
-      setError("Заповни назву, площу і хоча б одну категорію.");
+    if (!name.trim() || !areaNum) {
+      setError("Заповни назву і площу.");
       return;
     }
     if (taxNum >= 100) {
@@ -410,10 +445,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         id = created.id;
       }
 
-      await supabase.from("product_category_links").delete().eq("template_id", id);
-      if (selectedCats.length) {
-        await supabase.from("product_category_links").insert(selectedCats.map((cid) => ({ template_id: id, category_id: cid })));
-      }
 
       const cleanBom = buildCleanBom().map((r) => ({ ...r, template_id: id }));
       await supabase.from("template_bom_items").delete().eq("template_id", id);
@@ -442,8 +473,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     if (!templateId) return;
     setError("");
     const areaNum = parseFloat(area);
-    if (!name.trim() || !areaNum || !selectedCats.length) {
-      setError("Заповни назву, площу і хоча б одну категорію перед дублюванням.");
+    if (!name.trim() || !areaNum) {
+      setError("Заповни назву і площу перед дублюванням.");
       return;
     }
     setSaving(true);
@@ -481,6 +512,42 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     }
   }
 
+  const onSite = templateId ? (siteModels || []).filter((m) => m.template_id === templateId) : [];
+  // картка на сайті з тими самими параметрами (база підтягне площу, модулі, спальні, габарити…), фото — з каталогу
+  async function putOnSite() {
+    setSiteBusy(true); setError("");
+    try {
+      await handleSaveQuiet();
+      const base = slugify(name.trim()) || `model-${stamp()}`;
+      const photos = photoFiles.map((f) => f.url);
+      let slug = base;
+      for (let k = 2; k < 20; k++) {
+        const { data: ex } = await supabase.from("site_models").select("id").eq("slug", slug).maybeSingle();
+        if (!ex) break;
+        slug = `${base}-${k}`;
+      }
+      const { error: e } = await supabase.from("site_models").insert({
+        name: name.trim(), slug, kind: "ready", template_id: templateId, currency: "USD", published: false, sync_params: true,
+        photos, plans: [], features: [], highlights: [], sort: 999,
+      });
+      if (e) throw e;
+      await reload(true);
+      setError("");
+      window.alert("Картку створено на сайті (поки прихована). Додайте ціни й опис: Сайт → Моделі на сайті.");
+    } catch (err) {
+      setError("Не вдалося розмістити на сайті: " + (err.message || String(err)));
+    } finally {
+      setSiteBusy(false);
+    }
+  }
+  // зберегти параметри перед публікацією на сайт (без закриття)
+  async function handleSaveQuiet() {
+    const areaNum = parseFloat(area);
+    if (!templateId || !name.trim() || !areaNum) return;
+    const { error: e } = await supabase.from("product_templates").update({ name: name.trim(), area_m2: areaNum, status, ...sizePayload() }).eq("id", templateId);
+    if (e) throw e;
+  }
+
   async function handleDelete() {
     if (!templateId || !confirm("Видалити шаблон разом з його BOM?")) return;
     setSaving(true);
@@ -507,18 +574,11 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
         </div>
 
         <details className="section-details" open={!templateId}>
-          <summary>Параметри шаблону <span className="section-count">— категорії, фото, статус</span></summary>
+          <summary>Параметри шаблону <span className="section-count">— папка, фото, статус</span></summary>
           <div className="section-body">
             <div className="form-row">
-              <label>Категорії (можна декілька — напр. Дача + Кемпінг)</label>
-              <div className="tag-checks">
-                {productCategories.map((c) => (
-                  <label className="tag-check" key={c.id}>
-                    <input type="checkbox" checked={selectedCats.includes(c.id)} onChange={() => toggleCategory(c.id)} />
-                    {c.name}
-                  </label>
-                ))}
-              </div>
+              <label>Папка</label>
+              <FolderSelect scope="models" value={folderId} onChange={setFolderId} />
             </div>
 
             <div className="form-row">
@@ -604,7 +664,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
 
         <details className="section-details" open>
           <summary>
-            Площа, модулі й тераси
+            Площа, модулі, габарити й тераси
             <span className="section-count">
               {" "}— будинок {parseFloat(area) || "—"} м²{terraceTotal ? ` + тераси ${terraceTotal} м² = ${round2((parseFloat(area) || 0) + terraceTotal)} м²` : ""}
             </span>
@@ -659,14 +719,52 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
             <div className="form-row">
               <label>Тераси</label>
               {terraceRows.map((t) => (
-                <div className="size-row" key={t.key}>
+                <div className="size-row size-row--terrace" key={t.key}>
                   <input className="size-row__label" type="text" value={t.name} placeholder="Тераса" aria-label="Назва тераси" onChange={(e) => editTerrace(t.key, { name: e.target.value })} />
+                  <input type="number" min="0" step="0.05" value={t.w} placeholder="ш" aria-label="Ширина тераси, м" onChange={(e) => editTerrace(t.key, { w: e.target.value })} />
+                  <span>×</span>
+                  <input type="number" min="0" step="0.05" value={t.l} placeholder="д" aria-label="Довжина тераси, м" onChange={(e) => editTerrace(t.key, { l: e.target.value })} />
+                  <span>=</span>
                   <input type="number" min="0" step="0.1" value={t.area} placeholder="0" aria-label="Площа тераси, м²" onChange={(e) => editTerrace(t.key, { area: e.target.value })} />
                   <span>м²</span>
+                  <label className="tag-check" title="Тераса входить у комплектацію й ціну"><input type="checkbox" checked={t.included !== false} onChange={(e) => editTerrace(t.key, { included: e.target.checked })} /> включена</label>
                   <span className="icon-x" title="Прибрати терасу" onClick={() => setTerraceRows((prev) => prev.filter((x) => x.key !== t.key))}>×</span>
                 </div>
               ))}
               <button type="button" className="btn small self-left" onClick={() => setTerraceRows((prev) => [...prev, emptyTerrace()])}>+ Додати терасу</button>
+            </div>
+
+            <div className="form-row">
+              <label>Габарити будинку, м (ширина × довжина × висота)</label>
+              <div className="size-row">
+                <input type="number" min="0" step="0.05" value={params.width_m} placeholder="ширина" aria-label="Ширина, м" onChange={(e) => setParams({ ...params, width_m: e.target.value })} />
+                <span>×</span>
+                <input type="number" min="0" step="0.05" value={params.length_m} placeholder="довжина" aria-label="Довжина, м" onChange={(e) => setParams({ ...params, length_m: e.target.value })} />
+                <span>×</span>
+                <input type="number" min="0" step="0.05" value={params.height_m} placeholder="висота" aria-label="Висота, м" onChange={(e) => setParams({ ...params, height_m: e.target.value })} />
+                <span>м</span>
+              </div>
+            </div>
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Тип обʼєкта</label>
+                <input list="tpl-object-types" value={params.object_type} placeholder="напр. Житловий будинок" onChange={(e) => setParams({ ...params, object_type: e.target.value })} />
+                <datalist id="tpl-object-types">{OBJECT_TYPES.map((o) => <option key={o} value={o} />)}</datalist>
+              </div>
+              <div className="form-row">
+                <label>Група площі (для сайту)</label>
+                <input value={SIZE_GROUPS[sizeGroupOf(parseFloat(area))] || "—"} readOnly title="Рахується сама від площі будинку" />
+              </div>
+            </div>
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Спалень (0 — студія)</label>
+                <input type="number" min="0" step="1" value={params.bedrooms} onChange={(e) => setParams({ ...params, bedrooms: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Санвузлів</label>
+                <input type="number" min="0" step="1" value={params.bathrooms} onChange={(e) => setParams({ ...params, bathrooms: e.target.value })} />
+              </div>
             </div>
 
             <div className="price-summary">
@@ -921,6 +1019,11 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
               Дублювати
             </button>
           )}
+          {templateId && (onSite.length ? (
+            <a className="btn" href={`/?s=site-models&open=${onSite[0].slug}`} title="Відкрити картку моделі на сайті">🌐 На сайті{onSite.some((m) => !m.published) ? " (приховано)" : ""}</a>
+          ) : (
+            <button className="btn" onClick={putOnSite} disabled={saving || siteBusy} title="Створити картку моделі на сайті з тими ж параметрами й фото (спершу прихована)">🌐 Розмістити на сайті</button>
+          ))}
           <button className="btn" onClick={onClose} disabled={saving}>Скасувати</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? "Збереження..." : "Зберегти"}
