@@ -1,0 +1,83 @@
+/* 🧩 Квізи: список і конструктор */
+.qzs-msg { background: var(--accent-bg); color: var(--accent); padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; word-break: break-all; }
+.qzs-empty { text-align: center; background: var(--card); border: 1px dashed var(--border-strong); border-radius: 14px; padding: 40px 20px; max-width: 560px; margin: 20px auto; }
+.qzs-empty p { color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
+.qzs-list { display: grid; gap: 12px; }
+.qzs-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; align-items: center; }
+.qzs-item__head { cursor: pointer; min-width: 0; }
+.qzs-item__head h3 { margin: 6px 0 2px; font-size: 16px; }
+.qzs-item__actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.qzs-item__actions a { text-decoration: none; }
+.qzs-kpi { display: flex; gap: 18px; }
+.qzs-kpi > div { display: flex; flex-direction: column; align-items: flex-end; }
+.qzs-kpi b { font-size: 18px; }
+.qzs-kpi span { font-size: 11px; color: var(--text-muted); }
+.qzs-kpi--big { flex-wrap: wrap; gap: 12px; }
+.qzs-kpi--big > div { align-items: flex-start; background: var(--bg); border-radius: 10px; padding: 10px 14px; min-width: 120px; }
+.qzs-kpi--big b { font-size: 22px; }
+
+.qze-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.qze-title { flex: 1 1 240px; font-size: 16px; font-weight: 600; padding: 6px 10px; border: 1px solid transparent; background: transparent; }
+.qze-title:hover, .qze-title:focus { border-color: var(--border-strong); background: var(--card); }
+.qze-status { min-width: 80px; }
+.qze-tabs { margin-bottom: 14px; }
+.qze-body { display: grid; gap: 18px; }
+.qze-body.with-preview { grid-template-columns: minmax(340px, 1fr) minmax(0, 1.1fr); align-items: start; }
+.qze-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.qze-preview { position: sticky; top: 12px; background: #eceae3; border-radius: 14px; padding: 12px; min-width: 0; }
+.qze-preview__bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+.qze-h { font-size: 13px; margin: 20px 0 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+.qze-h:first-child { margin-top: 0; }
+.qze-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.qze-row > .form-row { flex: 1 1 120px; }
+.qze-check { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 12px; cursor: pointer; }
+.qze-check input { width: auto; }
+
+.qze-qs { display: grid; gap: 8px; }
+.qze-q { border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.qze-q.open { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+.qze-q__head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.qze-q__num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-size: 12px; font-weight: 700; display: grid; place-items: center; flex: none; }
+.qze-q__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
+.qze-q__tools { display: flex; gap: 4px; flex: none; }
+.qze-q__body { padding: 4px 12px 12px; border-top: 1px solid var(--border); }
+.qze-q__body .form-row:first-child { margin-top: 10px; }
+.qze-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.qze-opt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.qze-opt > input { flex: 1 1 160px; min-width: 0; }
+.qze-opt > select { flex: 0 1 190px; min-width: 0; font-size: 12px; }
+.qze-add { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; padding: 10px; border: 1px dashed var(--border-strong); border-radius: 10px; }
+.self-left { align-self: flex-start; }
+
+.qze-img { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.qze-img__thumb { width: 44px; height: 34px; border-radius: 6px; background: var(--bg) center / cover; display: grid; place-items: center; font-size: 14px; flex: none; border: 1px solid var(--border); }
+.qze-img label { cursor: pointer; }
+
+.qze-copy { display: flex; gap: 8px; align-items: center; background: var(--bg); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.qze-copy code { flex: 1; min-width: 0; word-break: break-all; font-size: 13px; }
+.qze-panel textarea[readonly] { font-family: ui-monospace, monospace; font-size: 12px; }
+
+.qze-funnel { display: grid; gap: 6px; }
+.qze-funnel__row { display: grid; grid-template-columns: minmax(120px, 34%) 1fr 70px; gap: 10px; align-items: center; font-size: 13px; }
+.qze-funnel__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.qze-funnel__bar { height: 18px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.qze-funnel__bar span { display: block; height: 100%; background: var(--accent); border-radius: 5px; min-width: 2px; }
+.qze-funnel__val { text-align: right; font-weight: 600; }
+.qze-funnel__val small { color: var(--danger); font-weight: 400; }
+
+.qze-answers { display: grid; gap: 10px; }
+.qze-answer { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.qze-answer__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.qze-answer__head a.btn { margin-left: auto; text-decoration: none; }
+.qze-answer ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; display: grid; gap: 3px; }
+.qze-answer li .note { margin-right: 4px; }
+
+@media (max-width: 1000px) {
+  .qze-body.with-preview { grid-template-columns: 1fr; }
+  .qze-preview { position: static; }
+}
+@media (max-width: 640px) {
+  .qzs-item { grid-template-columns: 1fr; }
+  .qzs-kpi { justify-content: space-between; }
+  .qzs-kpi > div { align-items: flex-start; }
+}

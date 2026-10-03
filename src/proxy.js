@@ -13,6 +13,9 @@ export default async function proxy(request) {
   const host = (request.headers.get("host") || "").split(":")[0].toLowerCase();
   const path = url.pathname;
 
+  // публічні квізи та їхнє API — без входу, на будь-якому домені (app.moduler.pro/q/…, moduler.pro/q/…)
+  if (path.startsWith("/q/") || path.startsWith("/api/quiz/")) return NextResponse.next();
+
   if (SITE_HOSTS.includes(host)) {
     // старі адреси сайту: index.html → /, modeli.html → /modeli
     if (path.endsWith(".html")) {
