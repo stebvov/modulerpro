@@ -43,6 +43,7 @@ import PackagesScreen from "@/components/screens/PackagesScreen";
 import ProductsScreen from "@/components/screens/ProductsScreen";
 import OwnerScreen from "@/components/screens/OwnerScreen";
 import IdeasScreen from "@/components/screens/IdeasScreen";
+import AssistantScreen from "@/components/screens/AssistantScreen";
 import QuizzesScreen from "@/components/screens/QuizzesScreen";
 import SitePagesScreen from "@/components/site-editor/SitePagesScreen";
 import SiteCollectionScreen from "@/components/site-editor/SiteCollectionScreen";
@@ -72,6 +73,7 @@ const SCREENS = {
   owners: () => <OwnerScreen />,
   owner: () => <OwnerScreen />,
   ideas: () => <IdeasScreen />,
+  assistant: () => <AssistantScreen />,
   quizzes: () => <QuizzesScreen />,
   "uk-crm": () => <CrmDataProvider><CrmScreen onlySlug="uk-owners" /></CrmDataProvider>,
   "uk-fin": () => <Ledger direction="service" />,

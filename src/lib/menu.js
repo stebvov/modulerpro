@@ -8,6 +8,7 @@
 export const MENU = [
   { key: "home", label: "🏠 Мій пульт", need: "team", tabs: [{ id: "pult-my", label: "Мій пульт" }] },
   { key: "tasks", label: "✅ Задачі", need: "team", tabs: [{ id: "pult-tasks", label: "Задачі" }] },
+  { key: "assistant", label: "🤖 Асистент", need: "owner", tabs: [{ id: "assistant", label: "Асистент — операційний ШІ-директор" }] },
   { key: "capital", label: "💎 Капітал", need: "owner", tabs: [{ id: "pult-cap", label: "Капітал і дохід засновника" }] },
   { key: "ideas", label: "💡 Ідеї", need: "owner", tabs: [{ id: "ideas", label: "Ідеї та роздуми" }] },
   {
