@@ -8,7 +8,7 @@ export const QUESTION_TYPES = [
   ["date", "Дата"],
 ];
 
-export const PIPELINES = [["houses", "Продаж будинків"], ["partners", "Партнерство"], ["uk-owners", "Власники (УК)"]];
+export const PIPELINES = [["leads-2026", "Ліди 2026"], ["houses", "Продаж будинків"], ["partners", "Партнерство"], ["uk-owners", "Власники (УК)"]];
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -30,7 +30,7 @@ export function templateQuiz() {
   const o = (label, image = "") => ({ id: uid(), label, image });
   return {
     title: "Підбір модульного будинку",
-    pipeline: "houses",
+    pipeline: "leads-2026",
     start: {
       enabled: true,
       title: "Підберіть модульний будинок під свою задачу за 1 хвилину",
