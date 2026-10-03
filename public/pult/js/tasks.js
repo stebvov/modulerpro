@@ -219,7 +219,7 @@ document.addEventListener("click",async e=>{
       if(error){toast("Не збережено: "+error.message);return}
       const notes=[];
       if(patch.status!==t.status)notes.push("Статус: "+STATUS[patch.status]);
-      if((patch.due||"")!==(t.due||"")||hm(patch.due_time)!==hm(t.due_time))notes.push("Термін: "+(patch.due?fmt(patch.due)+(patch.due_time?" "+hm(patch.due_time):""):"знято"));
+      /* зміну терміну пише в історію сама база (тригер task_due_history) — з будь-якого місця */
       if(patch.recur!==t.recur||patch.recur_every!==t.recur_every)notes.push("Повторення: "+(patch.recur==="none"?"разова":recurLabel(patch)));
       if(patch.owner_id!==t.owner_id)notes.push("Виконавець: "+nameOf(patch.owner_id));
       if((patch.controller_id||"")!==(t.controller_id||""))notes.push("Контролер: "+(patch.controller_id?nameOf(patch.controller_id):"знято"));
