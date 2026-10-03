@@ -104,7 +104,15 @@ export default function SuppliersScreen() {
             return (
               <tr key={s.id} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити й редагувати" : undefined} onClick={(e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(s); }}>
                 <td>{s.name}</td>
-                <td>{cats.map((c) => <span className="tag" key={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</span>)}{!cats.length && "—"}</td>
+                <td>
+                  {/* компактно: перші дві категорії в один рядок, решта — «+N» (усі — у підказці) */}
+                  {cats.length ? (
+                    <span className="cats-compact" title={cats.map((c) => c.name).join(", ")}>
+                      {cats.slice(0, 2).map((c) => <span className="tag" key={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</span>)}
+                      {cats.length > 2 && <span className="tag tag--more">+{cats.length - 2}</span>}
+                    </span>
+                  ) : "—"}
+                </td>
                 <td>
                   {contacts.length
                     ? contacts.map((c) => {

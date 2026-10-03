@@ -103,11 +103,12 @@ export default function PriceByMaterialScreen() {
 
   return (
     <div>
-      <p className="note">Один рядок на товар: найнижча, середня й найвища ціна серед постачальників. Обери постачальника — побачиш, наскільки його ціни вищі чи нижчі за інших. Клік по рядку — усі ціни товару й правка.</p>
       <div className="toolbar">
         <div className="toolbar-left">
-          <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." />
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
+            <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
+          </SearchFilter>
+          <InfoTip label="Як читати" text="Один рядок на товар: найнижча, середня й найвища ціна серед постачальників. Оберіть постачальника — побачите, наскільки його ціни вищі чи нижчі за інших. Клік по рядку — усі ціни товару й правка." />
           <div style={{ width: 260, maxWidth: "100%" }} title="Ціни цього постачальника стануть окремим стовпцем із порівнянням">
             <SearchCombobox value={compareId} options={supplierOptions} onChange={chooseCompare} placeholder="Порівняти з постачальником…" />
           </div>

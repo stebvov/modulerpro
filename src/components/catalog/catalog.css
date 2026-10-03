@@ -1,5 +1,6 @@
 /* Каталог: папки зліва + список праворуч */
 .cat-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.cat-layout > * { min-width: 0; }
 .cat-layout > main { min-width: 0; }
 
 .ft { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; position: sticky; top: 10px; }
@@ -48,7 +49,11 @@
 .prod-calc b { color: var(--accent); font-size: 16px; }
 
 @media (max-width: 900px) {
-  .cat-layout { grid-template-columns: 1fr; }
+  /* minmax(0, …) — щоб довгий рядок папок гортався, а не розтягував сторінку за межі екрана */
+  .cat-layout { grid-template-columns: minmax(0, 1fr); }
+  .ft { min-width: 0; max-width: 100%; }
+  .ft-mobile { overflow: hidden; }
+  .cat-layout .grid { grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
   .ft { position: static; padding: 8px; }
   .ft-tree, .ft-hint { display: none; }
   .ft-mobile { display: block; }

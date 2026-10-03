@@ -90,7 +90,7 @@ export default function ProductsScreen() {
         </SearchFilter>
       </div>
       <div className="cat-layout">
-        <FolderTree scope="products" items={rows} selected={folder} onSelect={setFolder} canEdit={canWriteCatalog} onMoveItem={moveToFolder} />
+        <FolderTree scope="products" title="Категорії" items={rows} selected={folder} onSelect={setFolder} canEdit={canWriteCatalog} onMoveItem={moveToFolder} />
         <main>
           {!list.length ? (
             <div className="empty">{rows.length ? "Нічого не знайдено в цій папці" : "Товарів ще немає — вставте посилання вище."}</div>

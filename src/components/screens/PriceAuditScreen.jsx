@@ -8,11 +8,18 @@ import { getCategoryAndDescendantIds } from "@/lib/categoryOrder";
 import { useColumns } from "@/lib/useColumns";
 import ColHead, { ColReset } from "@/components/ColHead";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
+import InfoTip from "@/components/InfoTip";
+import AddProductModal from "@/components/modals/AddProductModal";
+import MaterialPricesModal from "@/components/modals/MaterialPricesModal";
+import { useAuth } from "@/context/AuthContext";
 
 export default function PriceAuditScreen() {
   const { materials, materialCategories, supplierPrices, currency, exchangeRates, showDecimals } = useAppData();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const { canWriteCatalog } = useAuth();
+  const [addFor, setAddFor] = useState(null); // товар, до якого додаємо ціну іншого постачальника
+  const [openId, setOpenId] = useState(null);
 
   // один рядок на товар: скільки постачальників, найнижча ціна, стан
   const base = useMemo(() => {
@@ -41,11 +48,12 @@ export default function PriceAuditScreen() {
 
   return (
     <div>
-      <p className="note">Список усіх товарів: кількість постачальників і найнижча ціна по кожному.</p>
       <div className="toolbar">
         <div className="toolbar-left">
-          <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." />
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук товару..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
+            <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
+          </SearchFilter>
+          <InfoTip label="Як читати" text="Усі товари: скільки постачальників і найнижча ціна. «+ свій» біля товару — додати ціну цього товару від іншого постачальника за посиланням (новий постачальник створюється сам)." />
         </div>
         <div className="toolbar-actions"><ColReset t={t} /></div>
       </div>
@@ -58,11 +66,12 @@ export default function PriceAuditScreen() {
               <ColHead t={t} k="n">К-сть постачальників</ColHead>
               <ColHead t={t} k="cheapest">Найнижча ціна</ColHead>
               <ColHead t={t} k="state">Стан</ColHead>
+              {canWriteCatalog && <th></th>}
             </tr>
           </thead>
           <tbody>
             {t.rows.map(({ m, n, cheapest, cat }) => (
-              <tr key={m.id}>
+              <tr key={m.id} className="row-click" title="Клік — усі ціни товару" onClick={(e) => { if (!e.target.closest("button,a")) setOpenId(m.id); }}>
                 <td>{m.icon ? `${m.icon} ` : ""}{m.name}</td>
                 <td>{cat || "—"}</td>
                 <td>{n}</td>
@@ -71,12 +80,19 @@ export default function PriceAuditScreen() {
                   {!n && <span className="badge draft" style={{ color: "var(--danger)" }}>немає ціни</span>}
                   {n === 1 && <span className="badge draft">немає конкуренції</span>}
                 </td>
+                {canWriteCatalog && (
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button type="button" className="btn small" title="Додати ціну цього товару від іншого постачальника — за посиланням; новий постачальник створиться сам" onClick={() => setAddFor(m.id)}>+ свій</button>
+                  </td>
+                )}
               </tr>
             ))}
-            {!t.rows.length && <tr><td colSpan={5} className="empty">Нічого не знайдено</td></tr>}
+            {!t.rows.length && <tr><td colSpan={6} className="empty">Нічого не знайдено</td></tr>}
           </tbody>
         </table>
       </div>
+      {addFor && <AddProductModal key={addFor} open materialId={addFor} onClose={() => setAddFor(null)} onSaved={(id) => setOpenId(id)} />}
+      {openId && <MaterialPricesModal key={openId} materialId={openId} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

@@ -14,10 +14,10 @@ import SearchCombobox from "@/components/SearchCombobox";
 const EMPTY = { url: "", name: "", description: "", image: "", price: "", unit: "", categoryId: "", supplierId: "", newSupplier: "", existingId: "" };
 const hostOf = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
-export default function AddProductModal({ open, onClose, onSaved }) {
+export default function AddProductModal({ open, onClose, onSaved, materialId }) {
   const { supabase, materials, materialCategories, materialUnits, suppliers, supplierCategoryLinks, reload } = useAppData();
   const { canWriteCatalog, canWriteFinance, profile, user } = useAuth();
-  const [f, setF] = useState(EMPTY);
+  const [f, setF] = useState(() => ({ ...EMPTY, existingId: materialId || "" }));
   const [found, setFound] = useState(null); // що знайшлось на сторінці
   const [note, setNote] = useState("");
   const [error, setError] = useState("");

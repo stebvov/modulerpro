@@ -88,7 +88,7 @@ export default function FolderTree({ scope, items, selected, onSelect, canEdit, 
     const n = count(f.id);
     if (!window.confirm(`Видалити папку «${f.name}»?${n ? ` ${n} поз. перейдуть ${f.parent_id ? "у папку вище" : "в «Без папки»"}.` : ""} Підпапки піднімуться на рівень вище.`)) return;
     run(async () => {
-      const table = scope === "models" ? "product_templates" : scope === "services" ? "services" : "catalog_products";
+      const table = { models: "product_templates", services: "services", products: "catalog_products", packages: "packages" }[scope];
       const up = f.parent_id || null;
       const r1 = await supabase.from(table).update({ folder_id: up }).eq("folder_id", f.id);
       if (r1.error) throw r1.error;

@@ -181,6 +181,7 @@ function CatalogPicker({ onClose, onAdd, supabase, templates, services, folders,
       lines = pkgs.items.filter((x) => x.package_id === r.id).map((it) => {
         if (it.kind === "house") { const t = templates.find((x) => x.id === it.template_id); return makeLine({ kind: "house", ref_id: it.template_id, label: t?.name || "Будинок", unitUah: t ? templateTotalUah(t) : null, quantity: Number(it.quantity) || 1, currency, rates, from_package: p?.name }); }
         if (it.kind === "service") { const sv = services.find((x) => x.id === it.template_id); return makeLine({ kind: "service", ref_id: it.template_id, label: sv?.name || "Послуга", unitUah: sv?.base_price != null ? Number(sv.base_price) : null, quantity: Number(it.quantity) || 1, currency, rates, from_package: p?.name }); }
+        if (it.kind === "product") { const pr = products.find((x) => x.id === it.template_id); return makeLine({ kind: "product", ref_id: it.template_id, label: pr?.name || "Товар", unitUah: pr ? productPrices(pr, rates).client : null, quantity: Number(it.quantity) || 1, currency, rates, from_package: p?.name }); }
         return makeLine({ kind: "custom", label: it.label || "Позиція", unitUah: it.unit_price != null ? Number(it.unit_price) : null, quantity: Number(it.quantity) || 1, currency, rates, from_package: p?.name });
       });
     } else {

@@ -14,6 +14,7 @@ import SupplierContactsModal from "@/components/modals/SupplierContactsModal";
 import SupplierModal from "@/components/modals/SupplierModal";
 import MaterialPricesModal from "@/components/modals/MaterialPricesModal";
 import CategoryTreeSelect from "@/components/CategoryTreeSelect";
+import InfoTip from "@/components/InfoTip";
 import SearchCombobox from "@/components/SearchCombobox";
 import SearchFilter from "@/components/SearchFilter";
 import PriceDiff from "@/components/PriceDiff";
@@ -107,11 +108,12 @@ export default function PriceBySupplierScreen() {
 
   return (
     <div>
-      <p className="note">Під кожним постачальником — його товари: ціна, ринкові мін / середня / макс і різниця з іншими постачальниками. Клік по рядку — усі ціни товару й правка.</p>
       <div className="toolbar">
         <div className="toolbar-left">
-          <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук постачальника..." />
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук постачальника..." active={categoryFilter ? 1 : 0} onReset={() => setCategoryFilter("")}>
+            <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
+          </SearchFilter>
+          <InfoTip label="Як читати" text="Під кожним постачальником — його товари: ціна, ринкові мін / середня / макс і різниця з іншими постачальниками. Клік по рядку — усі ціни товару й правка." />
         </div>
         <div className="toolbar-actions"><ColReset t={t} /></div>
       </div>

@@ -779,3 +779,15 @@ td.group-row { background: var(--accent-bg); font-weight: 600; font-size: 12px; 
   .hr-list__item { flex-direction: column; }
   .hr-list__tools { flex-direction: row; }
 }
+
+/* Постачальники: категорії в один рядок */
+.cats-compact { display: inline-flex; gap: 4px; max-width: 260px; overflow: hidden; white-space: nowrap; vertical-align: middle; }
+.cats-compact .tag { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.cats-compact .tag--more { flex: none; background: var(--bg); color: var(--text-secondary); }
+@media (max-width: 700px) {
+  .cats-compact { max-width: 150px; }
+  /* на телефоні перший стовпець не фіксуємо — він перекривав таблицю */
+  .sticky-x > table > thead > tr > th:first-child,
+  .sticky-x > table > tbody > tr > td:first-child { position: static; box-shadow: none; max-width: 55vw; }
+  .sticky-left { position: static; }
+}

@@ -1,0 +1,2 @@
+-- 2026-10-04 (MCP packages_products_folders): package_items.kind += 'product'; catalog_folders.scope += 'packages';
+-- packages.folder_id; категорії пакетів скопійовано в папки (scope packages), package_categories лишилась.
