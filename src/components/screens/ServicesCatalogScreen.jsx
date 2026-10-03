@@ -12,11 +12,13 @@ import ServiceModal from "@/components/modals/ServiceModal";
 import ServiceCategoriesPanel from "@/components/panels/ServiceCategoriesPanel";
 import FolderTree, { dragItem, inFolder, useFolders } from "@/components/catalog/FolderTree";
 import OrderButtons from "@/components/catalog/OrderButtons";
+import { BulkBar, useMultiSelect } from "@/components/catalog/MultiSelect";
 import { swapOrder } from "@/lib/reorder";
 
 export default function ServicesCatalogScreen() {
   const { supabase, services, serviceCategories, showDecimals, reload } = useAppData();
   const folders = useFolders("services");
+  const ms = useMultiSelect();
   const [folder, setFolder] = useState("");
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
@@ -37,6 +39,10 @@ export default function ServicesCatalogScreen() {
     const b = list[i + dir];
     if (!b) return;
     await swapOrder(supabase, "services", services, s, b);
+    await reload(true);
+  }
+  async function moveManyToFolder(ids, folderId) {
+    await supabase.from("services").update({ folder_id: folderId || null }).in("id", ids);
     await reload(true);
   }
   async function moveToFolder(id, folderId) {
@@ -87,7 +93,7 @@ export default function ServicesCatalogScreen() {
             {list.map((s) => {
               const cat = serviceCategories.find((c) => c.id === s.category_id);
               return (
-                <tr key={s.id} className="cat-row" {...dragItem(s.id, canWriteCatalog)} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити й редагувати" : undefined} onClick={(e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(s); }}>
+                <tr key={s.id} className="cat-row" {...dragItem(s.id, canWriteCatalog && !ms.selecting)} {...ms.bind(s.id, (e) => { if (canWriteCatalog && !e.target.closest("a,button,input,select,.btn")) openModal(s); }, canWriteCatalog)} style={canWriteCatalog ? { cursor: "pointer" } : undefined} title={canWriteCatalog ? "Клік — відкрити; притримати — вибрати кілька" : undefined}>
                   <td>{cat ? `${cat.icon ? cat.icon + " " : ""}${cat.name}` : "—"}</td>
                   <td>{s.icon ? `${s.icon} ` : ""}{s.name}</td>
                   <td>{s.unit}</td>
@@ -108,6 +114,7 @@ export default function ServicesCatalogScreen() {
           </tbody>
         </table>
       </div>
+      <BulkBar ms={ms} scope="services" allIds={list.map((x) => x.id)} onMove={moveManyToFolder} />
       </main>
       </div>
 

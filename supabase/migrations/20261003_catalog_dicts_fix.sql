@@ -1,0 +1,6 @@
+-- 2026-10-03 (Supabase MCP):
+-- fix_recalc_on_pricing_change_definer — trg_recalc_template_on_pricing_change тепер SECURITY DEFINER
+--   (збереження моделі падало «permission denied for function recalc_template_cost»).
+-- object_types_and_price_list_tables — довідник object_types; product_templates.object_types text[], floors, price_list_id;
+--   cost_price_list (прайс собівартості) + тригер cost_price_list_to_templates: зміна суми → fixed_cost моделей «за прайсом» (у грн за курсом).
+-- site_sync_object_types — тип обʼєкта на сайт = object_types через кому.

@@ -39,7 +39,7 @@ export function DataProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currency, setCurrencyState] = useState("UAH");
-  const [showDecimals, setShowDecimalsState] = useState(true);
+  const [showDecimals, setShowDecimalsState] = useState(false); // за замовчуванням — без копійок
 
   useEffect(() => {
     // Restoring the saved currency/decimals preference on load.

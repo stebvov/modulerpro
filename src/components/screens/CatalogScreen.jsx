@@ -10,6 +10,9 @@ import { templateProductionCost } from "@/lib/crm";
 import TemplateModal from "@/components/modals/TemplateModal";
 import FolderTree, { dragItem, inFolder, useFolders } from "@/components/catalog/FolderTree";
 import OrderButtons from "@/components/catalog/OrderButtons";
+import { BulkBar, useMultiSelect } from "@/components/catalog/MultiSelect";
+import CatalogDictionaries from "@/components/catalog/CatalogDictionaries";
+import SettingsButton from "@/components/SettingsButton";
 import { swapOrder } from "@/lib/reorder";
 import CompareScreen from "@/components/screens/CompareScreen";
 
@@ -27,6 +30,8 @@ export default function CatalogScreen() {
   const { supabase, templates, bomItems, extraCosts, supplierPrices, siteModels, templateFiles, currency, exchangeRates, showDecimals, reload } =
     useAppData();
   const folders = useFolders("models");
+  const ms = useMultiSelect();
+  const [dictOpen, setDictOpen] = useState(false);
   const [folder, setFolder] = useState("");
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
@@ -107,6 +112,10 @@ export default function CatalogScreen() {
     await supabase.from("product_templates").update({ folder_id: folderId || null }).eq("id", id);
     await reload(true);
   }
+  async function moveManyToFolder(ids, folderId) {
+    await supabase.from("product_templates").update({ folder_id: folderId || null }).in("id", ids);
+    await reload(true);
+  }
 
   return (
     <div>
@@ -135,6 +144,7 @@ export default function CatalogScreen() {
           <button className={`seg-btn${showCompare ? " active" : ""}`} onClick={() => setShowCompare((v) => !v)} title="Порівняти до 3 моделей">
             ⇄ Порівняти{compareSelection.length ? ` (${compareSelection.length})` : ""}
           </button>
+          {canWriteCatalog && <SettingsButton title="Довідники: прайс собівартості, типи обʼєкта" onClick={() => setDictOpen(true)} />}
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => openModal(null)}>+ Нова модель</button>
           )}
@@ -147,6 +157,7 @@ export default function CatalogScreen() {
       <div className="cat-layout">
       <FolderTree scope="models" items={templates} selected={folder} onSelect={setFolder} canEdit={canWriteCatalog} onMoveItem={moveToFolder} />
       <main>
+      {canWriteCatalog && list.length > 1 && !ms.selecting && <p className="sel-hint">Щоб перемістити кілька моделей — натисніть і притримайте картку (на компʼютері — Ctrl + клік), позначте інші й оберіть папку.</p>}
       {!list.length ? (
         <div className="empty">Немає моделей за цим пошуком і фільтром</div>
       ) : (
@@ -161,7 +172,7 @@ export default function CatalogScreen() {
             const terraceM2 = Math.round((t.terraces || []).reduce((s, x) => s + (Number(x.area) || 0), 0) * 100) / 100;
             const photo = templateFiles.filter((f) => f.template_id === t.id && f.kind === "photo").sort((a, b) => a.sort_order - b.sort_order)[0];
             return (
-              <div className="card" key={t.id} onClick={() => openModal(t)} {...dragItem(t.id, canWriteCatalog)}>
+              <div className="card" key={t.id} {...dragItem(t.id, canWriteCatalog && !ms.selecting)} {...ms.bind(t.id, () => openModal(t), canWriteCatalog)}>
                 <div className="card-photo">
                   {photo ? <img src={photo.url} alt={t.name} loading="lazy" decoding="async" /> : "фото модуля"}
                 </div>
@@ -174,8 +185,8 @@ export default function CatalogScreen() {
                   <span className={`badge ${t.status}`}>{statusLabels[t.status] || t.status}</span>
                 </div>
                 <div className="row"><span>Площа</span><span>{t.area_m2} м²{terraceM2 ? ` + тераса ${terraceM2} м²` : ""}{t.module_count ? ` · ${t.module_count} ${modulesWord(t.module_count)}` : ""}</span></div>
-                {(t.width_m || t.bedrooms != null || t.bathrooms != null || t.object_type) && (
-                  <div className="row"><span>{t.object_type || "Параметри"}</span><span>{[t.width_m && t.length_m && `${t.width_m}×${t.length_m} м`, t.bedrooms != null && (t.bedrooms ? `${t.bedrooms} сп.` : "студія"), t.bathrooms != null && `${t.bathrooms} с/в`].filter(Boolean).join(" · ")}</span></div>
+                {(t.bedrooms != null || t.bathrooms != null || t.height_m || t.floors > 1) && (
+                  <div className="row"><span>{(t.object_types || []).join(", ") || "Параметри"}</span><span>{[t.bedrooms != null && (t.bedrooms ? `${t.bedrooms} сп.` : "студія"), t.bathrooms != null && `${t.bathrooms} с/в`, t.floors > 1 && `${t.floors} пов.`, t.height_m && `h ${t.height_m} м`].filter(Boolean).join(" · ")}</span></div>
                 )}
                 {totalUah != null ? (
                   <div className="cost-block">
@@ -210,10 +221,12 @@ export default function CatalogScreen() {
           })}
         </div>
       )}
+      <BulkBar ms={ms} scope="models" allIds={list.map((t) => t.id)} onMove={moveManyToFolder} />
       </main>
       </div>
       )}
 
+      {dictOpen && <CatalogDictionaries onClose={() => setDictOpen(false)} />}
       <TemplateModal
         open={modalOpen}
         template={editingTemplate}

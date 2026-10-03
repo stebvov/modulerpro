@@ -12,6 +12,7 @@ import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 import FolderTree, { dragItem, inFolder, useFolders } from "@/components/catalog/FolderTree";
 import OrderButtons from "@/components/catalog/OrderButtons";
+import { BulkBar, useMultiSelect } from "@/components/catalog/MultiSelect";
 import ProductModal, { readProductPage } from "@/components/catalog/ProductModal";
 
 const STATUS = [{ value: "active", label: "Активні" }, { value: "draft", label: "Чернетки" }, { value: "archived", label: "Архів" }];
@@ -20,6 +21,7 @@ export default function ProductsScreen() {
   const { supabase, currency, exchangeRates, showDecimals } = useAppData();
   const { canWriteCatalog } = useAuth();
   const folders = useFolders("products");
+  const ms = useMultiSelect();
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState("");
   const [folder, setFolder] = useState("");
@@ -59,6 +61,11 @@ export default function ProductsScreen() {
     try { await swapOrder(supabase, "catalog_products", rows, p, b); } catch (e) { setErr(e.message); }
     load();
   }
+  async function moveManyToFolder(ids, folderId) {
+    const { error } = await supabase.from("catalog_products").update({ folder_id: folderId || null }).in("id", ids);
+    if (error) setErr(error.message);
+    load();
+  }
   async function moveToFolder(id, folderId) {
     const { error } = await supabase.from("catalog_products").update({ folder_id: folderId || null }).eq("id", id);
     if (error) setErr(error.message);
@@ -93,7 +100,7 @@ export default function ProductsScreen() {
                 const pr = productPrices(p, exchangeRates);
                 const fold = folders.find((f) => f.id === p.folder_id);
                 return (
-                  <div key={p.id} className="card prod-card" onClick={() => setOpen({ product: p, prefill: null })} {...dragItem(p.id, canWriteCatalog)}>
+                  <div key={p.id} className="card prod-card" {...dragItem(p.id, canWriteCatalog && !ms.selecting)} {...ms.bind(p.id, () => setOpen({ product: p, prefill: null }), canWriteCatalog)}>
                     <div className="prod-card__img" style={p.image ? { backgroundImage: `url(${p.image})` } : undefined}>{!p.image && "📦"}</div>
                     <div className="prod-card__body">
                       <h3>{p.name}</h3>
@@ -113,6 +120,7 @@ export default function ProductsScreen() {
               })}
             </div>
           )}
+          <BulkBar ms={ms} scope="products" allIds={list.map((p) => p.id)} onMove={moveManyToFolder} />
         </main>
       </div>
       {open && (

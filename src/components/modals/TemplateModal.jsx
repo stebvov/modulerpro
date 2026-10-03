@@ -11,8 +11,6 @@ import { FolderSelect } from "@/components/catalog/FolderTree";
 import { SIZE_GROUPS } from "@/lib/site/blocks";
 import { slugify } from "@/lib/site/schemas";
 
-// тип обʼєкта — підказки (можна вписати свій)
-const OBJECT_TYPES = ["Житловий будинок", "Дача", "Гостьовий будинок", "Глемпінг / кемпінг", "Баня / SPA", "Офіс / комерційний", "Житло для працівників"];
 // група площі для сайту — від площі будинку (як у базі: size_group_of)
 const stamp = () => Date.now().toString(36);
 const sizeGroupOf = (a) => (!(a > 0) ? null : a < 30 ? 1 : a < 50 ? 2 : a < 100 ? 3 : 4);
@@ -78,7 +76,11 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   const [modRows, setModRows] = useState([]);
   const [terraceRows, setTerraceRows] = useState([]);
   // параметри для сайту й CRM
-  const [params, setParams] = useState({ width_m: "", length_m: "", height_m: "", object_type: "", bedrooms: "", bathrooms: "" });
+  const [params, setParams] = useState({ height_m: "", floors: "", bedrooms: "", bathrooms: "" });
+  const [objectTypes, setObjectTypes] = useState([]);
+  const [objectTypeList, setObjectTypeList] = useState([]);
+  const [priceList, setPriceList] = useState([]);
+  const [priceListId, setPriceListId] = useState(null);
   const [folderId, setFolderId] = useState(null);
   const [siteBusy, setSiteBusy] = useState(false);
   const [status, setStatus] = useState("draft");
@@ -137,13 +139,18 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     setStatus(template ? template.status : "draft");
     setFolderId(template?.folder_id || null);
     setParams({
-      width_m: template?.width_m != null ? String(template.width_m) : "",
-      length_m: template?.length_m != null ? String(template.length_m) : "",
       height_m: template?.height_m != null ? String(template.height_m) : "",
-      object_type: template?.object_type || "",
+      floors: template?.floors != null ? String(template.floors) : "",
       bedrooms: template?.bedrooms != null ? String(template.bedrooms) : "",
       bathrooms: template?.bathrooms != null ? String(template.bathrooms) : "",
     });
+    setObjectTypes(Array.isArray(template?.object_types) && template.object_types.length ? template.object_types : template?.object_type ? [template.object_type] : []);
+    setPriceListId(template?.price_list_id || null);
+    // довідники: типи обʼєкта й прайс собівартості
+    Promise.all([
+      supabase.from("object_types").select("*").order("sort_order").order("name"),
+      supabase.from("cost_price_list").select("*").order("sort_order").order("name"),
+    ]).then(([o, pl]) => { setObjectTypeList(o.data || []); setPriceList(pl.data || []); });
     setCostMode(template?.cost_mode || "bom");
     setFixedCur(currency);
     setFixedCost(template?.fixed_cost != null ? toInput(convert(template.fixed_cost, currency, exchangeRates), showDecimals) : "");
@@ -293,22 +300,33 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       terraces: terraceRows
         .filter((t) => parseFloat(t.area) > 0)
         .map((t) => ({ name: t.name.trim() || "Тераса", area: parseFloat(t.area), ...(validSize(t) ? { w: parseFloat(t.w), l: parseFloat(t.l) } : {}), included: t.included !== false })),
-      width_m: numOrNull(params.width_m),
-      length_m: numOrNull(params.length_m),
       height_m: numOrNull(params.height_m),
-      object_type: params.object_type.trim() || null,
+      floors: intOrNull(params.floors),
+      object_types: objectTypes,
+      object_type: objectTypes[0] || null,
       bedrooms: intOrNull(params.bedrooms),
       bathrooms: intOrNull(params.bathrooms),
       folder_id: folderId || null,
     };
   }
 
+  // позиція прайсу → сума й валюта собівартості, підпис «звідки цифра»
+  function pickPriceList(id) {
+    setPriceListId(id || null);
+    const p = priceList.find((x) => x.id === id);
+    if (!p) return;
+    setFixedCur(p.currency || "UAH");
+    setFixedCost(String(Number(p.amount)));
+    setFixedTouched(true);
+    setCostNote([p.name, p.note].filter(Boolean).join(" · "));
+  }
   function changeFixedCur(code) {
     setFixedCur(code);
     if (!fixedTouched && template?.fixed_cost != null) setFixedCost(toInput(convert(template.fixed_cost, code, exchangeRates), showDecimals));
   }
   function pricingPayload() {
     return {
+      price_list_id: costMode === "fixed" ? priceListId || null : null,
       cost_mode: costMode,
       fixed_cost: fixedUah,
       markup_percent: markupNum,
@@ -573,12 +591,138 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Компакт-модуль 14.11" />
         </div>
 
-        <details className="section-details" open={!templateId}>
-          <summary>Параметри шаблону <span className="section-count">— папка, фото, статус</span></summary>
+        <details className="section-details" open>
+          <summary>
+            Параметри
+            <span className="section-count">
+              {" "}— {modCount ? `${modCount} мод. · ` : ""}{parseFloat(area) || "—"} м²{terraceTotal ? ` + тераси ${terraceTotal} м²` : ""}{SIZE_GROUPS[sizeGroupOf(parseFloat(area))] ? ` · ${SIZE_GROUPS[sizeGroupOf(parseFloat(area))]}` : ""}
+            </span>
+          </summary>
           <div className="section-body">
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Папка</label>
+                <FolderSelect scope="models" value={folderId} onChange={setFolderId} width={220} />
+              </div>
+              <div className="form-row">
+                <label>Статус</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="draft">Чернетка</option>
+                  <option value="active">Активний</option>
+                  <option value="archived">Архів</option>
+                </select>
+              </div>
+            </div>
+
             <div className="form-row">
-              <label>Папка</label>
-              <FolderSelect scope="models" value={folderId} onChange={setFolderId} />
+              <label>Кількість модулів</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max={MAX_MODULES}
+                value={moduleCount}
+                onChange={(e) => setModules(e.target.value, sameModules, sameModules ? modRows : modList)}
+                placeholder="напр. 2"
+                style={{ maxWidth: 140 }}
+              />
+            </div>
+
+            {modCount > 0 && (
+              <div className="form-row">
+                <label>Розміри модулів, м (ширина × довжина)</label>
+                {(sameModules ? [firstMod] : modList).map((m, i) => (
+                  <div className="size-row" key={i}>
+                    <span className="size-row__name">{sameModules ? (modCount > 1 ? `Кожен із ${modCount}` : "Модуль") : `Модуль ${i + 1}`}</span>
+                    <input type="number" min="0" step="0.05" value={m.w} placeholder="3" aria-label="Ширина, м" onChange={(e) => editModule(i, { w: e.target.value })} />
+                    <span>×</span>
+                    <input type="number" min="0" step="0.05" value={m.l} placeholder="6.5" aria-label="Довжина, м" onChange={(e) => editModule(i, { l: e.target.value })} />
+                    <span className="size-row__area">{validSize(m) ? `${round2(parseFloat(m.w) * parseFloat(m.l))} м²` : ""}</span>
+                  </div>
+                ))}
+                {modCount > 1 && (
+                  <label className="tag-check self-left">
+                    <input type="checkbox" checked={sameModules} onChange={(e) => setModules(moduleCount, e.target.checked, e.target.checked ? [firstMod] : modList)} />
+                    усі модулі однакові
+                  </label>
+                )}
+                {houseByModules != null && Math.abs(houseByModules - (parseFloat(area) || 0)) > 0.01 && (
+                  <span className="note">
+                    За розмірами модулів виходить {houseByModules} м².{" "}
+                    <button type="button" className="btn small" onClick={() => setArea(String(houseByModules))}>Підставити</button>
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Площа будинку, м² {houseByModules != null && Math.abs(houseByModules - (parseFloat(area) || 0)) < 0.01 ? <span className="note" style={{ margin: 0 }}>· за модулями</span> : null}</label>
+                <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
+              </div>
+              <div className="form-row">
+                <label>Група площі (для сайту)</label>
+                <input value={SIZE_GROUPS[sizeGroupOf(parseFloat(area))] || "—"} readOnly title="Рахується сама від площі будинку" />
+              </div>
+            </div>
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Висота, м</label>
+                <input type="number" min="0" step="0.05" value={params.height_m} placeholder="напр. 3.2" onChange={(e) => setParams({ ...params, height_m: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Поверхів</label>
+                <input type="number" min="1" step="1" value={params.floors} placeholder="1" onChange={(e) => setParams({ ...params, floors: e.target.value })} />
+              </div>
+            </div>
+            <div className="price-pair">
+              <div className="form-row">
+                <label>Спалень (0 — студія)</label>
+                <input type="number" min="0" step="1" value={params.bedrooms} onChange={(e) => setParams({ ...params, bedrooms: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label>Санвузлів</label>
+                <input type="number" min="0" step="1" value={params.bathrooms} onChange={(e) => setParams({ ...params, bathrooms: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <label>Тип обʼєкта <span className="note" style={{ margin: 0 }}>· можна кілька; список — ⚙ у Каталозі</span></label>
+              <div className="tag-checks">
+                {objectTypeList.map((o) => (
+                  <label className="tag-check" key={o.id}>
+                    <input type="checkbox" checked={objectTypes.includes(o.name)} onChange={(e) => setObjectTypes((v) => (e.target.checked ? [...v, o.name] : v.filter((x) => x !== o.name)))} />
+                    {o.name}
+                  </label>
+                ))}
+                {objectTypes.filter((x) => !objectTypeList.some((o) => o.name === x)).map((x) => (
+                  <label className="tag-check" key={x}><input type="checkbox" checked onChange={() => setObjectTypes((v) => v.filter((y) => y !== x))} />{x}</label>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-row">
+              <label>Тераси</label>
+              {terraceRows.map((t) => (
+                <div className="size-row size-row--terrace" key={t.key}>
+                  <input className="size-row__label" type="text" value={t.name} placeholder="Тераса" aria-label="Назва тераси" onChange={(e) => editTerrace(t.key, { name: e.target.value })} />
+                  <input type="number" min="0" step="0.05" value={t.w} placeholder="ш" aria-label="Ширина тераси, м" onChange={(e) => editTerrace(t.key, { w: e.target.value })} />
+                  <span>×</span>
+                  <input type="number" min="0" step="0.05" value={t.l} placeholder="д" aria-label="Довжина тераси, м" onChange={(e) => editTerrace(t.key, { l: e.target.value })} />
+                  <span>=</span>
+                  <input type="number" min="0" step="0.1" value={t.area} placeholder="0" aria-label="Площа тераси, м²" onChange={(e) => editTerrace(t.key, { area: e.target.value })} />
+                  <span>м²</span>
+                  <label className="tag-check" title="Тераса входить у комплектацію й ціну"><input type="checkbox" checked={t.included !== false} onChange={(e) => editTerrace(t.key, { included: e.target.checked })} /> включена</label>
+                  <span className="icon-x" title="Прибрати терасу" onClick={() => setTerraceRows((prev) => prev.filter((x) => x.key !== t.key))}>×</span>
+                </div>
+              ))}
+              <button type="button" className="btn small self-left" onClick={() => setTerraceRows((prev) => [...prev, emptyTerrace()])}>+ Додати терасу</button>
+            </div>
+
+            <div className="price-summary">
+              <div className="row"><span>Будинок</span><span>{parseFloat(area) ? `${round2(parseFloat(area))} м²` : "—"}</span></div>
+              <div className="row"><span>Тераси{terraceRows.length > 1 ? ` (${terraceRows.length})` : ""}</span><span>{terraceTotal} м²</span></div>
+              <div className="row price-summary__total"><span>Будинок + тераси</span><span>{round2((parseFloat(area) || 0) + terraceTotal)} м²</span></div>
             </div>
 
             <div className="form-row">
@@ -651,127 +795,6 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
               </details>
             </div>
 
-            <div className="form-row">
-              <label>Статус</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="draft">Чернетка</option>
-                <option value="active">Активний</option>
-                <option value="archived">Архів</option>
-              </select>
-            </div>
-          </div>
-        </details>
-
-        <details className="section-details" open>
-          <summary>
-            Площа, модулі, габарити й тераси
-            <span className="section-count">
-              {" "}— будинок {parseFloat(area) || "—"} м²{terraceTotal ? ` + тераси ${terraceTotal} м² = ${round2((parseFloat(area) || 0) + terraceTotal)} м²` : ""}
-            </span>
-          </summary>
-          <div className="section-body">
-            <div className="price-pair">
-              <div className="form-row">
-                <label>Кількість модулів</label>
-                <input
-                  type="number"
-                  step="1"
-                  min="1"
-                  max={MAX_MODULES}
-                  value={moduleCount}
-                  onChange={(e) => setModules(e.target.value, sameModules, sameModules ? modRows : modList)}
-                  placeholder="напр. 2"
-                />
-              </div>
-              <div className="form-row">
-                <label>Площа будинку, м²</label>
-                <input type="number" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} />
-              </div>
-            </div>
-
-            {modCount > 0 && (
-              <div className="form-row">
-                <label>Розміри модулів, м (ширина × довжина)</label>
-                {(sameModules ? [firstMod] : modList).map((m, i) => (
-                  <div className="size-row" key={i}>
-                    <span className="size-row__name">{sameModules ? (modCount > 1 ? `Кожен із ${modCount}` : "Модуль") : `Модуль ${i + 1}`}</span>
-                    <input type="number" min="0" step="0.05" value={m.w} placeholder="3" aria-label="Ширина, м" onChange={(e) => editModule(i, { w: e.target.value })} />
-                    <span>×</span>
-                    <input type="number" min="0" step="0.05" value={m.l} placeholder="6.5" aria-label="Довжина, м" onChange={(e) => editModule(i, { l: e.target.value })} />
-                    <span className="size-row__area">{validSize(m) ? `${round2(parseFloat(m.w) * parseFloat(m.l))} м²` : ""}</span>
-                  </div>
-                ))}
-                {modCount > 1 && (
-                  <label className="tag-check self-left">
-                    <input type="checkbox" checked={sameModules} onChange={(e) => setModules(moduleCount, e.target.checked, e.target.checked ? [firstMod] : modList)} />
-                    усі модулі однакові
-                  </label>
-                )}
-                {houseByModules != null && Math.abs(houseByModules - (parseFloat(area) || 0)) > 0.01 && (
-                  <span className="note">
-                    За розмірами модулів виходить {houseByModules} м².{" "}
-                    <button type="button" className="btn small" onClick={() => setArea(String(houseByModules))}>Підставити</button>
-                  </span>
-                )}
-              </div>
-            )}
-
-            <div className="form-row">
-              <label>Тераси</label>
-              {terraceRows.map((t) => (
-                <div className="size-row size-row--terrace" key={t.key}>
-                  <input className="size-row__label" type="text" value={t.name} placeholder="Тераса" aria-label="Назва тераси" onChange={(e) => editTerrace(t.key, { name: e.target.value })} />
-                  <input type="number" min="0" step="0.05" value={t.w} placeholder="ш" aria-label="Ширина тераси, м" onChange={(e) => editTerrace(t.key, { w: e.target.value })} />
-                  <span>×</span>
-                  <input type="number" min="0" step="0.05" value={t.l} placeholder="д" aria-label="Довжина тераси, м" onChange={(e) => editTerrace(t.key, { l: e.target.value })} />
-                  <span>=</span>
-                  <input type="number" min="0" step="0.1" value={t.area} placeholder="0" aria-label="Площа тераси, м²" onChange={(e) => editTerrace(t.key, { area: e.target.value })} />
-                  <span>м²</span>
-                  <label className="tag-check" title="Тераса входить у комплектацію й ціну"><input type="checkbox" checked={t.included !== false} onChange={(e) => editTerrace(t.key, { included: e.target.checked })} /> включена</label>
-                  <span className="icon-x" title="Прибрати терасу" onClick={() => setTerraceRows((prev) => prev.filter((x) => x.key !== t.key))}>×</span>
-                </div>
-              ))}
-              <button type="button" className="btn small self-left" onClick={() => setTerraceRows((prev) => [...prev, emptyTerrace()])}>+ Додати терасу</button>
-            </div>
-
-            <div className="form-row">
-              <label>Габарити будинку, м (ширина × довжина × висота)</label>
-              <div className="size-row">
-                <input type="number" min="0" step="0.05" value={params.width_m} placeholder="ширина" aria-label="Ширина, м" onChange={(e) => setParams({ ...params, width_m: e.target.value })} />
-                <span>×</span>
-                <input type="number" min="0" step="0.05" value={params.length_m} placeholder="довжина" aria-label="Довжина, м" onChange={(e) => setParams({ ...params, length_m: e.target.value })} />
-                <span>×</span>
-                <input type="number" min="0" step="0.05" value={params.height_m} placeholder="висота" aria-label="Висота, м" onChange={(e) => setParams({ ...params, height_m: e.target.value })} />
-                <span>м</span>
-              </div>
-            </div>
-            <div className="price-pair">
-              <div className="form-row">
-                <label>Тип обʼєкта</label>
-                <input list="tpl-object-types" value={params.object_type} placeholder="напр. Житловий будинок" onChange={(e) => setParams({ ...params, object_type: e.target.value })} />
-                <datalist id="tpl-object-types">{OBJECT_TYPES.map((o) => <option key={o} value={o} />)}</datalist>
-              </div>
-              <div className="form-row">
-                <label>Група площі (для сайту)</label>
-                <input value={SIZE_GROUPS[sizeGroupOf(parseFloat(area))] || "—"} readOnly title="Рахується сама від площі будинку" />
-              </div>
-            </div>
-            <div className="price-pair">
-              <div className="form-row">
-                <label>Спалень (0 — студія)</label>
-                <input type="number" min="0" step="1" value={params.bedrooms} onChange={(e) => setParams({ ...params, bedrooms: e.target.value })} />
-              </div>
-              <div className="form-row">
-                <label>Санвузлів</label>
-                <input type="number" min="0" step="1" value={params.bathrooms} onChange={(e) => setParams({ ...params, bathrooms: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="price-summary">
-              <div className="row"><span>Будинок</span><span>{parseFloat(area) ? `${round2(parseFloat(area))} м²` : "—"}</span></div>
-              <div className="row"><span>Тераси{terraceRows.length > 1 ? ` (${terraceRows.length})` : ""}</span><span>{terraceTotal} м²</span></div>
-              <div className="row price-summary__total"><span>Будинок + тераси</span><span>{round2((parseFloat(area) || 0) + terraceTotal)} м²</span></div>
-            </div>
           </div>
         </details>
 
@@ -791,7 +814,14 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
             {costMode === "fixed" && (
               <>
                 <div className="form-row">
-                  <label>Собівартість будинку</label>
+                  <label>Позиція прайсу <span className="note" style={{ margin: 0 }}>· прайс — ⚙ у Каталозі; змінили суму в прайсі — оновиться в усіх моделях</span></label>
+                  <select value={priceListId || ""} onChange={(e) => pickPriceList(e.target.value)}>
+                    <option value="">— своя сума (без прайсу) —</option>
+                    {priceList.map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.amount).toLocaleString("uk-UA")} {CURRENCIES.find((c) => c.code === p.currency)?.symbol || p.currency}</option>)}
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label>Собівартість будинку{priceListId ? " (з прайсу)" : ""}</label>
                   <div className="price-cost-row">
                     <input
                       type="number"
@@ -799,9 +829,10 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
                       step="1"
                       value={fixedCost}
                       onChange={(e) => { setFixedCost(e.target.value); setFixedTouched(true); }}
+                      disabled={!!priceListId}
                       placeholder="напр. 25700"
                     />
-                    <select value={fixedCur} onChange={(e) => changeFixedCur(e.target.value)} aria-label="Валюта собівартості">
+                    <select value={fixedCur} onChange={(e) => changeFixedCur(e.target.value)} aria-label="Валюта собівартості" disabled={!!priceListId}>
                       {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.symbol}</option>)}
                     </select>
                   </div>
@@ -838,7 +869,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
           </div>
         </details>
 
-        <details className="section-details" open>
+        <details className="section-details">
           <summary>
             Матеріали (BOM)
             <span className="section-count"> — {bomRows.filter((r) => r.material_id).length} поз., {fmtUah(bomTotal)}</span>

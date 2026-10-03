@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { CURRENCIES } from "@/lib/format";
 
@@ -16,15 +16,18 @@ function fmtUpdated(ts) {
 export default function CurrencyMenu({ currency, onChange }) {
   const { exchangeRates, showDecimals, setShowDecimals } = useAppData();
   const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  // закриваємо лише кліком поза меню (раніше закривалось при втраті фокусу — на телефоні галочка не встигала спрацювати)
+  useEffect(() => {
+    if (!open) return;
+    const off = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
+  }, [open]);
   const current = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
 
   return (
-    <div
-      className="currency-menu"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
-      }}
-    >
+    <div className="currency-menu" ref={box}>
       <button type="button" className="currency-menu-btn" onClick={() => setOpen((o) => !o)} title={current.name}>
         <span>{current.flag}</span>
         <span>{current.code}</span>
