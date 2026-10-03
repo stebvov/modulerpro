@@ -145,7 +145,7 @@ export default function HrLearningScreen({ mine: embedded = false, initial = nul
       <div className="hr-evalcard" key={t.id}>
         <div className="hr-evalcard__head">
           <b>📝 {t.title}</b>
-          {ok ? <span className="badge active">складено</span> : last?.status === "done" ? <span className="badge draft">чекає перевірки</span> : last ? <span className="badge draft" style={{ color: "var(--danger)" }}>не складено</span> : null}
+          {ok ? <span className="badge active">складено</span> : last?.status === "done" ? <span className="badge draft">перевіряється</span> : last ? <span className="badge draft" style={{ color: "var(--danger)" }}>не складено</span> : null}
           {last?.score_pct != null && <span>{Math.round(last.score_pct)}% · {fmtDate(last.finished_at)}</span>}
           <span className="note" style={{ margin: 0 }}>поріг {t.pass_pct}%{t.minutes ? ` · ${t.minutes} хв` : ""}</span>
           <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -154,6 +154,7 @@ export default function HrLearningScreen({ mine: embedded = false, initial = nul
           </span>
         </div>
         {t.descr && <div className="note">{t.descr}</div>}
+        {last?.ai?.summary && <div className="note">🤖 Про відкриті відповіді: {last.ai.summary}</div>}
       </div>
     );
   };

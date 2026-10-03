@@ -128,7 +128,7 @@ export default function TestRunner({ supabase, token, onClose, onRetake }) {
         <div className={s.box}>
           <div className={s.ok}>🌿</div>
           <h2 className={s.h}>Дякуємо{info?.who ? `, ${info.who}` : ""}! Відповіді отримали</h2>
-          <p>{info?.member ? "Цей тест уже здано. Результат — у розділі «Мій розвиток»." : "Ми переглянемо результати й зв'яжемося з вами найближчими днями."}</p>
+          <p>{info?.member ? "Цей тест уже здано. Результат — у розділі «Мій розвиток»." : "Ми переглянемо результати й зв’яжемося з вами найближчими днями."}</p>
           {onClose && <button type="button" className={s.btn} onClick={onClose}>Закрити</button>}
         </div>
       );
@@ -142,7 +142,7 @@ export default function TestRunner({ supabase, token, onClose, onRetake }) {
           <b>{result.pct ?? "—"}%</b>
           <span>
             {result.open
-              ? "за питання з варіантами. Відкриті відповіді перевірить керівник — після цього буде остаточний результат."
+              ? "за питання з варіантами. Відкриті відповіді оцінює ШІ за критеріями автора тесту — остаточний результат з’явиться за кілька хвилин у «Мій розвиток»; керівник може його змінити."
               : result.passed ? `Тест складено (поріг ${result.pass_pct}%).` : `Не складено: потрібно ${result.pass_pct}%. Перегляньте розбір нижче, повторіть уроки й спробуйте ще раз.`}
           </span>
         </div>
@@ -163,7 +163,7 @@ export default function TestRunner({ supabase, token, onClose, onRetake }) {
                   })}
                 </ul>
               )}
-              {r.explain && <div className={s.explain}>{r.open ? "На що дивиться керівник: " : ""}{r.explain}</div>}
+              {r.explain && <div className={s.explain}>{r.open ? "Критерії оцінки: " : ""}{r.explain}</div>}
             </div>
           );
         })}

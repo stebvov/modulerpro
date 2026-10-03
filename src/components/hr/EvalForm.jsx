@@ -18,12 +18,13 @@ const HINT = {
   one_on_one: "Коротко: що обговорили й про що домовилися. Наступної зустрічі почнете з цих домовленостей.",
 };
 
-export default function EvalForm({ kind, role, target, who, supabase, kpis, onSaved, onClose }) {
-  const [scores, setScores] = useState({});
-  const [title, setTitle] = useState("");
-  const [strengths, setStrengths] = useState("");
-  const [growth, setGrowth] = useState("");
-  const [plan, setPlan] = useState("");
+// initial — заготовка від ШІ (розбір розмови): оцінки пунктів, сильне, що виправити, домовленість; людина перевіряє й зберігає
+export default function EvalForm({ kind, role, target, who, supabase, kpis, initial, onSaved, onClose }) {
+  const [scores, setScores] = useState(initial?.scores || {});
+  const [title, setTitle] = useState(initial?.title || "");
+  const [strengths, setStrengths] = useState(initial?.strengths || "");
+  const [growth, setGrowth] = useState(initial?.growth || "");
+  const [plan, setPlan] = useState(initial?.plan || "");
   const [verdict, setVerdict] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -57,6 +58,7 @@ export default function EvalForm({ kind, role, target, who, supabase, kpis, onSa
     <Modal wide title={`${EVAL_KINDS[kind]}${role ? ` · ${role.name}` : ""}`} onClose={onClose}
       actions={<><button type="button" className="btn" onClick={onClose}>Скасувати</button><button type="button" className="btn primary" disabled={busy} onClick={save}>{busy ? "Зберігаємо…" : "Зберегти оцінку"}</button></>}>
       <p className="note" style={{ marginTop: 0 }}>{HINT[kind]}</p>
+      {initial && <div className="hr-hint hr-hint--warn" style={{ marginBottom: 10 }}><span aria-hidden>🤖</span><div>Оцінки й тексти нижче запропонував ШІ за текстом розмови. Перевірте, виправте, де не згодні, і збережіть — оцінка піде від вашого імені.</div></div>}
       {err && <div className="auth-error">{err}</div>}
       {!role && (byComp || byList) && <div className="empty">Немає профілю посади — оберіть посаду, щоб з’явилися питання й компетенції.</div>}
 
@@ -73,6 +75,7 @@ export default function EvalForm({ kind, role, target, who, supabase, kpis, onSa
             {it.knockout && <span className="badge draft" style={{ marginLeft: 6, color: "var(--danger)" }}>стоп-питання</span>}
             {it.good && <div className="note">Хороша відповідь: {it.good}</div>}
             {kind === "qa" && it.weight ? <div className="note">вага {it.weight}</div> : null}
+            {initial?.evidence?.[i] && <div className="note">🤖 {initial.evidence[i]}</div>}
           </div>
           <Tri value={scores[i] ?? null} onChange={(v) => setScores((x) => ({ ...x, [i]: v }))} />
         </div>

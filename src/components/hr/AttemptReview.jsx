@@ -1,14 +1,17 @@
 "use client";
 
 // Перегляд зданого тесту: відповіді людини, правильні варіанти, оцінка відкритих питань.
-// Після оцінки відкритих питань тест отримує остаточний результат.
+// Відкриті відповіді одразу після здачі оцінює ШІ (edge-функція hr-ai) — тут видно його бали й пояснення;
+// людина може змінити бали й зберегти від свого імені або попросити ШІ оцінити ще раз.
 import { useEffect, useState } from "react";
 import { Modal } from "./ui";
 
-export default function AttemptReview({ attempt, test, who, supabase, onSaved, onClose }) {
+export default function AttemptReview({ attempt, test, who, supabase, onSaved, onReload, onClose }) {
   const [qs, setQs] = useState(null);
   const [points, setPoints] = useState(attempt.open_points || {});
+  const [ai, setAi] = useState(attempt.ai || null);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -37,10 +40,25 @@ export default function AttemptReview({ attempt, test, who, supabase, onSaved, o
     onSaved({ ...attempt, ...patch });
   }
 
+  async function askAi() {
+    setAsking(true); setErr("");
+    const { data, error } = await supabase.functions.invoke("hr-ai", { body: { action: "grade", attempt: attempt.id } });
+    setAsking(false);
+    if (error || !data?.ok) {
+      const text = data?.error || "ШІ зараз недоступний — оцініть відповіді самі.";
+      setAi({ error: text }); setErr(text);
+      return;
+    }
+    setAi({ grades: data.grades, summary: data.summary, at: new Date().toISOString() });
+    setPoints(Object.fromEntries(Object.entries(data.grades || {}).map(([id, g]) => [id, g.points])));
+    onReload?.();
+  }
+
   return (
     <Modal wide title={`Відповіді: ${test?.title || "тест"}`} onClose={onClose}
       actions={<>
         <button type="button" className="btn" onClick={onClose}>Закрити</button>
+        {open.length > 0 && <button type="button" className="btn" disabled={asking || !qs} onClick={askAi}>{asking ? "ШІ оцінює… (до хвилини)" : ai?.grades ? "🤖 Оцінити ШІ ще раз" : "🤖 Оцінити ШІ"}</button>}
         {open.length > 0 && <button type="button" className="btn primary" disabled={busy || !qs} onClick={save}>{busy ? "Зберігаємо…" : `Зберегти оцінку${final != null && allScored ? ` — ${final}%` : ""}`}</button>}
       </>}>
       {err && <div className="auth-error">{err}</div>}
@@ -49,15 +67,29 @@ export default function AttemptReview({ attempt, test, who, supabase, onSaved, o
         {attempt.finished_at ? ` · ${new Date(attempt.finished_at).toLocaleString("uk-UA")}` : ""}
         {attempt.started_at && attempt.finished_at ? ` · ${Math.max(1, Math.round((new Date(attempt.finished_at) - new Date(attempt.started_at)) / 60000))} хв` : ""}
       </p>
+      {open.length > 0 && ai?.grades && (
+        <div className="hr-hint hr-hint--warn" style={{ marginBottom: 10 }}>
+          <span aria-hidden>🤖</span>
+          <div>
+            Відкриті відповіді оцінив ШІ за критеріями питань. Пояснення — під кожною відповіддю. Не згодні — змініть бали й натисніть «Зберегти оцінку».
+            {ai.summary && <div className="note">{ai.summary}</div>}
+          </div>
+        </div>
+      )}
+      {open.length > 0 && !ai?.grades && ai?.error && !err && (
+        <div className="hr-hint hr-hint--bad" style={{ marginBottom: 10 }}><span aria-hidden>🤖</span><div>ШІ не зміг оцінити відкриті відповіді: {ai.error} Оцініть самі або спробуйте ще раз.</div></div>
+      )}
       {!qs && !err && <div className="empty">Завантаження…</div>}
       {(qs || []).map((q, i) => {
         const a = attempt.answers?.[q.id];
         if (q.kind === "open") {
+          const g = ai?.grades?.[q.id];
           return (
             <div className="hr-evalcomp" key={q.id}>
               <b>{i + 1}. {q.text}</b>
               <div className="hr-answer">{String(a || "").trim() || "(без відповіді)"}</div>
               {q.explain && <div className="note">На що дивитися: {q.explain}</div>}
+              {g?.why && <div className="note">🤖 {g.points} з {Number(q.points)}: {g.why}</div>}
               <div className="hr-evalrow" style={{ marginTop: 6 }}>
                 <span className="note" style={{ margin: 0 }}>Бали (0–{Number(q.points)})</span>
                 <span className="hr-score5">

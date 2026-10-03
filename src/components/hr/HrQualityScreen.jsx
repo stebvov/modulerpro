@@ -7,6 +7,7 @@ import { useRows } from "@/lib/mod";
 import { daysBetween, fmtDate, monthRange, todayISO, useHrMe } from "@/lib/hr";
 import { Bar, Dot, Modal } from "./ui";
 import EvalForm from "./EvalForm";
+import TalkCheck from "./TalkCheck";
 import PersonQuality, { EvalHistory, personView, useMetrics } from "./PersonQuality";
 
 const forMembers = (q) => q.not("member_id", "is", null);
@@ -23,6 +24,8 @@ export default function HrQualityScreen() {
   const [month, setMonth] = useState(() => todayISO().slice(0, 7));
   const [openId, setOpenId] = useState(null);
   const [form, setForm] = useState(null);
+  const [talk, setTalk] = useState(false);
+  const [draft, setDraft] = useState(null); // заготовка оцінки від ШІ після розбору розмови
   const [msg, setMsg] = useState("");
 
   const period = useMemo(() => monthRange(month), [month]);
@@ -114,7 +117,8 @@ export default function HrQualityScreen() {
       {open && (
         <Modal wide title={<>{open.member.name} <span className="note" style={{ fontWeight: 400 }}>· {open.role?.name} · {month}</span></>} onClose={() => setOpenId(null)}>
           <div className="toolbar" style={{ gap: 6, flexWrap: "wrap" }}>
-            <button type="button" className="btn primary" onClick={() => setForm("qa")}>+ Перевірка за чек-листом</button>
+            <button type="button" className="btn primary" onClick={() => { setDraft(null); setForm("qa"); }}>+ Перевірка за чек-листом</button>
+            {open.role?.qa_checklist?.length > 0 && <button type="button" className="btn" onClick={() => setTalk(true)} title="Вставити текст розмови — ШІ оцінить за чек-листом, ви перевірите й збережете">🤖 Розбір розмови</button>}
             <button type="button" className="btn" onClick={() => setForm("one_on_one")}>+ Зустріч 1:1</button>
             <button type="button" className="btn" onClick={() => setForm("review")}>+ Огляд роботи</button>
           </div>
@@ -124,8 +128,14 @@ export default function HrQualityScreen() {
         </Modal>
       )}
       {form && open && (
-        <EvalForm kind={form} role={open.role} who={who} supabase={supabase} target={{ member_id: open.member.id }} kpis={open.v} onClose={() => setForm(null)}
-          onSaved={() => { evals.reload(); setForm(null); }} />
+        <EvalForm key={draft ? "ai" : form} kind={form} role={open.role} who={who} supabase={supabase} target={{ member_id: open.member.id }} kpis={open.v}
+          initial={form === "qa" ? draft : null} onClose={() => { setForm(null); setDraft(null); }}
+          onSaved={() => { evals.reload(); setForm(null); setDraft(null); }} />
+      )}
+      {talk && open && (
+        <Modal wide title={`Розбір розмови: ${open.member.name}`} onClose={() => setTalk(false)}>
+          <TalkCheck supabase={supabase} role={open.role} onUse={(d) => { setDraft(d); setTalk(false); setForm("qa"); }} />
+        </Modal>
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import PersonQuality, { EvalHistory, personView, useMetrics } from "./PersonQual
 import { PlanView } from "./HrOnboardingScreen";
 import { RoleProfile } from "./HrRolesScreen";
 import HrLearningScreen from "./HrLearningScreen";
+import TalkCheck from "./TalkCheck";
 
 export default function HrMyScreen() {
   const { me, loading: meLoading, supabase } = useHrMe();
@@ -73,6 +74,13 @@ export default function HrMyScreen() {
           <PersonQuality view={view} role={role} courses={courses.rows} lessons={lessons.rows} onOpenLesson={(ref) => openLearning({ courseId: ref.course.id, lessonId: ref.lesson?.id || null })} />
         )}
       </section>
+
+      {role?.qa_checklist?.length > 0 && (
+        <section className="hr-sec">
+          <h3>🤖 Перевірити свою розмову</h3>
+          <TalkCheck supabase={supabase} role={role} selfCheck />
+        </section>
+      )}
 
       <section className="hr-sec" ref={learnRef}>
         <h3>📘 Моє навчання</h3>

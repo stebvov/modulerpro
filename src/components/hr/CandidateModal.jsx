@@ -154,14 +154,17 @@ export default function CandidateModal({ cand, roles, vacs, tests, evals, attemp
               <div className="hr-evalcard" key={a.id}>
                 <div className="hr-evalcard__head">
                   <b>{t?.title || "Тест"}</b>
-                  <span className={`badge ${a.status === "checked" ? "active" : "draft"}`}>{a.status === "sent" ? "не відкривав" : a.status === "started" ? "проходить" : a.status === "done" ? "чекає перевірки" : a.passed ? "складено" : "не складено"}</span>
+                  <span className={`badge ${a.status === "checked" ? "active" : "draft"}`}>{a.status === "sent" ? "не відкривав" : a.status === "started" ? "проходить" : a.status === "done" ? (a.ai?.pending ? "ШІ оцінює…" : "чекає перевірки") : a.passed ? "складено" : "не складено"}</span>
+                  {a.status === "checked" && a.checked_by === "ШІ" && <span className="tag" title="Відкриті відповіді оцінив ШІ — бали можна переглянути й змінити">🤖 оцінив ШІ</span>}
                   {a.score_pct != null && <b>{Math.round(a.score_pct)}%{a.status === "done" ? " (без відкритих)" : ""}</b>}
                   {a.late && <span className="stale">із запізненням</span>}
                   <span className="note" style={{ margin: 0 }}>надіслано {fmtDate(a.created_at)}</span>
                 </div>
+                {a.ai?.summary && <div className="note">🤖 {a.ai.summary}</div>}
+                {a.status === "done" && a.ai?.error && <div className="note stale">ШІ не оцінив відкриті відповіді: {a.ai.error}</div>}
                 <div className="toolbar" style={{ gap: 6, flexWrap: "wrap", margin: "6px 0 0" }}>
                   {(a.status === "sent" || a.status === "started") && <><Copy text={text} label="Скопіювати повідомлення кандидату" /><Copy text={link(a)} label="Лише посилання" /></>}
-                  {(a.status === "done" || a.status === "checked") && <button type="button" className={`btn small${a.status === "done" ? " primary" : ""}`} onClick={() => setReview(a)}>{a.status === "done" ? "Перевірити відкриті відповіді" : "Переглянути відповіді"}</button>}
+                  {(a.status === "done" || a.status === "checked") && <button type="button" className={`btn small${a.status === "done" ? " primary" : ""}`} onClick={() => setReview(a)}>{a.status === "done" ? "Перевірити відкриті відповіді" : a.checked_by === "ШІ" ? "Переглянути оцінку ШІ" : "Переглянути відповіді"}</button>}
                 </div>
               </div>
             );
@@ -206,7 +209,7 @@ export default function CandidateModal({ cand, roles, vacs, tests, evals, attemp
           onSaved={(e) => { onEval(e); setForm(null); if (e.kind === "interview") { const l = [...myEvals, e].filter((x) => x.kind === "interview" && x.total != null); set({ score_interview: Math.round(l.reduce((a, x) => a + Number(x.total), 0) / l.length) }); } }} />
       )}
       {review && (
-        <AttemptReview attempt={review} test={tests.find((t) => t.id === review.test_id)} who={who} supabase={supabase} onClose={() => setReview(null)}
+        <AttemptReview attempt={review} test={tests.find((t) => t.id === review.test_id)} who={who} supabase={supabase} onClose={() => setReview(null)} onReload={() => { onAttempt(); onPatch(cand.id, {}, true); }}
           onSaved={(a) => { onAttempt(a); if (a.score_pct != null) onPatch(cand.id, { score_test: a.score_pct }, true); setReview(null); }} />
       )}
     </Modal>
