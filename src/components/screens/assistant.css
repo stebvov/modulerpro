@@ -79,3 +79,11 @@
   .coo__table th.w-own { width: 96px; }
   .coo__table th.w-n { width: 54px; }
 }
+
+/* файли в розмові: чек, скрін, виписка */
+.coo__attach { position: relative; overflow: hidden; flex: none; align-self: stretch; display: grid; place-items: center; padding: 0 12px; font-size: 16px; }
+.coo__attach input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.coo__pend { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 6px; }
+.coo__pend span { font-size: 12px; background: var(--bg); border-radius: 99px; padding: 2px 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coo__pend button { border: 0; background: none; cursor: pointer; color: var(--text-muted); }
+.coo__files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 12px; opacity: .8; }

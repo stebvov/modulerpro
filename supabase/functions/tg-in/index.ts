@@ -189,13 +189,14 @@ Deno.serve(async (req) => {
     if (msg && msg.chat?.type === "private") {
       const owner = await ownerTg();
       const text: string = msg.text ?? msg.caption ?? "";
-      if (owner && msg.from?.id === owner) {
+      const hasFile = Boolean(msg.photo?.length || msg.document); // фото чека, скрін, виписка — Асистенту
+      if (owner && msg.from?.id === owner && !hasFile) {
         const kbCmd = text.match(/^\/kb(?:@\S+)?(?:\s+|$)/i);
         if (kbCmd) { await kbSave(msg, text.slice(kbCmd[0].length).trim()); return new Response("ok"); }
         if (KB.test(text.trim())) { await kbSave(msg, text.trim().replace(KB, "").trim()); return new Response("ok"); }
         if (!text.startsWith("/") && !DUMKA.test(text.trim()) && await handleSurvey(msg, text)) return new Response("ok");
       }
-      if (text.trim() && !text.startsWith("/") && !DUMKA.test(text.trim()) && await toCoo(raw, s.cron_secret)) return new Response("ok");
+      if ((text.trim() || hasFile) && !text.startsWith("/") && !DUMKA.test(text.trim()) && await toCoo(raw, s.cron_secret)) return new Response("ok");
     }
   } catch (e) { console.error("tg-in", e); }
   return forward(raw, secret);

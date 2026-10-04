@@ -16,3 +16,5 @@ alter table public.leads add column if not exists campaign_id uuid references pu
 alter table public.transactions
   add column if not exists campaign_id uuid references public.campaigns(id) on delete set null,
   add column if not exists allocations jsonb;
+-- Асистент: файли в розмові (чеки, скріни, виписки) → coo_messages.attachments
+alter table public.coo_messages add column if not exists attachments jsonb;

@@ -33,6 +33,9 @@ function Rich({ text }) {
   });
 }
 
+// шлях файлу в сховищі фінансів (inbox/app/дата/…), звідки Асистент його читає
+const inboxPath = (name) => `inbox/app/${new Date().toISOString().slice(0, 10)}/${Math.random().toString(36).slice(2, 8)}_${name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80)}`;
+
 async function callCoo(supabase, body) {
   const { data, error } = await supabase.functions.invoke("coo", { body });
   if (!error) return data;
@@ -48,6 +51,7 @@ export default function AssistantScreen() {
   const [people, setPeople] = useState({});
   const [msgs, setMsgs] = useState(null);
   const [text, setText] = useState("");
+  const [files, setFiles] = useState([]); // чек, скрін, виписка — Асистент розбере й внесе витрату
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("issues");
@@ -66,7 +70,7 @@ export default function AssistantScreen() {
     setPeople(Object.fromEntries((m.data || []).map((x) => [x.id, x])));
   }, [supabase]);
   const loadChat = useCallback(async () => {
-    const { data, error } = await supabase.from("coo_messages").select("id,role,kind,channel,body,actions,created_at").order("id", { ascending: false }).limit(60);
+    const { data, error } = await supabase.from("coo_messages").select("id,role,kind,channel,body,actions,attachments,created_at").order("id", { ascending: false }).limit(60);
     if (error) setErr("Не вдалося завантажити розмову: " + error.message);
     setMsgs((data || []).reverse());
   }, [supabase]);
@@ -76,11 +80,20 @@ export default function AssistantScreen() {
 
   async function send(t) {
     const q = (t ?? text).trim();
-    if (!q || busy) return;
-    setErr(""); setBusy("chat"); setText("");
-    setMsgs((m) => [...(m || []), { id: "u" + Date.now(), role: "user", body: q, created_at: new Date().toISOString() }]);
+    const fl = t == null ? files : [];
+    if ((!q && !fl.length) || busy) return;
+    setErr(""); setBusy("chat"); setText(""); setFiles([]);
+    setMsgs((m) => [...(m || []), { id: "u" + Date.now(), role: "user", body: q || "(файл без підпису)", attachments: fl.map((f) => ({ name: f.name })), created_at: new Date().toISOString() }]);
     try {
-      const r = await callCoo(supabase, { action: "chat", text: q });
+      // файли — у сховище фінансів (inbox/…); звідти Асистент їх читає й прикладає до витрати
+      const up = [];
+      for (const f of fl) {
+        const path = inboxPath(f.name);
+        const { error } = await supabase.storage.from("transaction-files").upload(path, f, { contentType: f.type || undefined });
+        if (error) throw new Error(`${f.name}: ${error.message}`);
+        up.push({ path, name: f.name, mime: f.type || "" });
+      }
+      const r = await callCoo(supabase, { action: "chat", text: q, files: up });
       setMsgs((m) => [...(m || []), { id: r.id || "a" + Date.now(), role: "assistant", body: r.reply, actions: r.actions, created_at: r.created_at || new Date().toISOString() }]);
       if (r.actions?.length) loadControl();
     } catch (e) { setErr("Асистент не відповів: " + e.message); loadChat(); }
@@ -129,6 +142,7 @@ export default function AssistantScreen() {
               <div key={m.id} className={`coo__msg ${m.role}${m.kind && m.kind !== "chat" ? " " + m.kind : ""}`}>
                 <div className="coo__bubble">
                   <Rich text={m.body} />
+                  {Array.isArray(m.attachments) && m.attachments.length > 0 && <div className="coo__files">{m.attachments.map((f, i) => <span key={i}>📎 {f.name}</span>)}</div>}
                   {m.actions?.length > 0 && (
                     <div className="coo__done">⚙️ Зроблено:{m.actions.map((a, i) => <div key={i}>• <Rich text={a} /></div>)}</div>
                   )}
@@ -143,10 +157,15 @@ export default function AssistantScreen() {
             {QUICK.map((q) => <button key={q} type="button" className="btn small" disabled={!!busy} onClick={() => send(q)}>{q}</button>)}
             <button type="button" className="btn small" disabled={!!busy} onClick={briefNow} title="Те саме зведення, що приходить о 08:30 у Telegram">☀️ Зведення зараз</button>
           </div>
+          {files.length > 0 && (
+            <div className="coo__pend">{files.map((f, i) => <span key={i}>📎 {f.name} <button type="button" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label="Прибрати">×</button></span>)}</div>
+          )}
           <div className="coo__input">
-            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Питання або доручення Асистенту…"
+            <label className="btn coo__attach" title="Чек, скрін списання, виписка, рахунок — Асистент розбере й запропонує внести витрату">📎<input type="file" multiple accept="image/*,application/pdf,.csv,.txt" onChange={(e) => { setFiles((x) => [...x, ...e.target.files].slice(0, 5)); e.target.value = ""; }} /></label>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Питання, доручення або «внеси витрату: …» (можна з фото чека)"
+              onPaste={(e) => { const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); setFiles((x) => [...x, ...f].slice(0, 5)); } }}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-            <button type="button" className="btn primary" onClick={() => send()} disabled={!text.trim() || !!busy}>Надіслати</button>
+            <button type="button" className="btn primary" onClick={() => send()} disabled={(!text.trim() && !files.length) || !!busy}>Надіслати</button>
           </div>
         </section>
 
