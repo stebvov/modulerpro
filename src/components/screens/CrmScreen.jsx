@@ -10,7 +10,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useCrmData } from "@/context/CrmDataContext";
 import DealModal from "@/components/modals/DealModal";
 import CrmSettingsModal from "@/components/modals/CrmSettingsModal";
-import MarginThresholdModal from "@/components/modals/MarginThresholdModal";
 import { computeProductionCostSnapshot, fmtDate, fmtDateTime, stageColor } from "@/lib/crm";
 
 function AttentionReport({ rows, onOpenDeal, onClose }) {
@@ -135,7 +134,6 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
             📋
             {overdueCount > 0 && <span className="notif-badge">{overdueCount}</span>}
           </button>
-          <button className="btn" title="Поріг маржі-сигналізації" onClick={() => setModal({ mode: "margin" })}>⚠</button>
           {canWriteCatalog && (
             <button className="btn primary" onClick={() => setModal({ mode: "add" })}>+ Новий лід</button>
           )}
@@ -278,7 +276,6 @@ export default function CrmScreen({ onlySlug, hideSlug = "uk-owners" }) {
       )}
       {modal?.mode === "settings" && <CrmSettingsModal open onClose={() => setModal(null)} />}
       {modal?.mode === "report" && <AttentionReport rows={dealsKanban} onOpenDeal={openDealFromReport} onClose={() => setModal(null)} />}
-      {modal?.mode === "margin" && <MarginThresholdModal open onClose={() => setModal(null)} />}
     </div>
   );
 }
