@@ -9,6 +9,7 @@ import MonthlyMarginChart from "@/components/MonthlyMarginChart";
 import CumulativeTrendChart from "@/components/CumulativeTrendChart";
 import GoalProgressBar from "@/components/GoalProgressBar";
 import TransactionModal from "@/components/modals/TransactionModal";
+import ExpenseModal from "@/components/modals/ExpenseModal";
 import Ledger from "@/components/finance/Ledger";
 import { useIsOwner } from "@/lib/mod";
 import TransactionAttachments from "@/components/TransactionAttachments";
@@ -30,6 +31,7 @@ export default function FinanceScreen() {
   const [dealPnl, setDealPnl] = useState(null);
   const [dealPnlLoading, setDealPnlLoading] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
+  const [expOpen, setExpOpen] = useState(false);
 
   async function deleteOverhead(id) {
     if (!confirm("Видалити цю витрату?")) return;
@@ -94,7 +96,10 @@ export default function FinanceScreen() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         {tabs}
         {canWriteFinance && (
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button className="btn small" onClick={() => setExpOpen(true)} title="Операційна витрата: маркетинг, сервіси, підрядники — з привʼязкою до кампанії та розподілом між проєктами">💸 Витрата з розподілом</button>
           <button className="btn primary small" onClick={() => setTxModalOpen(true)}>+ Транзакція</button>
+          </span>
         )}
       </div>
 
@@ -274,6 +279,7 @@ export default function FinanceScreen() {
         onClose={() => setTxModalOpen(false)}
         onSaved={() => dealId && handleSelectDeal(dealId)}
       />
+      <ExpenseModal open={expOpen} onClose={() => setExpOpen(false)} onSaved={() => { setExpOpen(false); reload(true); }} />
     </div>
   );
 }

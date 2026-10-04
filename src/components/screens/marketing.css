@@ -1,0 +1,52 @@
+/* 📣 Контент і маркетинг */
+.mk-chips { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.mk-chips::-webkit-scrollbar { display: none; }
+.mk-chips > * { flex-shrink: 0; white-space: nowrap; }
+.mk-bar { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.mk-bar .mk-chips { flex: 0 1 auto; min-width: 0; }
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; }
+.mk-card { padding: 14px; display: grid; gap: 8px; cursor: default; min-width: 0; }
+.mk-card--done { opacity: .65; }
+.mk-card__top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mk-status { border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.mk-card__name { margin: 0; font-size: 15px; line-height: 1.3; cursor: pointer; overflow-wrap: anywhere; }
+.mk-card__sub { margin: 0; overflow-wrap: anywhere; }
+.mk-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--bg); border-radius: 10px; padding: 8px; }
+.mk-metrics > div { display: grid; gap: 1px; min-width: 0; }
+.mk-metrics span { font-size: 11px; color: var(--text-muted); }
+.mk-metrics b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-metrics small { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-progress { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.mk-progress i { display: block; height: 100%; background: var(--accent); }
+.mk-card__acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px; margin: 16px 0; }
+.mk-panel { padding: 14px 16px; cursor: default; min-width: 0; }
+.mk-hbar { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; margin-bottom: 8px; }
+.mk-hbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-hbar i { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.mk-hbar i b { display: block; height: 100%; background: var(--accent); }
+.mk-hbar em { font-style: normal; color: var(--text-secondary); white-space: nowrap; }
+.mk-weeks { display: flex; align-items: flex-end; gap: 6px; height: 140px; overflow-x: auto; padding-top: 16px; }
+.mk-week { flex: 1 0 28px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; font-size: 11px; color: var(--text-muted); }
+.mk-week i { width: 100%; max-width: 34px; background: var(--accent); border-radius: 4px 4px 0 0; }
+.mk-week em { font-style: normal; color: var(--text); font-weight: 600; }
+@media (max-width: 600px) {
+  .mk-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 💸 форма витрати */
+.exp-modal { width: 620px; }
+.exp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.exp-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.exp-alloc { display: grid; gap: 6px; }
+.exp-alloc__row { display: flex; gap: 6px; align-items: center; }
+.exp-alloc__row select { flex: 1 1 auto; min-width: 0; }
+.exp-alloc__row input { width: 64px; flex: none; }
+.exp-alloc__sum { margin: 0; white-space: nowrap; }
+.exp-file { position: relative; overflow: hidden; }
+.exp-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.exp-x { border: 0; background: none; cursor: pointer; color: var(--text-muted); }
+@media (max-width: 600px) {
+  .exp-grid { grid-template-columns: 1fr; }
+  .exp-alloc__row { flex-wrap: wrap; }
+}

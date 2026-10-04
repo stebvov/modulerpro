@@ -1,26 +1,45 @@
 "use client";
 
+// 📣 Контент і маркетинг: Кампанії (ліди, витрати, ціна ліда, договори) · Контент-календар · Дашборд.
+// Ліди в кампанію потрапляють самі (привʼязаний квіз або utm_campaign), решта — вручну в картці кампанії.
+// Витрати — транзакції з привʼязкою до кампанії (💸 Внести витрату) + «поза системою» з картки.
 import SettingsButton from "@/components/SettingsButton";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useAppData } from "@/context/DataContext";
 import ChannelsModal from "@/components/modals/ChannelsModal";
 import { useMarketingData } from "@/context/MarketingDataContext";
 import AssetModal from "@/components/modals/AssetModal";
-import CampaignModal from "@/components/modals/CampaignModal";
+import CampaignModal, { SOURCE_KINDS } from "@/components/modals/CampaignModal";
+import ExpenseModal from "@/components/modals/ExpenseModal";
+import InfoTip from "@/components/InfoTip";
+import { fmtCurrency } from "@/lib/format";
 import {
   ASSET_TYPE_ICONS,
   CAMPAIGN_STATUSES,
   MONTHS,
   addMonths,
   campaignStatusStyles,
-  curr,
   monthGridCells,
   startOfMonth,
   toDateKey,
 } from "@/lib/marketing";
+import "./marketing.css";
+
+const VIEWS = [["campaigns", "📣 Кампанії"], ["calendar", "🗓 Контент-календар"], ["dashboard", "📊 Дашборд"]];
+const PERIODS = [["all", "Увесь час"], ["month", "Цей місяць"], ["30", "30 днів"], ["7", "7 днів"]];
+const iso = (d) => d.toISOString().slice(0, 10);
+function periodRange(p) {
+  const now = new Date();
+  if (p === "month") return [iso(new Date(now.getFullYear(), now.getMonth(), 1)), null];
+  if (p === "30" || p === "7") return [iso(new Date(Date.now() - Number(p) * 86400000)), null];
+  return [null, null];
+}
+const sum = (list, k) => list.reduce((s, x) => s + (Number(x[k]) || 0), 0);
 
 export default function MarketingScreen({ direction }) {
   const { loading, error, assets: allAssets, campaigns: allCampaigns, supabase, reload, CHANNELS, CHANNEL_COLORS, CHANNEL_LABELS } = useMarketingData();
+  const { currency, exchangeRates, showDecimals } = useAppData();
   const [scopeProjects, setScopeProjects] = useState(null);
   useEffect(() => {
     if (!direction) return;
@@ -31,16 +50,36 @@ export default function MarketingScreen({ direction }) {
   const campaigns = allCampaigns.filter(inScope);
   const defaultProject = direction ? (scopeProjects || [])[0] || null : null;
   const [channelsOpen, setChannelsOpen] = useState(false);
-  const { canWriteCatalog } = useAuth();
-  const [view, setView] = useState("calendar");
+  const { canWriteCatalog, canWriteFinance, isPartner } = useAuth();
+  const canEditCampaigns = canWriteCatalog || isPartner;
+  const [view, setView] = useState("campaigns");
+  const [period, setPeriod] = useState("all");
+  const [stats, setStats] = useState(null);
+  const [statsErr, setStatsErr] = useState("");
+  const [showDone, setShowDone] = useState(false);
   const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
   const [hiddenChannels, setHiddenChannels] = useState(() => new Set());
   const activeChannels = { has: (ch) => !hiddenChannels.has(ch) };
   const [assetModal, setAssetModal] = useState(null);
   const [campaignModal, setCampaignModal] = useState(null);
+  const [expense, setExpense] = useState(null); // { campaign } — відкрита форма витрати
+  const [quizzes, setQuizzes] = useState([]);
 
   const cells = useMemo(() => monthGridCells(monthStart), [monthStart]);
   const today = useMemo(() => toDateKey(new Date()), []);
+  const money = (uah) => fmtCurrency(Number(uah) || 0, currency, exchangeRates, showDecimals);
+
+  const loadStats = useCallback(async () => {
+    const [from, to] = periodRange(period);
+    const { data, error: e } = await supabase.rpc("marketing_stats", { p_from: from, p_to: to });
+    if (e) { setStatsErr(e.message); setStats(null); return; }
+    setStatsErr(""); setStats(data);
+  }, [supabase, period]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadStats(); }, [loadStats, allCampaigns]);
+  useEffect(() => {
+    supabase.from("quizzes").select("id,title,slug").then(({ data }) => setQuizzes(data || []));
+  }, [supabase]);
 
   function toggleChannel(ch) {
     setHiddenChannels((prev) => {
@@ -51,7 +90,7 @@ export default function MarketingScreen({ direction }) {
   }
 
   async function cycleCampaignStatus(c) {
-    if (!canWriteCatalog) return;
+    if (!canEditCampaigns) return;
     const next = CAMPAIGN_STATUSES[(CAMPAIGN_STATUSES.indexOf(c.status) + 1) % CAMPAIGN_STATUSES.length];
     await supabase.from("campaigns").update({ status: next }).eq("id", c.id);
     await reload(true);
@@ -60,30 +99,95 @@ export default function MarketingScreen({ direction }) {
   if (loading) return <div className="empty">Завантаження маркетингу...</div>;
   if (error) return <div className="empty">Помилка підключення: {error}</div>;
 
-  const totalBudget = campaigns.reduce((s, c) => s + (Number(c.budget) || 0), 0);
-  const totalLeads = campaigns.reduce((s, c) => s + (Number(c.leads_generated) || 0), 0);
-  const activeCount = campaigns.filter((c) => c.status === "активна").length;
-  const avgCpl = totalLeads > 0 ? totalBudget / totalLeads : 0;
-  const publishedCount = assets.filter((a) => a.status === "опубліковано").length;
-  const byChannel = CHANNELS.map((ch) => ({
-    ch,
-    budget: campaigns.filter((c) => c.channel === ch).reduce((s, c) => s + (Number(c.budget) || 0), 0),
-  }));
-  const maxChannelBudget = Math.max(1, ...byChannel.map((b) => b.budget));
+  // ручні цифри (поза системою) не мають дат — рахуємо їх лише у «Увесь час»
+  const withManual = period === "all";
+  const statOf = (c) => (stats?.campaigns || []).find((x) => x.id === c.id) || {};
+  const rows = campaigns.map((c) => {
+    const st = statOf(c);
+    const leadsAuto = Number(st.leads) || 0;
+    const leads = leadsAuto + (withManual ? Number(c.leads_manual) || 0 : 0);
+    const spend = (Number(st.spend_tx) || 0) + (withManual ? Number(c.spend_manual) || 0 : 0);
+    return { c, st, leadsAuto, leads, spend, cpl: leads ? spend / leads : null };
+  });
+  const visibleRows = rows.filter((r) => showDone || r.c.status !== "завершена");
+  const un = stats?.unassigned || {};
+  const byCat = Object.entries(stats?.by_category || {}).sort((a, b) => b[1] - a[1]);
+  const spendTxAll = byCat.reduce((s, [, v]) => s + Number(v), 0);
+  const spendManual = withManual ? sum(campaigns, "spend_manual") : 0;
+  const totalSpend = spendTxAll + spendManual;
+  const totalLeads = rows.reduce((s, r) => s + r.leads, 0) + (Number(un.leads) || 0);
+  const qualified = rows.reduce((s, r) => s + (Number(r.st.qualified) || 0), 0) + (Number(un.qualified) || 0);
+  const contracts = rows.reduce((s, r) => s + (Number(r.st.contracts) || 0), 0) + (Number(un.contracts) || 0);
+  const contractSum = rows.reduce((s, r) => s + (Number(r.st.contract_sum) || 0), 0) + (Number(un.contract_sum) || 0);
+  const autoLeads = rows.reduce((s, r) => s + r.leadsAuto, 0) + (Number(un.leads) || 0);
+  const weeks = stats?.by_week || [];
+  const maxWeek = Math.max(1, ...weeks.map((w) => w.leads));
+  const maxCat = Math.max(1, ...byCat.map(([, v]) => Number(v)));
+  const sourceLabel = (c) => {
+    const k = SOURCE_KINDS.find(([x]) => x === c.source_kind)?.[1];
+    const q = c.quiz_id && quizzes.find((x) => x.id === c.quiz_id);
+    return [q ? `🧩 ${q.title}` : k, c.utm_campaign && `utm: ${c.utm_campaign}`].filter(Boolean).join(" · ");
+  };
+  const periodChips = (
+    <div className="mk-chips">
+      {PERIODS.map(([k, l]) => <button key={k} type="button" className={`subtab${period === k ? " active" : ""}`} onClick={() => setPeriod(k)}>{l}</button>)}
+    </div>
+  );
 
   return (
     <div>
-      <p className="note">Контент-календар і рекламні кампанії — окремий дохід від ліда до публікації.</p>
-
       <div className="toolbar">
-        <div className="seg-row">
-          <button className={`seg-btn${view === "calendar" ? " active" : ""}`} onClick={() => setView("calendar")}>Контент-календар</button>
-          <button className={`seg-btn${view === "dashboard" ? " active" : ""}`} onClick={() => setView("dashboard")}>Дашборд реклами</button>
+        <div className="mk-chips">
+          {VIEWS.map(([k, l]) => <button key={k} type="button" className={`seg-btn${view === k ? " active" : ""}`} onClick={() => setView(k)}>{l}</button>)}
         </div>
-        {canWriteCatalog && (
-          <SettingsButton title="Канали реклами й контенту: додати, змінити, видалити" onClick={() => setChannelsOpen(true)} />
-        )}
+        <div className="toolbar-actions">
+          {canWriteFinance && <button className="btn" onClick={() => setExpense({ campaign: null })}>💸 Внести витрату</button>}
+          {canEditCampaigns && view === "campaigns" && <button className="btn primary" onClick={() => setCampaignModal({ campaign: null })}>+ Кампанія</button>}
+          {canWriteCatalog && <SettingsButton title="Канали реклами й контенту: додати, змінити, видалити" onClick={() => setChannelsOpen(true)} />}
+        </div>
       </div>
+      {statsErr && <div className="auth-error">Цифри кампаній: {statsErr}</div>}
+
+      {view === "campaigns" && (
+        <>
+          <div className="mk-bar">
+            {periodChips}
+            <label className="tag-check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> завершені</label>
+            <InfoTip label="Як рахується" text="Ліди: заявки з привʼязаного квізу або з utm_campaign кампанії рахуються самі; «поза системою» (adsquiz, лід-форма FB) — вручну в картці. Витрачено: транзакції, привʼязані до кампанії (💸 Внести витрату), плюс «поза транзакціями» з картки. Договори — угоди цих лідів, що дійшли до договору. Ручні цифри без дат, тож видно лише в «Увесь час»." />
+          </div>
+          {!visibleRows.length && <div className="empty">Кампаній немає. Натисніть «+ Кампанія».</div>}
+          <div className="mk-grid">
+            {visibleRows.map(({ c, st, leads, leadsAuto, spend, cpl }) => {
+              const style = campaignStatusStyles[c.status] || campaignStatusStyles["активна"];
+              const budget = Number(c.budget) || 0;
+              return (
+                <div key={c.id} className={`card mk-card${c.status === "завершена" ? " mk-card--done" : ""}`}>
+                  <div className="mk-card__top">
+                    <span className="mk-status" style={{ background: style.bg, color: style.text }} onClick={() => cycleCampaignStatus(c)} title={canEditCampaigns ? "Клік — наступний статус" : ""}>{c.status}</span>
+                    <span className="tag" style={{ background: "var(--bg)", color: CHANNEL_COLORS[c.channel] }}>{CHANNEL_LABELS[c.channel] || c.channel}</span>
+                  </div>
+                  <h3 className="mk-card__name" onClick={() => setCampaignModal({ campaign: c })}>{c.name}</h3>
+                  <div className="note mk-card__sub">{[c.start_date && `з ${new Date(c.start_date).toLocaleDateString("uk-UA")}`, c.end_date && `до ${new Date(c.end_date).toLocaleDateString("uk-UA")}`, sourceLabel(c), c.project].filter(Boolean).join(" · ")}</div>
+                  <div className="mk-metrics">
+                    <div><span>Ліди</span><b>{leads}</b><small>{withManual && Number(c.leads_manual) ? `${leadsAuto} у CRM + ${c.leads_manual} вручну` : `${Number(st.qualified) || 0} кваліф.`}</small></div>
+                    <div><span>Витрачено</span><b>{money(spend)}</b><small>{budget ? `план ${money(budget)}` : " "}</small></div>
+                    <div><span>Ціна ліда</span><b>{cpl != null ? money(cpl) : "—"}</b><small>{" "}</small></div>
+                    <div><span>Договори</span><b>{Number(st.contracts) || 0}</b><small>{Number(st.contract_sum) ? money(st.contract_sum) : " "}</small></div>
+                  </div>
+                  {budget > 0 && <div className="mk-progress" title={`Використано ${Math.round((spend / budget) * 100)}% плану`}><i style={{ width: `${Math.min(100, (spend / budget) * 100)}%` }} /></div>}
+                  <div className="mk-card__acts">
+                    <button type="button" className="btn small" onClick={() => setCampaignModal({ campaign: c })}>{canEditCampaigns ? "✎ Картка" : "Відкрити"}</button>
+                    {canWriteFinance && <button type="button" className="btn small" onClick={() => setExpense({ campaign: c })}>💸 Витрата</button>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {Number(un.leads) > 0 && (
+            <p className="note">Ще {un.leads} лід(ів) за період без кампанії — з сайту, дзвінків чи квізів без привʼязки. Привʼяжіть квіз або UTM-мітку в картці кампанії, щоб нові рахувались самі.</p>
+          )}
+        </>
+      )}
 
       {view === "calendar" && (
         <>
@@ -150,92 +254,78 @@ export default function MarketingScreen({ direction }) {
 
       {view === "dashboard" && (
         <>
+          <div className="mk-bar">{periodChips}</div>
           <div className="ops-kpi-grid">
             <div className="ops-kpi">
-              <div className="k-label">Бюджет усього</div>
-              <div className="k-value">{curr(totalBudget)}</div>
-              <div className="note" style={{ marginTop: 4 }}>{campaigns.length} кампаній</div>
+              <div className="k-label">Витрачено на маркетинг</div>
+              <div className="k-value">{money(totalSpend)}</div>
+              <div className="note" style={{ marginTop: 4 }}>{spendManual ? `з них ${money(spendManual)} поза транзакціями` : "реклама, підрядники, сервіси"}</div>
             </div>
             <div className="ops-kpi">
-              <div className="k-label">Ліди згенеровано</div>
+              <div className="k-label">Лідів</div>
               <div className="k-value">{totalLeads}</div>
-              <div className="note" style={{ marginTop: 4 }}>{activeCount} активних кампаній</div>
+              <div className="note" style={{ marginTop: 4 }}>у CRM {autoLeads}{totalLeads > autoLeads ? ` · вручну ${totalLeads - autoLeads}` : ""}</div>
             </div>
             <div className="ops-kpi">
-              <div className="k-label">Середня ціна ліда</div>
-              <div className="k-value" style={{ color: "var(--amber)" }}>{curr(avgCpl)}</div>
-              <div className="note" style={{ marginTop: 4 }}>по всіх каналах</div>
+              <div className="k-label">Ціна ліда</div>
+              <div className="k-value" style={{ color: "var(--amber)" }}>{totalLeads ? money(totalSpend / totalLeads) : "—"}</div>
+              <div className="note" style={{ marginTop: 4 }}>кваліфікованого: {qualified ? money(totalSpend / qualified) : "—"}</div>
             </div>
             <div className="ops-kpi">
-              <div className="k-label">Контенту опубліковано</div>
-              <div className="k-value">{publishedCount}<span className="note" style={{ fontSize: 14 }}> / {assets.length}</span></div>
-              <div className="note" style={{ marginTop: 4 }}>чернеток: {assets.filter((a) => a.status === "чернетка").length}</div>
+              <div className="k-label">Договори з лідів</div>
+              <div className="k-value">{contracts}</div>
+              <div className="note" style={{ marginTop: 4 }}>{contractSum ? `${money(contractSum)}${totalSpend ? ` · ${Math.round(contractSum / totalSpend)} грн на 1 грн маркетингу` : ""}` : `кваліфіковано ${qualified} з ${autoLeads}`}</div>
             </div>
           </div>
 
-          <div className="section-label">Бюджет по каналах</div>
-          <div className="card" style={{ padding: 16, marginBottom: 20, cursor: "default" }}>
-            {byChannel.map(({ ch, budget }) => (
-              <div key={ch} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 90, fontSize: 12, color: CHANNEL_COLORS[ch] }}>{CHANNEL_LABELS[ch]}</div>
-                <div style={{ flex: 1, height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${Math.max(2, (budget / maxChannelBudget) * 100)}%`, height: "100%", background: CHANNEL_COLORS[ch] }} />
+          <div className="mk-dash">
+            <div className="card mk-panel">
+              <div className="section-label" style={{ marginTop: 0 }}>Куди пішли гроші</div>
+              {!byCat.length && !spendManual && <div className="note">Витрат за період немає. Внесіть списання кнопкою «💸 Внести витрату».</div>}
+              {byCat.map(([k, v]) => (
+                <div key={k} className="mk-hbar"><span>{k}</span><i><b style={{ width: `${Math.max(2, (Number(v) / maxCat) * 100)}%` }} /></i><em>{money(v)}</em></div>
+              ))}
+              {spendManual > 0 && <div className="mk-hbar"><span>поза транзакціями (з карток кампаній)</span><i><b style={{ width: `${Math.max(2, (spendManual / Math.max(maxCat, spendManual)) * 100)}%`, opacity: 0.5 }} /></i><em>{money(spendManual)}</em></div>}
+            </div>
+            <div className="card mk-panel">
+              <div className="section-label" style={{ marginTop: 0 }}>Ліди в CRM по тижнях</div>
+              {!weeks.length ? <div className="note">Лідів за період немає.</div> : (
+                <div className="mk-weeks">
+                  {weeks.map((w) => (
+                    <div key={w.week} className="mk-week" title={`тиждень з ${new Date(w.week).toLocaleDateString("uk-UA")}: ${w.leads}`}>
+                      <em>{w.leads}</em><i style={{ height: `${Math.max(4, (w.leads / maxWeek) * 100)}%` }} /><span>{new Date(w.week).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="note" style={{ marginTop: 0, minWidth: 90, textAlign: "right" }}>{budget ? curr(budget) : "—"}</div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
 
-          <div className="toolbar">
-            <div className="section-label" style={{ margin: 0 }}>Кампанії</div>
-            {canWriteCatalog && (
-              <button className="btn primary" onClick={() => setCampaignModal({ campaign: null })}>+ Кампанія</button>
-            )}
-          </div>
+          <div className="section-label">Кампанії за період</div>
           <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Назва</th>
-                <th>Канал</th>
-                <th style={{ textAlign: "right" }}>Бюджет</th>
-                <th style={{ textAlign: "right" }}>Ліди</th>
-                <th style={{ textAlign: "right" }}>Ціна ліда</th>
-                <th>Статус</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((c) => {
-                const cpl = c.leads_generated > 0 ? Number(c.budget || 0) / c.leads_generated : null;
-                const style = campaignStatusStyles[c.status] || campaignStatusStyles["активна"];
-                return (
-                  <tr key={c.id} style={{ opacity: c.status === "пауза" ? 0.6 : 1 }}>
-                    <td style={{ cursor: "pointer" }} onClick={() => setCampaignModal({ campaign: c })}>
-                      {c.name}
-                      <div className="note" style={{ marginTop: 2 }}>{c.start_date || ""} {c.end_date ? `→ ${c.end_date}` : ""}</div>
-                    </td>
-                    <td><span className="tag" style={{ background: "var(--bg)", color: CHANNEL_COLORS[c.channel] }}>{CHANNEL_LABELS[c.channel]}</span></td>
-                    <td style={{ textAlign: "right" }}>{curr(c.budget)}</td>
-                    <td style={{ textAlign: "right" }}>{c.leads_generated}</td>
-                    <td style={{ textAlign: "right", color: "var(--amber)" }}>{cpl ? curr(cpl) : "—"}</td>
-                    <td>
-                      <span
-                        style={{ background: style.bg, color: style.text, borderRadius: 6, padding: "3px 8px", fontSize: 12, cursor: canWriteCatalog ? "pointer" : "default" }}
-                        onClick={() => cycleCampaignStatus(c)}
-                        title={canWriteCatalog ? "Клік — наступний статус" : ""}
-                      >
-                        {c.status}
-                      </span>
-                    </td>
+            <table className="dense">
+              <thead>
+                <tr><th>Кампанія</th><th style={{ textAlign: "right" }}>Ліди</th><th style={{ textAlign: "right" }}>Кваліф.</th><th style={{ textAlign: "right" }}>Відмови</th><th style={{ textAlign: "right" }}>Договори</th><th style={{ textAlign: "right" }}>Витрачено</th><th style={{ textAlign: "right" }}>Ціна ліда</th></tr>
+              </thead>
+              <tbody>
+                {rows.filter((r) => r.leads || r.spend || r.c.status === "активна").map(({ c, st, leads, spend, cpl }) => (
+                  <tr key={c.id} style={{ cursor: "pointer" }} onClick={() => setCampaignModal({ campaign: c })}>
+                    <td>{c.name}<div className="note" style={{ marginTop: 0 }}>{CHANNEL_LABELS[c.channel] || c.channel} · {c.status}</div></td>
+                    <td style={{ textAlign: "right" }}>{leads}</td>
+                    <td style={{ textAlign: "right" }}>{Number(st.qualified) || 0}</td>
+                    <td style={{ textAlign: "right" }}>{Number(st.rejected) || 0}</td>
+                    <td style={{ textAlign: "right" }}>{Number(st.contracts) || 0}{Number(st.contract_sum) ? <div className="note" style={{ marginTop: 0 }}>{money(st.contract_sum)}</div> : null}</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{money(spend)}</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "var(--amber)" }}>{cpl != null ? money(cpl) : "—"}</td>
                   </tr>
-                );
-              })}
-              {!campaigns.length && (
-                <tr><td colSpan={6} className="empty">Кампаній ще немає.</td></tr>
-              )}
-            </tbody>
-          </table>
+                ))}
+                {Number(un.leads) > 0 && (
+                  <tr><td>Без кампанії<div className="note" style={{ marginTop: 0 }}>сайт, дзвінки, інше</div></td><td style={{ textAlign: "right" }}>{un.leads}</td><td style={{ textAlign: "right" }}>{un.qualified}</td><td style={{ textAlign: "right" }}>{un.rejected}</td><td style={{ textAlign: "right" }}>{un.contracts}</td><td /><td /></tr>
+                )}
+              </tbody>
+            </table>
           </div>
+          {!withManual && <p className="note">Ліди й витрати «поза системою» з карток кампаній показуються лише у «Увесь час».</p>}
         </>
       )}
 
@@ -256,6 +346,7 @@ export default function MarketingScreen({ direction }) {
           onSaved={() => setCampaignModal(null)}
         />
       )}
+      <ExpenseModal open={!!expense} campaign={expense?.campaign || null} onClose={() => setExpense(null)} onSaved={() => { setExpense(null); loadStats(); }} />
       <ChannelsModal open={channelsOpen} onClose={() => setChannelsOpen(false)} />
     </div>
   );
