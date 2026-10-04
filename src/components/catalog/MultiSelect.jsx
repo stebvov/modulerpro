@@ -3,7 +3,8 @@
 // Вибір кількох карток: натиснути й притримати (або Ctrl/⌘ + клік) — вмикається вибір; далі тап додає/прибирає.
 // Внизу — панель «Вибрано N · Перемістити в папку · Скасувати».
 import { useRef, useState } from "react";
-import { FolderSelect } from "./FolderTree";
+import { useFolders } from "./FolderTree";
+import { treeOptions } from "@/lib/tree";
 
 const HOLD_MS = 450;
 
@@ -49,26 +50,40 @@ export function useMultiSelect() {
 }
 
 // панель дій для вибраних
+// Панель над вибраними: список папок відкривається вгору й гортається — на телефоні все видно
 export function BulkBar({ ms, scope, allIds, onMove }) {
-  const [folder, setFolder] = useState(null);
+  const folders = useFolders(scope);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
   if (!ms.selecting) return null;
-  async function move() {
+  async function move(folderId) {
     setBusy(true);
-    await onMove([...ms.sel], folder || null);
+    await onMove([...ms.sel], folderId || null);
     setBusy(false);
+    setOpen(false); setQ("");
     ms.clear();
   }
+  const s = q.trim().toLowerCase();
+  const opts = treeOptions(folders).filter((o) => !s || o.label.toLowerCase().includes(s));
   return (
     <div className="bulk-bar" role="toolbar" aria-label="Дії з вибраними">
+      {open && (
+        <div className="bulk-pick">
+          {folders.length > 6 && <input className="bulk-pick__q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Пошук папки…" />}
+          <div className="bulk-pick__list">
+            {!s && <button type="button" className="bulk-pick__item" disabled={busy} onClick={() => move(null)}>· Без папки</button>}
+            {opts.map((o) => (
+              <button key={o.value} type="button" className="bulk-pick__item" style={{ paddingLeft: 12 + o.depth * 16 }} disabled={busy} onClick={() => move(o.value)}>📁 {o.label}</button>
+            ))}
+            {!folders.length && <div className="note" style={{ padding: 8 }}>Папок ще немає — створіть їх кнопкою «+ Папка».</div>}
+          </div>
+        </div>
+      )}
       <b>Вибрано: {ms.sel.size}</b>
       {allIds && <button type="button" className="btn small" onClick={() => ms.setSel(new Set(allIds))}>Усі видимі</button>}
-      <span className="bulk-bar__move">
-        <span className="note" style={{ margin: 0 }}>у папку</span>
-        <FolderSelect scope={scope} value={folder} onChange={setFolder} width={200} />
-        <button type="button" className="btn small primary" disabled={busy} onClick={move}>{busy ? "Переміщую…" : "Перемістити"}</button>
-      </span>
-      <button type="button" className="btn small" onClick={ms.clear}>Скасувати</button>
+      <button type="button" className={`btn small${open ? "" : " primary"}`} disabled={busy} onClick={() => setOpen((v) => !v)}>{busy ? "Переміщую…" : open ? "Закрити список" : "📁 У папку…"}</button>
+      <button type="button" className="btn small" onClick={() => { setOpen(false); ms.clear(); }}>Скасувати</button>
     </div>
   );
 }
