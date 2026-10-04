@@ -70,7 +70,7 @@ editor=function(t){
   if(editId===t.id)return _editorOrig(t);
   const projOpts=projects.filter(p=>p.status!=="done"||p.name===t.project).map(p=>[p.name,p.name]);
   return `<div class="edit">
-    <div class="full" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;align-items:center">
+    <div class="full" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:14px;align-items:center">
       <span class="meta">Виконавець</span><span><select class="ie" data-ie="owner_id" data-tid="${t.id}" aria-label="Виконавець">${peopleOpts(t.owner_id)}</select></span>
       <span class="meta">Контролер</span><span><select class="ie" data-ie="controller_id" data-tid="${t.id}" aria-label="Контролер"><option value="">— немає</option>${peopleOpts(t.controller_id)}</select></span>
       <span class="meta">Проєкт</span><span><select class="ie" data-ie="project" data-tid="${t.id}" aria-label="Проєкт">${opts(projOpts,t.project)}</select></span>

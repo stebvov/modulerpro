@@ -76,7 +76,9 @@ label.f > *{text-transform:none;letter-spacing:0;font-size:15px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:10}
 .msg{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;gap:6px}
 .msg.rev{opacity:.55} .msg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
-.tbl{overflow-x:auto} table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+.tbl{overflow-x:auto;max-width:100%} table{border-collapse:collapse;width:100%;font-size:14px} .tbl>table{min-width:560px}
+/* на телефоні сторінка не гортається вбік: широке гортається всередині свого блоку */
+img,video{max-width:100%} .edit>*,.panel>*,.feed>*,.cmt{min-width:0}
 td,th{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:middle} th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
