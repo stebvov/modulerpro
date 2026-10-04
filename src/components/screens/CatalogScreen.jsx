@@ -2,7 +2,7 @@
 import SearchFilter from "@/components/SearchFilter";
 import SelectSearch from "@/components/SelectSearch";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { statusLabels, templateTotalUah, fmtCurrency } from "@/lib/format";
@@ -36,6 +36,11 @@ export default function CatalogScreen() {
   const { canWriteCatalog } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [formatFilter, setFormatFilter] = useState("");
+  const [formats, setFormats] = useState([]);
+  useEffect(() => {
+    supabase.from("module_formats").select("*").order("sort_order").order("name").then(({ data }) => setFormats(data || []));
+  }, [supabase, dictOpen]);
   const [moduleMin, setModuleMin] = useState("");
   const [moduleMax, setModuleMax] = useState("");
   const [areaMin, setAreaMin] = useState("");
@@ -51,6 +56,7 @@ export default function CatalogScreen() {
   const list = templates.filter((t) => {
     if (q && !(t.name || "").toLowerCase().includes(q)) return false;
     if (statusFilter && t.status !== statusFilter) return false;
+    if (formatFilter && (formatFilter === "none" ? t.module_format_id : t.module_format_id !== formatFilter)) return false;
     if (!inFolder(folders, t.folder_id, folder)) return false;
     const moduleCount = t.module_count ?? 0;
     if (moduleMin && moduleCount < parseFloat(moduleMin)) return false;
@@ -66,10 +72,11 @@ export default function CatalogScreen() {
     return true;
   });
 
-  const activeCount = [statusFilter, moduleMin || moduleMax, areaMin || areaMax, priceMin || priceMax].filter(Boolean).length;
+  const activeCount = [statusFilter, formatFilter, moduleMin || moduleMax, areaMin || areaMax, priceMin || priceMax].filter(Boolean).length;
 
   function resetFilters() {
     setStatusFilter("");
+    setFormatFilter("");
     setModuleMin("");
     setModuleMax("");
     setAreaMin("");
@@ -123,6 +130,7 @@ export default function CatalogScreen() {
         {!showCompare && (
           <SearchFilter value={search} onChange={setSearch} placeholder="Пошук моделі…" active={activeCount} onReset={resetFilters}>
             <SelectSearch value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} placeholder="Усі статуси" emptyLabel="Усі статуси" width={160} ariaLabel="Статус" />
+            <SelectSearch value={formatFilter} options={[...formats.map((f) => ({ value: f.id, label: `📐 ${f.name}` })), { value: "none", label: "формат не вказано" }]} onChange={setFormatFilter} placeholder="Усі формати модулів" emptyLabel="Усі формати модулів" width={200} ariaLabel="Формат модулів" />
             <div className="sf-range"><span>Модулі</span>
               <input type="number" min="0" placeholder="від" aria-label="Модулів від" value={moduleMin} onChange={(e) => setModuleMin(nonNegative(e.target.value))} />
               <span>–</span>
@@ -184,7 +192,7 @@ export default function CatalogScreen() {
                   <span>{fold ? <span className="folder-tag">📁 {fold.name}</span> : <span className="note" style={{ margin: 0 }}>без папки</span>}</span>
                   <span className={`badge ${t.status}`}>{statusLabels[t.status] || t.status}</span>
                 </div>
-                <div className="row"><span>Площа</span><span>{t.area_m2} м²{terraceM2 ? ` + тераса ${terraceM2} м²` : ""}{t.module_count ? ` · ${t.module_count} ${modulesWord(t.module_count)}` : ""}</span></div>
+                <div className="row"><span>Площа</span><span>{t.area_m2} м²{terraceM2 ? ` + тераса ${terraceM2} м²` : ""}{t.module_count ? ` · ${t.module_count} ${modulesWord(t.module_count)}` : ""}{formats.find((f) => f.id === t.module_format_id) ? ` ${formats.find((f) => f.id === t.module_format_id).name}` : ""}</span></div>
                 {(t.bedrooms != null || t.bathrooms != null || t.height_m || t.floors > 1) && (
                   <div className="row"><span>{(t.object_types || []).join(", ") || "Параметри"}</span><span>{[t.bedrooms != null && (t.bedrooms ? `${t.bedrooms} сп.` : "студія"), t.bathrooms != null && `${t.bathrooms} с/в`, t.floors > 1 && `${t.floors} пов.`, t.height_m && `h ${t.height_m} м`].filter(Boolean).join(" · ")}</span></div>
                 )}

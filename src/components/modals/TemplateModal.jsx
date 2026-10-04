@@ -81,6 +81,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
   const [objectTypeList, setObjectTypeList] = useState([]);
   const [priceList, setPriceList] = useState([]);
   const [priceListId, setPriceListId] = useState(null);
+  const [formatId, setFormatId] = useState(null);
+  const [formatList, setFormatList] = useState([]);
   const [folderId, setFolderId] = useState(null);
   const [siteBusy, setSiteBusy] = useState(false);
   const [status, setStatus] = useState("draft");
@@ -146,6 +148,8 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
     });
     setObjectTypes(Array.isArray(template?.object_types) && template.object_types.length ? template.object_types : template?.object_type ? [template.object_type] : []);
     setPriceListId(template?.price_list_id || null);
+    setFormatId(template?.module_format_id || null);
+    supabase.from("module_formats").select("*").order("sort_order").order("name").then(({ data }) => setFormatList(data || []));
     // довідники: типи обʼєкта й прайс собівартості
     Promise.all([
       supabase.from("object_types").select("*").order("sort_order").order("name"),
@@ -307,6 +311,7 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
       bedrooms: intOrNull(params.bedrooms),
       bathrooms: intOrNull(params.bathrooms),
       folder_id: folderId || null,
+      module_format_id: formatId || null,
     };
   }
 
@@ -626,6 +631,22 @@ export default function TemplateModal({ open, template, onClose, onSaved, onDupl
                 placeholder="напр. 2"
                 style={{ maxWidth: 140 }}
               />
+            </div>
+
+            <div className="form-row">
+              <label>Формат модулів</label>
+              <div className="tag-row" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {formatList.map((f) => (
+                  <button key={f.id} type="button" className={`subtab${formatId === f.id ? " active" : ""}`}
+                    onClick={() => {
+                      const on = formatId === f.id;
+                      setFormatId(on ? null : f.id);
+                      // формат задає розмір усіх модулів (якщо вказано ширину й довжину)
+                      if (!on && f.w && f.l) setModules(moduleCount || 1, true, [{ w: String(f.w), l: String(f.l) }]);
+                    }}>📐 {f.name}</button>
+                ))}
+                {!formatList.length && <span className="note" style={{ margin: 0 }}>Довідник порожній — додайте формати в ⚙ Довідники → Формати модулів.</span>}
+              </div>
             </div>
 
             {modCount > 0 && (

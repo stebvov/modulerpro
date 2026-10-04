@@ -12,15 +12,17 @@ export default function CatalogDictionaries({ onClose }) {
   const [tab, setTab] = useState("price");
   const [types, setTypes] = useState([]);
   const [prices, setPrices] = useState([]);
+  const [formats, setFormats] = useState([]);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
   const load = useCallback(async () => {
-    const [o, p] = await Promise.all([
+    const [o, p, f] = await Promise.all([
       supabase.from("object_types").select("*").order("sort_order").order("name"),
       supabase.from("cost_price_list").select("*").order("sort_order").order("name"),
+      supabase.from("module_formats").select("*").order("sort_order").order("name"),
     ]);
-    setTypes(o.data || []); setPrices(p.data || []);
+    setTypes(o.data || []); setPrices(p.data || []); setFormats(f.data || []);
   }, [supabase]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
@@ -41,6 +43,19 @@ export default function CatalogDictionaries({ onClose }) {
     const j = i + d; if (j < 0 || j >= types.length) return;
     const a = [...types]; [a[i], a[j]] = [a[j], a[i]];
     await Promise.all(a.map((t, k) => supabase.from("object_types").update({ sort_order: k }).eq("id", t.id)));
+    load();
+  }
+
+  // формати модулів
+  const fmtUsed = (id) => templates.filter((t) => t.module_format_id === id).length;
+  const numOr = (v) => { const n = Number(String(v).replace(",", ".")); return v === "" || Number.isNaN(n) ? null : n; };
+  const addFormat = () => run(supabase.from("module_formats").insert({ name: "Новий формат", sort_order: formats.length + 1 }));
+  const saveFormat = (f, patch) => run(supabase.from("module_formats").update(patch).eq("id", f.id), "Збережено");
+  const delFormat = (f) => { if (window.confirm(`Видалити формат «${f.name}»?${fmtUsed(f.id) ? ` У ${fmtUsed(f.id)} мод. формат стане не вказаним.` : ""}`)) run(supabase.from("module_formats").delete().eq("id", f.id)).then(() => reload(true)); };
+  async function moveFormat(i, d) {
+    const j = i + d; if (j < 0 || j >= formats.length) return;
+    const a = [...formats]; [a[i], a[j]] = [a[j], a[i]];
+    await Promise.all(a.map((t, k) => supabase.from("module_formats").update({ sort_order: k }).eq("id", t.id)));
     load();
   }
 
@@ -65,6 +80,7 @@ export default function CatalogDictionaries({ onClose }) {
         <div className="seg-row" style={{ marginBottom: 12 }}>
           <button type="button" className={`seg-btn${tab === "price" ? " active" : ""}`} onClick={() => setTab("price")}>💲 Прайс собівартості</button>
           <button type="button" className={`seg-btn${tab === "types" ? " active" : ""}`} onClick={() => setTab("types")}>🏷 Типи обʼєкта</button>
+          <button type="button" className={`seg-btn${tab === "formats" ? " active" : ""}`} onClick={() => setTab("formats")}>📐 Формати модулів</button>
         </div>
         {err && <div className="auth-error">{err}</div>}
         {msg && <div className="note" style={{ color: "var(--success)" }}>{msg}</div>}
@@ -87,6 +103,26 @@ export default function CatalogDictionaries({ onClose }) {
               {!prices.length && <div className="empty">Прайс порожній.</div>}
             </div>
             <button type="button" className="btn small" onClick={addPrice}>+ Позиція прайсу</button>
+          </>
+        ) : tab === "formats" ? (
+          <>
+            <p className="note">Формати модулів (напр. 2,5 × 6, 3 × 6,5). У картці моделі обираєте формат — розміри модулів підставляються самі; у каталозі за форматом можна фільтрувати.</p>
+            <div className="dict-list">
+              {formats.map((f, i) => (
+                <div key={f.id} className="dict-row">
+                  <input defaultValue={f.name} onBlur={(e) => e.target.value.trim() && e.target.value !== f.name && saveFormat(f, { name: e.target.value.trim() })} aria-label="Назва" />
+                  <input inputMode="decimal" defaultValue={f.w ?? ""} placeholder="ширина, м" style={{ width: 90 }} onBlur={(e) => numOr(e.target.value) !== (f.w == null ? null : Number(f.w)) && saveFormat(f, { w: numOr(e.target.value) })} aria-label="Ширина, м" />
+                  <span>×</span>
+                  <input inputMode="decimal" defaultValue={f.l ?? ""} placeholder="довжина, м" style={{ width: 90 }} onBlur={(e) => numOr(e.target.value) !== (f.l == null ? null : Number(f.l)) && saveFormat(f, { l: numOr(e.target.value) })} aria-label="Довжина, м" />
+                  <span className="note" style={{ margin: 0, whiteSpace: "nowrap" }}>{fmtUsed(f.id)} мод.</span>
+                  <button type="button" className="btn small" disabled={!i} onClick={() => moveFormat(i, -1)}>▲</button>
+                  <button type="button" className="btn small" disabled={i === formats.length - 1} onClick={() => moveFormat(i, 1)}>▼</button>
+                  <button type="button" className="btn small" onClick={() => delFormat(f)}>✕</button>
+                </div>
+              ))}
+              {!formats.length && <div className="empty">Форматів ще немає.</div>}
+            </div>
+            <button type="button" className="btn small" onClick={addFormat}>+ Формат</button>
           </>
         ) : (
           <>
