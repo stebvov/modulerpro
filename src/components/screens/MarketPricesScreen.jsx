@@ -4,7 +4,7 @@
 // Рядок — матеріал, колонка — магазин; у клітинці ціна магазину за одиницю матеріалу (вона ж лежить у «Цінах постачальників»).
 // Розгорнутий рядок — усі знайдені товари: ціна «як продають» і перерахунок на м³ / м² / м.п.
 import SettingsButton from "@/components/SettingsButton";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { daysAgo, isStale } from "@/lib/format";
@@ -19,6 +19,45 @@ import PriceSourcesModal from "@/components/modals/PriceSourcesModal";
 import ManualPricesPanel from "@/components/panels/ManualPricesPanel";
 import InfoTip from "@/components/InfoTip";
 import StickyScroll from "@/components/StickyScroll";
+
+const HIDDEN_KEY = "moduler_market_hidden_stores";
+const OPEN_KEY = "moduler_market_stores_open";
+const readLS = (k, d) => { try { const v = window.localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+const writeLS = (k, v) => { try { window.localStorage.setItem(k, JSON.stringify(v)); } catch { /* сховище недоступне */ } };
+
+// Вибір магазинів, які показувати стовпцями таблиці (кілька)
+function StoreColumnsPicker({ stores, hidden, onChange }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
+  }, [open]);
+  const shown = stores.filter((s) => !hidden.includes(s.id)).length;
+  const flip = (id) => onChange(hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]);
+  return (
+    <span ref={box} className="store-pick">
+      <button type="button" className={`btn${shown < stores.length ? " active" : ""}`} onClick={() => setOpen((v) => !v)} title="Які магазини показувати стовпцями таблиці">
+        🏪 Магазини: {shown === stores.length ? "усі" : `${shown} з ${stores.length}`} ▾
+      </button>
+      {open && (
+        <div className="store-pick__pop">
+          <div className="store-pick__row">
+            <button type="button" className="btn small" onClick={() => onChange([])}>Усі</button>
+            <button type="button" className="btn small" onClick={() => onChange(stores.map((s) => s.id))}>Жодного</button>
+          </div>
+          {stores.map((s) => (
+            <label key={s.id} className="store-pick__item">
+              <input type="checkbox" checked={!hidden.includes(s.id)} onChange={() => flip(s.id)} /> {s.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
 
 const dateTime = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const dateOnly = (ts) => (ts ? new Date(ts).toLocaleDateString("uk-UA") : "—");
@@ -48,11 +87,22 @@ export default function MarketPricesScreen() {
   const [sold, setSold] = useState(new Map()); // магазин|матеріал → пропозиції: щоб показати, як саме продають і куди клацнути
   const [running, setRunning] = useState({}); // parser_key → іде оновлення
   const [runNotes, setRunNotes] = useState([]);
+  const [hiddenStores, setHiddenStores] = useState([]); // магазини, сховані з таблиці (запамʼятовується в браузері)
+  const [storesOpen, setStoresOpen] = useState(false); // блок магазинів розгорнуто
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHiddenStores(readLS(HIDDEN_KEY, []));
+    setStoresOpen(readLS(OPEN_KEY, false));
+  }, []);
+  const chooseHidden = (ids) => { setHiddenStores(ids); writeLS(HIDDEN_KEY, ids); };
+  const toggleStores = () => { setStoresOpen((v) => { writeLS(OPEN_KEY, !v); return !v; }); };
 
   const stores = useMemo(() => suppliers.filter((s) => s.parser_key).sort((a, b) => Number(b.parser_enabled) - Number(a.parser_enabled) || a.name.localeCompare(b.name, "uk")), [suppliers]);
   const activeStores = stores.filter((s) => s.parser_enabled);
   // колонки: магазини, які обходить парсер, і ті, де вже є ціни — надіслані з браузера чи внесені вручну
-  const columnStores = stores.filter((s) => s.parser_enabled || supplierPrices.some((p) => p.supplier_id === s.id));
+  const allColumnStores = stores.filter((s) => s.parser_enabled || supplierPrices.some((p) => p.supplier_id === s.id));
+  const columnStores = allColumnStores.filter((s) => !hiddenStores.includes(s.id));
   const groups = useMemo(() => [...new Set(sources.map((s) => s.grp))].sort(), [sources]);
 
   const loadMeta = useCallback(async () => {
@@ -172,6 +222,7 @@ export default function MarketPricesScreen() {
     stock: { value: (o) => (!o.active ? "зник із сайту" : o.in_stock === false ? "немає" : o.in_stock ? "є" : "—") },
     seen: { value: (o) => dateOnly(o.last_seen_at), sort: (o) => o.last_seen_at },
   });
+  const badOf = (s) => (!s.parser_enabled ? !s.parsed_at || daysAgo(s.parsed_at) > 30 : (s.parse_status && s.parse_status !== "ok") || (s.parsed_at && daysAgo(s.parsed_at) > 2));
   const tracked = materials.filter((m) => m.parse_rule).length;
   const withPrice = materials.filter((m) => m.parse_rule && supplierPrices.some((p) => p.material_id === m.id && storeIds.has(p.supplier_id))).length;
 
@@ -183,15 +234,23 @@ export default function MarketPricesScreen() {
 
   return (
     <div>
-      <p className="note" style={{ marginTop: 0 }}>
-        Раз на день система обходить сайти магазинів і бере ціни на позиції зі списку. У клітинці — ціна магазину за одиницю матеріалу; клік на рядок покаже всі знайдені товари з ціною «як продають».
-      </p>
-
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+      <div className="market-stores">
+        <button type="button" className="market-stores__head" onClick={toggleStores} aria-expanded={storesOpen}>
+          <span>{storesOpen ? "▾" : "▸"}</span>
+          <b>Магазини · {stores.length}</b>
+          <span className="note" style={{ margin: 0 }}>
+            {stores.filter((s) => !badOf(s)).length} свіжих{stores.some(badOf) ? ` · ${stores.filter(badOf).length} застарілих` : ""}
+            {anyRunning ? " · оновлюється…" : ""}
+            {" · "}у відстеженні {tracked}, з цінами {withPrice}
+            {lastRun ? ` · обхід ${dateTime(lastRun.finished_at || lastRun.started_at)}` : ""}
+          </span>
+        </button>
+        {storesOpen && (
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
         {stores.map((s) => {
           // магазин «з браузера»: програм сайт не пускає, сторінки надсилає людина — свіжим вважаємо місяць
           const byHand = !s.parser_enabled;
-          const bad = byHand ? !s.parsed_at || daysAgo(s.parsed_at) > 30 : (s.parse_status && s.parse_status !== "ok") || (s.parsed_at && daysAgo(s.parsed_at) > 2);
+          const bad = badOf(s);
           const isRunning = running[s.parser_key];
           return (
             <span key={s.id} className="tag-check" style={{ cursor: "default" }}
@@ -208,14 +267,18 @@ export default function MarketPricesScreen() {
           );
         })}
       </div>
+        )}
+      </div>
       {runNotes.map((n) => <div key={n} className="note stale" style={{ margin: "-6px 0 10px" }}>{n}</div>)}
 
       <div className="toolbar">
         <div className="toolbar-left">
-          <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
-          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук матеріалу..." active={onlyTracked ? 0 : 1} onReset={() => setOnlyTracked(true)}>
+          <SearchFilter value={search} onChange={setSearch} placeholder="Пошук матеріалу..." active={(onlyTracked ? 0 : 1) + (categoryFilter ? 1 : 0)} onReset={() => { setOnlyTracked(true); setCategoryFilter(""); }}>
+            <CategoryTreeSelect value={categoryFilter} categories={materialCategories} onChange={setCategoryFilter} />
             <label className="tag-check"><input type="checkbox" checked={!onlyTracked} onChange={(e) => setOnlyTracked(!e.target.checked)} /> показати весь довідник матеріалів</label>
           </SearchFilter>
+          <StoreColumnsPicker stores={allColumnStores} hidden={hiddenStores} onChange={chooseHidden} />
+          <InfoTip label="Як читати" text="Раз на день система обходить сайти магазинів і бере ціни на позиції зі списку. Рядок — матеріал, стовпець — магазин; у клітинці ціна магазину за одиницю матеріалу (зелена — найнижча), під нею — як продають. «Найкраща» — найнижча ціна серед усіх постачальників. Клік на рядок — усі знайдені товари з ціною «як продають»; «Не той товар» прибирає його з розрахунку. Кнопка «Магазини» — обрати, які магазини показувати стовпцями." />
         </div>
         <div className="toolbar-actions">
           <ColReset t={t} />
@@ -229,11 +292,6 @@ export default function MarketPricesScreen() {
           {canWriteCatalog && <button className="btn primary" onClick={() => setRuleFor(null)}>+ Позиція</button>}
         </div>
       </div>
-
-      <p className="note">
-        Позицій у відстеженні: {tracked}, з цінами — {withPrice}.
-        {lastRun && <> Останній обхід: {dateTime(lastRun.finished_at || lastRun.started_at)}.</>}
-      </p>
 
       <StickyScroll>
         <table className="dense market-table">
@@ -313,7 +371,7 @@ export default function MarketPricesScreen() {
                         <div className="sticky-view">
                         <div className="seg-row" style={{ marginBottom: 8 }}>
                           <button className={`seg-btn${!storeFilter ? " active" : ""}`} onClick={() => setStoreFilter("")}>Усі магазини</button>
-                          {columnStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (
+                          {allColumnStores.filter((s) => (offers[m.id] || []).some((o) => o.supplier_id === s.id)).map((s) => (
                             <button key={s.id} className={`seg-btn${storeFilter === s.id ? " active" : ""}`} onClick={() => setStoreFilter(s.id)}>{s.name}</button>
                           ))}
                           <label className="tag-check" style={{ marginLeft: "auto" }}>
