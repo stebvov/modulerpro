@@ -8,6 +8,11 @@ import { useRows } from "@/lib/mod";
 import { STEP_KINDS, STEP_WHO, useHrMe } from "@/lib/hr";
 import { Copy, Field, ListEditor, StringsEditor } from "./ui";
 import HrText from "./HrText";
+import { Instruction, InstructionEditor } from "./Instruction";
+
+// фільтри для useRows — поза компонентом, щоб не перезавантажувати на кожен рендер
+const onlyProposed = (q) => q.eq("status", "proposed");
+const onlyActive = (q) => q.eq("active", true);
 
 const METRICS = [
   ["", "— вручну —"], ["first_touch_hours", "швидкість першої відповіді, год"], ["untouched", "заявки без контакту"], ["deals_no_next", "угоди без наступного кроку"],
@@ -17,13 +22,14 @@ const METRICS = [
   ["team_deals_won", "відділ: договори"], ["team_untouched", "відділ: заявки без контакту"], ["team_deals_no_next", "відділ: угоди без кроку"], ["team_deals_overdue", "відділ: прострочені дії"],
   ["qa_given_per_report", "розборів на менеджера"], ["one_on_one_per_report", "зустрічей 1:1 на менеджера"],
 ];
-const SECTIONS = [["main", "Суть посади"], ["comp", "Компетенції"], ["kpi", "Показники"], ["hire", "Відбір"], ["qa", "Чек-лист якості"], ["onb", "Адаптація"], ["ad", "Оголошення"]];
+const SECTIONS = [["main", "Суть посади"], ["instr", "Посадова інструкція"], ["comp", "Компетенції"], ["kpi", "Показники"], ["hire", "Відбір"], ["qa", "Чек-лист якості"], ["onb", "Адаптація"], ["ad", "Оголошення"]];
 
 // Перегляд профілю (для працівника — його власна посада)
-export function RoleProfile({ role, sections = ["main", "comp", "kpi"] }) {
+export function RoleProfile({ role, sections = ["main", "comp", "kpi"], personal }) {
   const has = (k) => sections.includes(k);
   return (
     <div className="hr-profile">
+      {has("instr") && <Instruction role={role} personal={personal} />}
       {has("main") && (
         <>
           <p><b>Місія.</b> {role.mission}</p>
@@ -59,8 +65,11 @@ export function RoleProfile({ role, sections = ["main", "comp", "kpi"] }) {
 }
 
 export default function HrRolesScreen() {
-  const { canHr, loading: meLoading } = useHrMe();
+  const { canHr, loading: meLoading, supabase } = useHrMe();
   const roles = useRows("hr_roles", { order: "sort" });
+  const updates = useRows("hr_instr_updates", { order: "created_at", filter: onlyProposed });
+  const people = useRows("task_members", { order: "sort", filter: onlyActive, select: "id,name,hr_role,is_ai" });
+  const personal = useRows("hr_member_instr", { order: "updated_at" });
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [sec, setSec] = useState("main");
@@ -114,6 +123,12 @@ export default function HrRolesScreen() {
             <Field label="Обов'язкові вимоги"><StringsEditor items={draft.must_have} onChange={(v) => set({ must_have: v })} addLabel="+ Вимога" /></Field>
             <Field label="Тривожні сигнали (кого не беремо)"><StringsEditor items={draft.red_flags} onChange={(v) => set({ red_flags: v })} addLabel="+ Сигнал" /></Field>
           </>
+        )}
+        {sec === "instr" && (personal.loading || people.loading) && <div className="empty">Завантаження…</div>}
+        {sec === "instr" && !personal.loading && !people.loading && (
+          <InstructionEditor draft={draft} set={set} supabase={supabase} proposals={updates.rows.filter((u) => u.role_key === draft.key)}
+            members={people.rows.filter((m) => m.hr_role === draft.key && !m.is_ai)} personal={personal.rows}
+            reload={() => { updates.reload(); personal.reload(); roles.reload(); }} />
         )}
         {sec === "comp" && (
           <>
@@ -170,19 +185,31 @@ export default function HrRolesScreen() {
       <p className="note">Профіль посади — основа всієї системи. З нього беруться питання для відбору, план адаптації новачка, цілі й чек-лист для оцінки роботи. Спершу описуємо, кого шукаємо й за що платимо, — потім наймаємо.</p>
       <div className="toolbar"><div className="toolbar-actions" style={{ marginLeft: "auto" }}><button type="button" className="btn primary" onClick={add}>+ Посада</button></div></div>
       {msg && <div className="auth-error">{msg}</div>}
+      {updates.rows.length > 0 && (
+        <div className="hr-hint hr-hint--warn" style={{ marginBottom: 12 }}>
+          📋 ШІ переглянув роботу команди й пропонує дописати в посадові інструкції: {updates.rows.length}. Відкрийте посаду з позначкою — розділ «Посадова інструкція».
+        </div>
+      )}
       <div className="hr-cards">
-        {roles.rows.map((r) => (
-          <div className="card" key={r.id} onClick={() => openRole(r)}>
+        {roles.rows.map((r) => {
+          const who = people.rows.filter((m) => m.hr_role === r.key && !m.is_ai);
+          const todo = updates.rows.filter((u) => u.role_key === r.key).length;
+          return (
+          <div className="card" key={r.id} onClick={() => { openRole(r); if (todo) setSec("instr"); }}>
             <h3>{r.name}</h3>
             <p className="note" style={{ marginTop: 0 }}>{r.mission || "Місію ще не описано"}</p>
             <div className="hr-chips">
+              {todo > 0 && <span className="badge active">дописати: {todo}</span>}
+              <span className="tag" title={who.map((m) => m.name).join(", ")}>{who.length ? who.map((m) => m.name.split(" ")[0]).join(", ") : "вакансія"}</span>
+              <span className="tag">{(r.instruction?.duties || []).length} обов’язків</span>
               <span className="tag">{(r.competencies || []).length} компетенцій</span>
               <span className="tag">{(r.kpis || []).length} показників</span>
               <span className="tag">{(r.interview || []).length} питань</span>
               <span className="tag">{(r.onboarding || []).length} кроків адаптації</span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

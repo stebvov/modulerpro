@@ -1,7 +1,7 @@
 "use client";
 
 // Мій розвиток: усе про власне зростання на одній сторінці — план адаптації, підказки й показники за місяць,
-// навчання й тести своєї посади, оцінки від керівника, профіль посади («чого від мене чекають»).
+// навчання й тести своєї посади, оцінки від керівника, посадова інструкція й профіль посади («чого від мене чекають»).
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRows } from "@/lib/mod";
 import { monthRange, todayISO, useHrMe } from "@/lib/hr";
@@ -19,6 +19,7 @@ export default function HrMyScreen() {
   const plans = useRows("hr_onboarding", { order: "start_date", ascending: false, filter: mine });
   const evals = useRows("hr_evals", { order: "created_at", ascending: false, filter: mine });
   const attempts = useRows("hr_attempts", { order: "created_at", ascending: false, filter: mine });
+  const personal = useRows("hr_member_instr", { order: "updated_at", filter: mine });
   const tests = useRows("hr_tests", { order: "sort" });
   const courses = useRows("hr_courses", { order: "sort" });
   const lessons = useRows("hr_lessons", { order: "sort" });
@@ -92,6 +93,13 @@ export default function HrMyScreen() {
         <p className="note" style={{ marginTop: 0 }}>Огляди, перевірки за чек-листом і домовленості із зустрічей 1:1.</p>
         <EvalHistory evals={evals.rows.filter((e) => ["review", "probation", "qa", "one_on_one"].includes(e.kind))} role={role} />
       </section>
+
+      {role && (
+        <section className="hr-sec">
+          <h3>📋 Моя посадова інструкція</h3>
+          <RoleProfile role={role} sections={["instr"]} personal={personal.rows[0] || null} />
+        </section>
+      )}
 
       {role && (
         <section className="hr-sec">

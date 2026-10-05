@@ -7,6 +7,7 @@
 //   review { rows: [...], by }    — рішення засновника, отримані поза порталом (опитування в Telegram)
 //   survey { rows: [{code, resolution}] } — чим закінчились питання до засновника
 //   hr_seed { payload }           — навчальні курси, уроки й тести для розділу «Люди» (rpc hr_seed)
+//   hr_instr { roles: [{key, instruction}], force } — посадові інструкції (rpc hr_instr_seed; заповнену не перезаписує без force)
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -66,6 +67,11 @@ Deno.serve(async (req) => {
       for (const c of b.payload?.courses ?? []) {
         if (typeof c.restricted === "boolean") await sb.from("hr_courses").update({ restricted: c.restricted }).eq("key", c.key);
       }
+      return json(data);
+    }
+    if (b.action === "hr_instr") {
+      const { data, error } = await sb.rpc("hr_instr_seed", { p: { roles: b.roles ?? [], force: b.force === true } });
+      if (error) throw error;
       return json(data);
     }
     return json({ error: "unknown action" }, 400);
