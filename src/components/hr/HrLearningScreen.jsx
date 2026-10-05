@@ -192,6 +192,7 @@ export default function HrLearningScreen({ mine: embedded = false, initial = nul
               ))}</div>
             </Field>
             <label className="tag-check"><input type="checkbox" checked={course.required} onChange={(e) => courses.update(course.id, { required: e.target.checked })} /> Обов’язковий (входить у показник «навчання пройдено»)</label>
+            <label className="tag-check" title="Курс бачать лише ті, чия посада відмічена вище, і ті, хто веде навчання"><input type="checkbox" checked={!!course.restricted} onChange={(e) => courses.update(course.id, { restricted: e.target.checked })} /> 🔒 Лише для своїх посад</label>
           </div>
         ) : (
           <>
@@ -274,6 +275,7 @@ export default function HrLearningScreen({ mine: embedded = false, initial = nul
               <h3>{c.icon ? `${c.icon} ` : ""}{c.title}</h3>
               <div className="hr-chips">
                 {c.required && <span className="badge active">обов’язковий</span>}
+                {c.restricted && <span className="badge draft" title="Бачать лише свої посади й ті, хто веде навчання">🔒 лише свої посади</span>}
                 <span className="tag">{LEVELS[c.level]}</span>
                 {(c.role_keys || []).length ? c.role_keys.map((k) => <span className="tag" key={k}>{roleName(k)}</span>) : <span className="tag">для всіх</span>}
               </div>

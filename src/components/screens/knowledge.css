@@ -1,0 +1,99 @@
+/* 📖 База знань — щільний список записів, читання й перевірка у вікні; спершу під телефон. */
+.kb { max-width: 980px; }
+.kb__progress { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.kb__progress .note { margin: 0; white-space: nowrap; }
+.kb__bar { flex: 1 1 120px; max-width: 260px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.kb__bar span { display: block; height: 100%; background: var(--accent); }
+.kb__tabs, .kb__topics { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.kb__tabs::-webkit-scrollbar, .kb__topics::-webkit-scrollbar { display: none; }
+.kb__tabs > *, .kb__topics > * { flex-shrink: 0; white-space: nowrap; }
+.kb__tabs { margin-bottom: 12px; }
+.kb__topics { margin-bottom: 12px; }
+.kb .toolbar { margin-bottom: 10px; }
+.kb-chip { border: 1px solid var(--border); background: var(--card); color: var(--text-secondary); border-radius: var(--r-sm); padding: 4px 10px; font-size: 12px; font-family: inherit; cursor: pointer; min-height: 26px; }
+.kb-chip:hover { border-color: var(--accent); color: var(--accent); }
+.kb-chip.on { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.kb__list { display: grid; gap: 0; }
+.kb-row { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--border); border-top-width: 0; padding: 8px 12px; cursor: pointer; font-family: inherit; color: var(--text); }
+.kb-row:first-child { border-top-width: 1px; border-radius: var(--r) var(--r) 0 0; }
+.kb-row:last-of-type { border-radius: 0 0 var(--r) var(--r); }
+.kb-row:first-child:last-of-type { border-radius: var(--r); }
+.kb-row:hover { background: #fafaf7; }
+.kb-row__st { flex: none; font-size: 13px; line-height: 1.45; width: 18px; text-align: center; }
+.kb-row__main { display: grid; gap: 2px; min-width: 0; }
+.kb-row__title { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.kb-row--synthesis .kb-row__title, .kb-row--claim .kb-row__title { font-weight: 600; }
+.kb-row__meta { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 12px; color: var(--text-muted); }
+.kb-kind { color: var(--text-secondary); }
+.kb-kind--synthesis { color: var(--accent); font-weight: 600; }
+.kb-kind--claim { color: #1f4f8a; font-weight: 600; }
+.kb-warn { color: var(--amber); }
+.kb__more { margin: 12px auto 0; }
+
+.kb-st { display: inline-block; padding: 2px 8px; border-radius: var(--r-sm); font-size: 11px; font-weight: 600; white-space: nowrap; background: #f1efe8; color: var(--text-secondary); }
+.kb-st--approved { background: var(--success-bg); color: var(--success); }
+.kb-st--needs_check { background: var(--amber-bg); color: var(--amber); }
+
+/* відкритий запис */
+.kb-modal { width: 820px; display: grid; gap: 12px; padding-bottom: 0; }
+.kb-modal__bar { display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap; }
+.kb-modal__acts { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.kb-modal__title { margin: 0 !important; font-size: 18px !important; line-height: 1.35; overflow-wrap: anywhere; }
+.kb-modal__facts { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; color: var(--text-secondary); }
+.kb-modal__facts .tag { margin: 0; border-radius: var(--r-sm); }
+.kb-warnbox { background: var(--amber-bg); color: var(--amber); border-radius: var(--r); padding: 8px 12px; font-size: 13px; }
+.kb-notebox { background: var(--bg); border-left: 3px solid var(--border-strong); border-radius: 0 var(--r) var(--r) 0; padding: 8px 12px; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.kb-text { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.kb-text p { margin: 0 0 10px; }
+.kb-text h4 { font-size: 15px; margin: 18px 0 6px; color: var(--text) !important; }
+.kb-text h5 { font-size: 14px; margin: 14px 0 4px; }
+.kb-text ul, .kb-text ol { margin: 0 0 10px; padding-left: 22px; display: grid; gap: 4px; }
+.kb-text__dim { color: var(--text-muted); font-size: 12px; }
+.kb-ref { display: inline; border: 0; border-bottom: 1px dashed var(--accent); background: none; padding: 0; margin: 0 1px; color: var(--accent); font: inherit; font-size: .92em; cursor: pointer; text-align: left; }
+.kb-ref:hover { border-bottom-style: solid; }
+.kb-tablewrap { overflow-x: auto; margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--r); }
+.kb-table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.4; }
+.kb-table th, .kb-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.kb-table th { background: var(--bg); font-weight: 600; white-space: nowrap; }
+.kb-table tr:last-child td { border-bottom: 0; }
+
+.kb-block { background: var(--bg); border-radius: var(--r); padding: 10px 12px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.kb-block__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 4px; }
+.kb-links, .kb-src { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.kb-link { border: 0; background: none; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.kb-link:hover { color: var(--accent); text-decoration: underline; }
+
+/* панель рішення: завжди під рукою внизу вікна */
+.kb-review { position: sticky; bottom: -30px; display: grid; gap: 8px; background: var(--card); border-top: 1px solid var(--border); margin: 4px -22px 0; padding: 10px 22px 14px; border-radius: 0 0 12px 12px; }
+.kb-review textarea { width: 100%; resize: vertical; font-size: 14px; line-height: 1.4; min-height: 34px; max-height: 140px; field-sizing: content; }
+.kb-review__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.kb-review__ok, .kb-review__ask { flex: 1 1 140px; font-weight: 600; min-height: 38px; }
+.kb-review__ok.on { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+.kb-review__ask.on { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.kb-review__opts .tag-check { border-radius: var(--r-sm); }
+
+/* питання до засновника */
+.kb-q { background: var(--card); border: 1px solid var(--border); border-top-width: 0; }
+.kb-q:first-of-type { border-top-width: 1px; border-radius: var(--r) var(--r) 0 0; }
+.kb-q:last-of-type { border-radius: 0 0 var(--r) var(--r); }
+.kb-q__head { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; background: none; border: 0; padding: 8px 12px; cursor: pointer; font-family: inherit; color: var(--text); }
+.kb-q__body { padding: 0 12px 12px; font-size: 14px; line-height: 1.5; }
+.kb-q__body p { margin: 0 0 8px; }
+
+/* хто бачить базу */
+.kb-mode { display: grid; gap: 8px; margin-bottom: 12px; }
+.kb-mode__opt { display: grid; gap: 2px; text-align: left; border: 1px solid var(--border-strong); background: var(--card); border-radius: var(--r); padding: 10px 12px; cursor: pointer; font-family: inherit; color: var(--text); }
+.kb-mode__opt span { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+.kb-mode__opt.on { border-color: var(--accent); background: var(--accent-bg); }
+
+@media (max-width: 600px) {
+  .kb-overlay { padding: 0; }
+  .kb-modal { border-radius: 0; min-height: 100%; padding: 14px 14px 0; align-content: start; }
+  .kb-review { bottom: 0; margin: 4px -14px 0; padding: 8px 14px 10px; border-radius: 0; gap: 6px; }
+  .kb-review__opts { font-size: 11px; flex-wrap: nowrap; overflow-x: auto; }
+  .kb-review__opts .tag-check { white-space: nowrap; }
+  .kb-row { padding: 8px 10px; }
+  .kb .toolbar-actions { margin-left: 0; }
+}

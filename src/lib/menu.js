@@ -4,6 +4,7 @@
 // need: хто бачить. any — будь-хто з доступом, mp — користувачі Moduler Pro (профіль), team — учасники команди,
 // owner — лише засновник, finance/admin — ролі Moduler Pro, mgr — керівники в пульті, unitowner — власник юніта (кабінет),
 // hr — хто веде найм і оцінку людей (засновник, керівники, позначені hr_admin у команді, адмін).
+// kb — база знань: засновник завжди; команда — коли засновник відкрив її (kb_settings.team_mode), і то лише затверджені записи.
 // Вкладки "pult-*" — розділи пульту всередині оболонки. Група без доступних вкладок не показується.
 // settings: true — це налаштування розділу: у рядку вкладок замість підпису стоїть кнопка-шестерня (підпис — у підказці).
 export const MENU = [
@@ -12,6 +13,7 @@ export const MENU = [
   { key: "assistant", label: "🤖 Асистент", need: "owner", tabs: [{ id: "assistant", label: "Асистент — операційний ШІ-директор" }] },
   { key: "capital", label: "💎 Капітал", need: "owner", tabs: [{ id: "pult-cap", label: "Капітал і дохід засновника" }] },
   { key: "ideas", label: "💡 Ідеї", need: "owner", tabs: [{ id: "ideas", label: "Ідеї та роздуми" }] },
+  { key: "kb", label: "📖 База знань", need: "kb", tabs: [{ id: "kb", label: "База знань" }] },
   {
     key: "strategy", label: "🧭 Напрями і проєкти", need: "team",
     tabs: [{ id: "pult-dirs", label: "Напрями" }, { id: "pult-projects", label: "Проєкти та ідеї" }],

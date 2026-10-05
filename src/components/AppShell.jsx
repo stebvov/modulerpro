@@ -44,6 +44,7 @@ import ProductsScreen from "@/components/screens/ProductsScreen";
 import OwnerScreen from "@/components/screens/OwnerScreen";
 import IdeasScreen from "@/components/screens/IdeasScreen";
 import AssistantScreen from "@/components/screens/AssistantScreen";
+import KnowledgeScreen from "@/components/screens/KnowledgeScreen";
 import QuizzesScreen from "@/components/screens/QuizzesScreen";
 import SitePagesScreen from "@/components/site-editor/SitePagesScreen";
 import SiteCollectionScreen from "@/components/site-editor/SiteCollectionScreen";
@@ -80,6 +81,7 @@ const SCREENS = {
   owner: () => <OwnerScreen />,
   ideas: () => <IdeasScreen />,
   assistant: () => <AssistantScreen />,
+  kb: () => <KnowledgeScreen />,
   quizzes: () => <QuizzesScreen />,
   "uk-crm": () => <CrmDataProvider><CrmScreen onlySlug="uk-owners" /></CrmDataProvider>,
   "uk-fin": () => <Ledger direction="service" />,
@@ -139,6 +141,16 @@ export default function AppShell() {
   }, [user, loading, profile, member]);
   const [start] = useState(readUrl);
   const [activeTab, setActiveTab] = useState(start.s || null);
+  // база знань: засновник бачить завжди, команда — коли він її відкрив (тоді працює й пряме посилання ?s=kb)
+  const [kbTeam, setKbTeam] = useState(false);
+  useEffect(() => {
+    if (!member || member.is_owner) return;
+    createClient().from("kb_settings").select("team_mode").maybeSingle().then(({ data }) => {
+      if (!data?.team_mode) return;
+      setKbTeam(true);
+      if (start.s === "kb") setActiveTab("kb");
+    });
+  }, [member, start]);
   const [pultOpened, setPultOpened] = useState(() => isPult(start.s));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {
@@ -161,6 +173,7 @@ export default function AppShell() {
       : need === "admin" ? isAdmin
       : need === "hr" ? !!(isAdmin || member?.is_owner || member?.can_manage || member?.hr_admin)
       : need === "unitowner" ? unitOwner
+      : need === "kb" ? !!(member?.is_owner || (inTeam && kbTeam))
       : true;
     let g = MENU.filter((x) => can(x.need)).map((x) => ({ ...x, tabs: x.tabs.filter((t) => !t.need || can(t.need)) })).filter((x) => x.tabs.length);
     // зовнішній партнер бачить лише відкриті йому групи/розділи Moduler Pro
@@ -177,7 +190,7 @@ export default function AppShell() {
       g = next;
     }
     return g;
-  }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder, unitOwner]);
+  }, [hasMp, inTeam, member, isPartner, partnerTabs, canWriteFinance, isAdmin, menuGroupOrder, unitOwner, kbTeam]);
 
   // власник юніта без інших прав — чекаємо перевірки його юнітів, щоб не показати «Немає доступу»
   const ready = !loading && (member !== undefined || !user) && (!!profile || !!member || !user || unitOwner !== null);
