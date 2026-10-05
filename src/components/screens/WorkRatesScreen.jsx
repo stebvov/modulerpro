@@ -255,7 +255,7 @@ export default function WorkRatesScreen() {
                         <tr><td colSpan={7} style={{ background: "var(--accent-bg)", fontWeight: 600, fontSize: 12 }}>{cat.get(r.category)?.stage} · {cat.get(r.category)?.name}</td></tr>
                       )}
                       <tr>
-                        <td><a href={r.url} target="_blank" rel="noreferrer">{r.name}</a>{r.fromUa && <span className="note" title="У цьому місті замало пропозицій — показано ціни по Україні"> *</span>}</td>
+                        <td>{r.url ? <a href={r.url} target="_blank" rel="noreferrer">{r.name}</a> : <span title="Наша позиція — з робочих чатів і бази знань">{r.name}</span>}{r.fromUa && <span className="note" title="У цьому місті замало пропозицій — показано ціни по Україні"> *</span>}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{r.unit}</td>
                         <td>{r.offers ?? "—"}</td>
                         <td>{n(r.price_min)}</td>

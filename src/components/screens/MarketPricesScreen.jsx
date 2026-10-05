@@ -89,6 +89,7 @@ export default function MarketPricesScreen() {
   const [runNotes, setRunNotes] = useState([]);
   const [hiddenStores, setHiddenStores] = useState([]); // магазини, сховані з таблиці (запамʼятовується в браузері)
   const [storesOpen, setStoresOpen] = useState(false); // блок магазинів розгорнуто
+  const [schedule, setSchedule] = useState(null); // як часто система сама обходить сайти
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -106,10 +107,12 @@ export default function MarketPricesScreen() {
   const groups = useMemo(() => [...new Set(sources.map((s) => s.grp))].sort(), [sources]);
 
   const loadMeta = useCallback(async () => {
-    const [src, run] = await Promise.all([
+    const [src, run, sch] = await Promise.all([
       supabase.from("price_sources").select("*"),
       supabase.from("price_parser_runs").select("*").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("price_parser_settings").select("*").eq("id", 1).maybeSingle(),
     ]);
+    setSchedule(sch.data || null);
     if (src.error) return setNotReady(true);
     setSources(src.data || []);
     setLastRun(run.data || null);
@@ -182,6 +185,13 @@ export default function MarketPricesScreen() {
     if (openId) loadOffers(openId);
   }
   const anyRunning = Object.values(running).some(Boolean);
+  async function setInterval_(days) {
+    const { data, error } = await supabase.from("price_parser_settings").update({ interval_days: days, updated_at: new Date().toISOString() }).eq("id", 1).select().maybeSingle();
+    if (!error && data) setSchedule(data);
+  }
+  const nextRun = schedule && schedule.interval_days > 0 && schedule.last_auto_run
+    ? new Date(new Date(schedule.last_auto_run).getTime() + schedule.interval_days * 864e5)
+    : null;
 
   const catOrder = flattenCategoryOrder(materialCategories);
   const allowedCategoryIds = categoryFilter ? getCategoryAndDescendantIds(categoryFilter, materialCategories) : null;
@@ -245,6 +255,15 @@ export default function MarketPricesScreen() {
             {lastRun ? ` · обхід ${dateTime(lastRun.finished_at || lastRun.started_at)}` : ""}
           </span>
         </button>
+        {storesOpen && schedule && (
+          <div className="market-sched">
+            <span>Автоматичний обхід сайтів:</span>
+            <select value={schedule.interval_days} disabled={!canWriteCatalog} onChange={(e) => setInterval_(Number(e.target.value))} aria-label="Як часто оновлювати ціни">
+              {[[1, "щодня"], [2, "раз на 2 дні"], [3, "раз на 3 дні"], [7, "раз на тиждень"], [14, "раз на 2 тижні"], [30, "раз на місяць"], [0, "вимкнено — лише вручну"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <span className="note" style={{ margin: 0 }}>{nextRun ? `наступний — ${nextRun.toLocaleDateString("uk-UA")} о 06:20` : "оновлюйте кнопкою ↻"}</span>
+          </div>
+        )}
         {storesOpen && (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
         {stores.map((s) => {
@@ -278,7 +297,7 @@ export default function MarketPricesScreen() {
             <label className="tag-check"><input type="checkbox" checked={!onlyTracked} onChange={(e) => setOnlyTracked(!e.target.checked)} /> показати весь довідник матеріалів</label>
           </SearchFilter>
           <StoreColumnsPicker stores={allColumnStores} hidden={hiddenStores} onChange={chooseHidden} />
-          <InfoTip label="Як читати" text="Раз на день система обходить сайти магазинів і бере ціни на позиції зі списку. Рядок — матеріал, стовпець — магазин; у клітинці ціна магазину за одиницю матеріалу (зелена — найнижча), під нею — як продають. «Найкраща» — найнижча ціна серед усіх постачальників. Клік на рядок — усі знайдені товари з ціною «як продають»; «Не той товар» прибирає його з розрахунку. Кнопка «Магазини» — обрати, які магазини показувати стовпцями." />
+          <InfoTip label="Як читати" text="Система сама обходить сайти магазинів (як часто — у блоці «Магазини») і бере ціни на позиції зі списку. Рядок — матеріал, стовпець — магазин; у клітинці ціна магазину за одиницю матеріалу (зелена — найнижча), під нею — як продають. «Найкраща» — найнижча ціна серед усіх постачальників. Клік на рядок — усі знайдені товари з ціною «як продають»; «Не той товар» прибирає його з розрахунку. Кнопка «Магазини» — обрати, які магазини показувати стовпцями." />
         </div>
         <div className="toolbar-actions">
           <ColReset t={t} />

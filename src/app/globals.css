@@ -671,6 +671,8 @@ tr.row-mark > td { background: var(--accent-bg); }
 .market-table td:first-child { min-width: 220px; }
 .market-stores { background: var(--card); border: 1px solid var(--border); border-radius: var(--r, 10px); padding: 8px 10px; margin-bottom: 12px; }
 .market-stores__head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; width: 100%; border: 0; background: none; padding: 0; font: inherit; color: var(--text); cursor: pointer; text-align: left; }
+.market-sched { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
+.market-sched select { width: auto; }
 .store-pick { position: relative; display: inline-block; }
 .store-pick .btn.active { border-color: var(--accent); color: var(--accent); }
 .store-pick__pop { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 220px; max-width: min(320px, 90vw); max-height: 60vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.14); padding: 8px; display: grid; gap: 2px; }
