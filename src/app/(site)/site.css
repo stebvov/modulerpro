@@ -124,6 +124,12 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-body .s-subnav a:hover { border-color: var(--moss); color: var(--moss); }
 .s-body .s-subnav a.on { background: var(--pine); border-color: var(--pine); color: var(--paper); }
 .s-nav__right { display: flex; align-items: center; gap: 16px; }
+/* перемикач мови: позначка іншої мовної версії (EN на українському сайті, UA — на англійському) */
+.s-body a.s-lang { font-weight: 700; font-size: 13px; letter-spacing: .04em; line-height: 1; padding: 8px 9px; border: 1px solid var(--line-2); border-radius: 8px; white-space: nowrap; }
+.s-body a.s-lang:hover { border-color: var(--moss); color: var(--moss); }
+.s-foot__langs { display: flex; gap: 14px; }
+.s-foot__langs b { font-weight: 600; opacity: .55; }
+.s-body .s-foot__langs a { text-decoration: underline; text-underline-offset: 3px; }
 .s-nav__phone { font-weight: 700; white-space: nowrap; }
 .s-burger { display: none; width: 44px; height: 44px; border: 1px solid var(--line-2); border-radius: 10px; background: transparent; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; }
 .s-burger span { width: 18px; height: 2px; background: var(--ink); border-radius: 2px; transition: transform .2s, opacity .2s; }
@@ -131,6 +137,8 @@ body.s-body { margin: 0; font-family: var(--f-body), system-ui, sans-serif; font
 .s-nav--open .s-burger span:nth-child(2) { opacity: 0; }
 .s-nav--open .s-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 @media (max-width: 899px) {
+  /* без розмиття: воно робить шапку «рамкою» для панелі меню (position: fixed), і панель стискається до смужки під шапкою */
+  .s-nav { backdrop-filter: none; -webkit-backdrop-filter: none; }
   .s-nav__in { height: 60px; }
   .s-nav__logo img { height: 28px; }
   .s-nav__right { margin-left: auto; }

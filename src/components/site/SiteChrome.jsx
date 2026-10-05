@@ -4,10 +4,13 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { phoneHref, siteHref } from "@/lib/site/format";
+import { LANGS, isLang, langPath } from "@/lib/site/i18n";
 import { trackVisit } from "@/lib/site/visitor";
+import { useT } from "./I18n";
 
 // який пункт меню підсвітити: сторінка пункту, вкладені (/modeli/…) або сторінки з поля «Підсвічувати також»
-const logical = (p) => (String(p || "/").split(/[?#]/)[0].replace(/^\/site(?=\/|$)/, "").replace(/\/+$/, "")) || "/";
+// (/site і мовний префікс /en не враховуємо: /site/en/modeli → /modeli)
+const logical = (p) => (String(p || "/").split(/[?#]/)[0].replace(/^\/site(?=\/|$)/, "").replace(/^\/en(?=\/|$)/, "").replace(/\/+$/, "")) || "/";
 // navAs — сторінки, що належать іншому розділу, ніж каже адреса (розробка /modeli/… — це «Індивідуальні проєкти»)
 function hitter(pathname, navAs) {
   const path = logical(pathname);
@@ -35,8 +38,15 @@ export function SiteHeader({ settings, base, navAs }) {
   const c = settings.contacts || {};
   const brand = settings.brand || {};
   const nav = settings.nav || [];
-  const cta = settings.header_cta || { label: "Обговорити проєкт", href: "#contact" };
-  const hit = hitter(usePathname(), navAs);
+  const { t, tf, lang } = useT();
+  const pathname = usePathname();
+  const cta = settings.header_cta || { label: t("Обговорити проєкт"), href: "#contact" };
+  const hit = hitter(pathname, navAs);
+  // інші мови: та сама сторінка за адресою іншої мовної версії
+  const root = isLang(lang) ? base.slice(0, -(lang.length + 1)) : base;
+  const langs = Object.entries(LANGS).filter(([k]) => k !== lang).map(([k, l]) => (
+    <a key={k} className="s-lang" href={langPath(pathname, root, k)} hrefLang={l.html} lang={l.html} title={l.name} aria-label={l.name}>{l.label}</a>
+  ));
   const active = nav.findIndex((l) => hit(l.href) || String(l.also || "").split(",").map((x) => x.trim()).some(hit) || kids(l).some((k) => hit(k.href)));
   const group = active >= 0 ? kids(nav[active]) : [];
 
@@ -66,7 +76,7 @@ export function SiteHeader({ settings, base, navAs }) {
         <a className="s-nav__logo" href={siteHref(base, "/")} aria-label={brand.name || "Moduler"}>
           {brand.logo ? <img src={brand.logo} alt={brand.name || "Moduler"} /> : <b>{brand.name || "Moduler"}</b>}
         </a>
-        <nav className="s-nav__links" aria-label="Меню сайту">
+        <nav className="s-nav__links" aria-label={t("Меню сайту")}>
           {nav.map((l, i) => {
             const sub = kids(l);
             if (!sub.length) return <a key={i} href={siteHref(base, l.href)} className={i === active ? "on" : undefined} aria-current={i === active ? "page" : undefined} onClick={() => setOpen(false)}>{l.label}</a>;
@@ -76,7 +86,7 @@ export function SiteHeader({ settings, base, navAs }) {
                 {/* назва розділу — посилання на його головну сторінку; стрілка поруч розкриває підпункти (на компʼютері — ще й наведення) */}
                 <span className="s-nav__head">
                   <a href={siteHref(base, l.href || sub[0].href)} className={`s-nav__top${i === active ? " on" : ""}`} aria-current={i === active && cur < 0 ? "page" : undefined} onClick={() => { setOpen(false); setDrop(-1); }}>{l.label}</a>
-                  <button type="button" className="s-nav__more" aria-haspopup="true" aria-expanded={drop === i} aria-label={`Підрозділи: ${l.label}`} onClick={() => setDrop(drop === i ? -1 : i)}>
+                  <button type="button" className="s-nav__more" aria-haspopup="true" aria-expanded={drop === i} aria-label={tf("Підрозділи: {name}", { name: l.label })} onClick={() => setDrop(drop === i ? -1 : i)}>
                     <span className="s-nav__caret" aria-hidden>▾</span>
                   </button>
                 </span>
@@ -97,10 +107,11 @@ export function SiteHeader({ settings, base, navAs }) {
           <a className="s-btn s-btn--primary s-only-m" href={siteHref(base, cta.href)} onClick={() => setOpen(false)}>{cta.label}</a>
         </nav>
         <div className="s-nav__right">
+          {langs}
           {c.phone && <a className="s-nav__phone s-only-d" href={phoneHref(c.phone)}>{c.phone_display || c.phone}</a>}
           <a className="s-btn s-btn--primary s-btn--sm s-only-d" href={siteHref(base, cta.href)}>{cta.label}</a>
           {/* на телефоні меню відкривається з розгорнутим поточним розділом, решта — згорнуті */}
-          <button type="button" className="s-burger" aria-label="Меню" aria-expanded={open} onClick={() => { setOpen(!open); setDrop(!open && group.length ? active : -1); }}><span /><span /><span /></button>
+          <button type="button" className="s-burger" aria-label={t("Меню")} aria-expanded={open} onClick={() => { setOpen(!open); setDrop(!open && group.length ? active : -1); }}><span /><span /><span /></button>
         </div>
       </div>
     </header>

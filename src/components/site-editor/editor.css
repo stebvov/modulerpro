@@ -220,3 +220,18 @@
 .se-terrace { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .se-terrace input:not([type="checkbox"]) { width: 64px; flex: 0 1 64px; min-width: 0; }
 .se-terrace input:first-child { flex: 1 1 120px; width: auto; }
+
+/* Переклад сайту: ліворуч український текст, праворуч переклад */
+.se-i18n__list { display: grid; gap: 8px; }
+.se-i18n__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; }
+.se-i18n__row.miss { border-left: 3px solid var(--amber, #c68a45); }
+.se-i18n__src { font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.se-i18n__src small { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; white-space: normal; }
+.se-i18n__tr { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.se-i18n__tr textarea { width: 100%; font: inherit; font-size: 13px; line-height: 1.45; resize: vertical; }
+.se-i18n .toolbar-left, .se-i18n .se-tabs { min-width: 0; }
+@media (max-width: 800px) {
+  .se-i18n__row { grid-template-columns: 1fr; }
+  .se-i18n .toolbar-left, .se-i18n .se-tabs, .se-i18n .se-search { flex: 1 1 100%; }
+  .se-i18n .se-search { min-width: 0; }
+}

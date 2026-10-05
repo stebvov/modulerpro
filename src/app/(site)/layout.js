@@ -2,7 +2,9 @@
 import "./site.css";
 import Script from "next/script";
 import { Manrope, Unbounded } from "next/font/google";
-import { getBase, getModels, getOrigin, getPagesList, getSettings } from "@/lib/site/data";
+import { getBase, getModels, getOgBase, getOrigin, getPagesList, getSettings, getT } from "@/lib/site/data";
+import { LANGS } from "@/lib/site/i18n";
+import { LangProvider } from "@/components/site/I18n";
 import { SiteHeader, SiteScripts } from "@/components/site/SiteChrome";
 import { SiteFooter, StickyBar } from "@/components/site/SiteFooter";
 
@@ -17,7 +19,7 @@ export async function generateMetadata() {
     metadataBase: new URL(origin),
     title: { default: seo.title || "Moduler — модульні будинки", template: `%s · ${s.brand?.name || "Moduler"}` },
     description: seo.description,
-    openGraph: { siteName: s.brand?.name || "Moduler", locale: "uk_UA", type: "website", images: seo.og_image ? [seo.og_image] : undefined },
+    openGraph: { ...(await getOgBase()), images: seo.og_image ? [seo.og_image] : undefined },
     other: { "theme-color": "#1E3D2F" },
   };
 }
@@ -25,7 +27,7 @@ export async function generateMetadata() {
 export const viewport = { themeColor: "#1E3D2F", width: "device-width", initialScale: 1 };
 
 export default async function SiteLayout({ children }) {
-  const [settings, base, origin, models, pages] = await Promise.all([getSettings(), getBase(), getOrigin(), getModels(), getPagesList()]);
+  const [settings, base, origin, models, pages, { t, lang }] = await Promise.all([getSettings(), getBase(), getOrigin(), getModels(), getPagesList(), getT()]);
   // сторінка розробки живе за адресою /modeli/…, але в меню належить до «Індивідуальних проєктів»
   const navAs = Object.fromEntries(models.filter((m) => m.kind === "concept").map((m) => [`/modeli/${m.slug}`, `/proekty/${m.slug}`]));
   const a = settings.analytics || {};
@@ -44,14 +46,16 @@ export default async function SiteLayout({ children }) {
     areaServed: ["UA", "EU"],
   };
   return (
-    <html lang="uk" className={`${display.variable} ${body.variable}`}>
+    <html lang={LANGS[lang].html} className={`${display.variable} ${body.variable}`}>
       <body className="s-body">
-        <a className="s-skip" href="#main">До змісту</a>
-        <SiteHeader settings={settings} base={base} navAs={navAs} />
-        <main id="main">{children}</main>
-        <SiteFooter settings={settings} base={base} pages={pages} />
-        <StickyBar settings={settings} base={base} />
-        <SiteScripts />
+        <LangProvider lang={lang}>
+          <a className="s-skip" href="#main">{t("До змісту")}</a>
+          <SiteHeader settings={settings} base={base} navAs={navAs} />
+          <main id="main">{children}</main>
+          <SiteFooter settings={settings} base={base} pages={pages} t={t} lang={lang} />
+          <StickyBar settings={settings} base={base} t={t} />
+          <SiteScripts />
+        </LangProvider>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(org).replace(/</g, "\\u003c") }} />
         {a.ga4 && /^G-[A-Z0-9]+$/.test(a.ga4) && (
           <>

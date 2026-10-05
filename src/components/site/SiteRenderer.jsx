@@ -10,6 +10,9 @@ import DaylightImage from "./DaylightImage";
 import InvestCalc from "./InvestCalc";
 import Vacancies from "./Vacancies";
 
+// переклад написів із коду: на сервері його дає ctx.t (мовна версія), у живому перегляді конструктора — без перекладу
+const tOf = (ctx) => ctx?.t || ((s) => s);
+
 export function Btn({ link, base, kind = "primary", className = "" }) {
   if (!link?.label) return null;
   const href = siteHref(base, link.href);
@@ -62,7 +65,7 @@ function Hero({ b, ctx }) {
           </div>
         </div>
         {vid && !compact && (
-          <div className="s-hero__media"><YouTube id={vid} caption="Подивіться, як це виглядає наживо" /></div>
+          <div className="s-hero__media"><YouTube id={vid} caption={tOf(ctx)("Подивіться, як це виглядає наживо")} /></div>
         )}
       </div>
       {!!b.stats?.length && (
@@ -88,7 +91,7 @@ function Audience({ b, ctx }) {
               <span className="s-aud__icon">{x.icon}</span>
               <h3>{x.title}</h3>
               <p>{x.text}</p>
-              <span className="s-more">{x.cta || "Детальніше"} →</span>
+              <span className="s-more">{x.cta || tOf(ctx)("Детальніше")} →</span>
             </a>
           );
         })}
@@ -119,7 +122,7 @@ function Projects({ b, ctx }) {
                 {x.place && <div className="s-proj__place">{x.place}</div>}
                 <h3>{rich(x.title)}</h3>
                 {x.text && <p>{rich(x.text)}</p>}
-                {href && <span className="s-more">{x.cta || "Детальніше"} →</span>}
+                {href && <span className="s-more">{x.cta || tOf(ctx)("Детальніше")} →</span>}
               </div>
             </Tag>
           );
@@ -167,8 +170,9 @@ function Features({ b, ctx }) {
   );
 }
 
-function Reviews({ b }) {
+function Reviews({ b, ctx }) {
   const items = (b.items || []).filter((r) => r.text);
+  const [q1, q2] = ctx?.lang && ctx.lang !== "uk" ? ["“", "”"] : ["«", "»"];
   if (!items.length) return null;
   return (
     <Section b={b}>
@@ -179,7 +183,7 @@ function Reviews({ b }) {
           return (
             <figure key={i} className="s-review">
               {vid && <YouTube id={vid} />}
-              <blockquote>«{r.text}»</blockquote>
+              <blockquote>{q1}{r.text}{q2}</blockquote>
               <figcaption>
                 {r.photo && <img alt="" loading="lazy" src={r.photo.replace(/-1280\.webp$/, "-640.webp")} />}
                 <span><b>{r.name}</b>{r.place && <small>{r.place}</small>}</span>
@@ -212,7 +216,8 @@ function Steps({ b }) {
   );
 }
 
-function Faq({ b }) {
+function Faq({ b, ctx }) {
+  const t = tOf(ctx);
   const side = !!(b.yes?.length || b.no?.length);
   return (
     <Section b={b}>
@@ -228,8 +233,8 @@ function Faq({ b }) {
         </div>
         {side && (
           <aside className="s-promise">
-            {!!b.yes?.length && <><h4>Що ми гарантуємо</h4><ul className="s-yes">{b.yes.map((x, i) => <li key={i}>{x.text}</li>)}</ul></>}
-            {!!b.no?.length && <><h4>Чесно не обіцяємо</h4><ul className="s-no">{b.no.map((x, i) => <li key={i}>{x.text}</li>)}</ul></>}
+            {!!b.yes?.length && <><h4>{t("Що ми гарантуємо")}</h4><ul className="s-yes">{b.yes.map((x, i) => <li key={i}>{x.text}</li>)}</ul></>}
+            {!!b.no?.length && <><h4>{t("Чесно не обіцяємо")}</h4><ul className="s-no">{b.no.map((x, i) => <li key={i}>{x.text}</li>)}</ul></>}
           </aside>
         )}
       </div>
@@ -249,7 +254,7 @@ function Showroom({ b, ctx }) {
           )}
           <div className="s-actions">
             <Btn link={b.cta} base={ctx.base} />
-            {b.map_url && <a className="s-btn s-btn--outline" href={b.map_url} target="_blank" rel="noopener">Маршрут на мапі</a>}
+            {b.map_url && <a className="s-btn s-btn--outline" href={b.map_url} target="_blank" rel="noopener">{tOf(ctx)("Маршрут на мапі")}</a>}
           </div>
         </div>
         {b.image && <img className="s-split__img" alt="" loading="lazy" {...imgProps(b.image, "(max-width: 900px) 100vw, 50vw")} />}
@@ -282,7 +287,7 @@ function TextImage({ b, ctx }) {
 export function Choice({ b, ctx }) {
   const side = (k, main) => (
     <div className={`s-choice__card${main ? " s-choice__card--main" : ""}`}>
-      {main && <span className="s-choice__tag">Рекомендуємо</span>}
+      {main && <span className="s-choice__tag">{tOf(ctx)("Рекомендуємо")}</span>}
       <h3>{b[`${k}_title`]}</h3>
       {b[`${k}_text`] && <p>{rich(b[`${k}_text`])}</p>}
       {!!b[`${k}_points`]?.length && <ul className={main ? "s-checks" : "s-checks s-checks--dark"}>{b[`${k}_points`].map((x, i) => <li key={i}>{x.text}</li>)}</ul>}
@@ -458,7 +463,7 @@ const RENDER = {
   lead_form: ({ b, ctx }) => (
     <Section b={b} className="s-formsec">
       <Head b={b} center />
-      <LeadForm settings={ctx.settings || {}} goal={b.goal} hint={b.hint} noArea={b.no_area} goalOptions={b.goals} goalLabel={b.goal_label} pipeline={b.pipeline} />
+      <LeadForm settings={ctx.settings || {}} goal={b.goal} goalSrc={b.goal_src} hint={b.hint} noArea={b.no_area} goalOptions={b.goals} goalOptionsSrc={b.goals_src} goalLabel={b.goal_label} pipeline={b.pipeline} />
     </Section>
   ),
 };

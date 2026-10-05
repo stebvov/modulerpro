@@ -1,5 +1,8 @@
 // Підвал сайту + нижня панель швидкого зв'язку на телефоні.
 import { phoneHref, siteHref, telegramHref, viberHref } from "@/lib/site/format";
+import { LANGS, isLang } from "@/lib/site/i18n";
+
+const same = (s) => s;
 
 // Жодна опублікована сторінка не має загубитись: до посилань підвалу дописуємо підпункти меню
 // і сторінки, на які немає входу ні в меню, ні в підвалі (нова сторінка з конструктора зʼявиться тут сама).
@@ -19,7 +22,10 @@ function footerLinks(settings, pages) {
   return out;
 }
 
-export function SiteFooter({ settings, base, pages }) {
+// t — переклад написів (макет передає його для мовних версій); lang — поточна мова
+export function SiteFooter({ settings, base, pages, t = same, lang = "uk" }) {
+  // корінь сайту без мови: посилання на інші мовні версії
+  const root = isLang(lang) ? base.slice(0, -(lang.length + 1)) : base;
   const c = settings.contacts || {};
   const brand = settings.brand || {};
   const links = footerLinks(settings, pages);
@@ -32,7 +38,7 @@ export function SiteFooter({ settings, base, pages }) {
           {settings.footer_text && <p>{settings.footer_text}</p>}
         </div>
         <div>
-          <h4>Контакти</h4>
+          <h4>{t("Контакти")}</h4>
           {c.phone && <a href={phoneHref(c.phone)}>{c.phone_display || c.phone}</a>}
           {c.phone && <a href={viberHref(c.viber || c.phone)}>Viber</a>}
           {(c.telegram || c.phone) && <a href={telegramHref(c.telegram || c.phone)} target="_blank" rel="noopener">Telegram</a>}
@@ -42,13 +48,13 @@ export function SiteFooter({ settings, base, pages }) {
           {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
         </div>
         <div>
-          <h4>Розділи сайту</h4>
-          <nav className={`s-foot__links${wide ? " s-foot__links--2" : ""}`} aria-label="Усі розділи сайту">
+          <h4>{t("Розділи сайту")}</h4>
+          <nav className={`s-foot__links${wide ? " s-foot__links--2" : ""}`} aria-label={t("Усі розділи сайту")}>
             {links.map((l, i) => <a key={i} href={siteHref(base, l.href)}>{l.label}</a>)}
           </nav>
         </div>
         <div>
-          <h4>Де ми</h4>
+          <h4>{t("Де ми")}</h4>
           {c.office && (c.office_url ? <a href={c.office_url} target="_blank" rel="noopener">{c.office}</a> : <span>{c.office}</span>)}
           {c.address && (c.address_url ? <a href={c.address_url} target="_blank" rel="noopener">{c.address}</a> : <span>{c.address}</span>)}
           {c.showroom && (c.showroom_url ? <a href={c.showroom_url} target="_blank" rel="noopener">{c.showroom}</a> : <span>{c.showroom}</span>)}
@@ -56,21 +62,26 @@ export function SiteFooter({ settings, base, pages }) {
       </div>
       <div className="s-wrap s-foot__bottom">
         <span>© {new Date().getFullYear()} {brand.name || "Moduler"}{brand.tagline ? ` · ${brand.tagline}` : ""}</span>
-        <span>возимо в Україні та ЄС</span>
+        <span className="s-foot__langs">
+          {Object.entries(LANGS).map(([k, l]) => (k === lang
+            ? <b key={k}>{l.name}</b>
+            : <a key={k} href={(root + (isLang(k) ? `/${k}` : "")) || "/"} hrefLang={l.html} lang={l.html}>{l.name}</a>))}
+        </span>
+        <span>{t("возимо в Україні та ЄС")}</span>
       </div>
     </footer>
   );
 }
 
-export function StickyBar({ settings, base }) {
+export function StickyBar({ settings, base, t = same }) {
   if (settings.sticky_bar === false) return null;
   const c = settings.contacts || {};
   return (
-    <div className="s-sticky" aria-label="Швидкий зв'язок">
-      {c.phone && <a href={phoneHref(c.phone)}><span>📞</span>Дзвінок</a>}
+    <div className="s-sticky" aria-label={t("Швидкий зв'язок")}>
+      {c.phone && <a href={phoneHref(c.phone)}><span>📞</span>{t("Дзвінок")}</a>}
       {c.phone && <a href={viberHref(c.viber || c.phone)}><span>💬</span>Viber</a>}
       {(c.telegram || c.phone) && <a href={telegramHref(c.telegram || c.phone)} target="_blank" rel="noopener"><span>✈️</span>Telegram</a>}
-      <a className="s-sticky__main" href={siteHref(base, "#contact")}>Заявка</a>
+      <a className="s-sticky__main" href={siteHref(base, "#contact")}>{t("Заявка")}</a>
     </div>
   );
 }

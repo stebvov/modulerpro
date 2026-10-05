@@ -3,6 +3,7 @@
 // при першій появі один раз «прокручує» добу, вночі — зорі й тепле світло. Можна перемкнути вручну.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { imgProps } from "@/lib/site/format";
+import { useT } from "./I18n";
 
 const PHASES = [
   ["morning", "🌅", "Ранок"],
@@ -33,6 +34,7 @@ export default function DaylightImage({ images, alt = "" }) {
   const [now, setNow] = useState("day");
   const [touched, setTouched] = useState(false);
   const box = useRef(null);
+  const { t, tf } = useT();
 
   // година відвідувача відома лише в браузері — на сервері малюємо «день»
   useEffect(() => {
@@ -65,11 +67,11 @@ export default function DaylightImage({ images, alt = "" }) {
       <div className="s-tod__stars" aria-hidden>
         {STARS.map((s, i) => <i key={i} style={{ left: `${s.x}%`, top: `${s.y}%`, animationDelay: `${s.d}s`, width: s.s, height: s.s }} />)}
       </div>
-      <div className="s-tod__bar" role="tablist" aria-label="Пора доби">
+      <div className="s-tod__bar" role="tablist" aria-label={t("Пора доби")}>
         {PHASES.map(([k, icon, label]) => (
           <button key={k} type="button" role="tab" aria-selected={phase === k} className={phase === k ? "on" : ""}
-            onClick={() => { setTouched(true); setPhase(k); }} title={k === now ? `${label} — як зараз у вас` : label}>
-            <span aria-hidden>{icon}</span><span className="s-tod__lbl">{label}</span>
+            onClick={() => { setTouched(true); setPhase(k); }} title={k === now ? tf("{name} — як зараз у вас", { name: t(label) }) : t(label)}>
+            <span aria-hidden>{icon}</span><span className="s-tod__lbl">{t(label)}</span>
           </button>
         ))}
       </div>

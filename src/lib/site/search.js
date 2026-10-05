@@ -1,7 +1,7 @@
 // Пошук по вмісту сайту в конструкторі: слова запиту шукаємо за основою,
 // тож «Нові Петрівці» знайде й «у Нових Петрівцях», а «будинок» — «будинки» й «будинків».
 
-const norm = (s) => String(s).toLowerCase().replace(/[  ]/g, " ").replace(/\*/g, "").replace(/[’ʼ`]/g, "'");
+const norm = (s) => String(s).toLowerCase().replace(/[\u00a0\u202f]/g, " ").replace(/\*/g, "").replace(/[’ʼ`]/g, "'");
 
 export function queryStems(q) {
   return norm(q).split(/[\s,.;:!?«»"()]+/).filter((w) => w.length > 1)
@@ -35,7 +35,7 @@ export function findIn(texts, stems) {
     // до кінця слова, щоб підсвітити його цілим
     let end = at + stems[0].length;
     while (end < low.length && /[\p{L}\p{N}'-]/u.test(low[end])) end++;
-    const clean = String(t).replace(/[  ]/g, " ").replace(/\*/g, "");
+    const clean = String(t).replace(/[\u00a0\u202f]/g, " ").replace(/\*/g, "");
     const same = clean.length === low.length; // позиції збігаються, якщо нормалізація не змінила довжину
     const src = same ? clean : low;
     const from = Math.max(0, at - 45), to = Math.min(src.length, end + 70);

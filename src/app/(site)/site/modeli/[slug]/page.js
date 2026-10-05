@@ -2,9 +2,10 @@
 // реалізовані будинки цього формату, етапи й питання (з головної), заявка з уже обраною моделлю.
 // Для розробок (kind=concept) — сторінка індивідуального проєкту: основа, яку адаптуємо під клієнта.
 import { notFound } from "next/navigation";
-import { getBase, getCases, getModels, getPage, getSettings } from "@/lib/site/data";
+import { getAlternates, getBase, getCases, getDict, getModels, getOgBase, getPage, getSettings, getT } from "@/lib/site/data";
 import { LEVELS, SIZE_GROUPS } from "@/lib/site/blocks";
-import { imgProps, money, modelPriceFrom, paragraphs, rich, siteHref, youtubeId } from "@/lib/site/format";
+import { imgProps, money, modelPriceFrom, num, paragraphs, rich, siteHref, youtubeId } from "@/lib/site/format";
+import { translateDeep } from "@/lib/site/i18n";
 import { siteRobots } from "@/components/site/CmsPage";
 import { CaseCard, ModelCard } from "@/components/site/Cards";
 import SiteRenderer, { Choice } from "@/components/site/SiteRenderer";
@@ -34,32 +35,36 @@ async function find(slug) {
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const m = await find(slug);
+  const [m, { t, tf, lang }] = await Promise.all([find(slug), getT()]);
   if (!m) return {};
   const from = modelPriceFrom(m);
   const concept = m.kind === "concept";
   return {
-    title: concept ? `${m.name} — індивідуальний проєкт модульного будинку` : `${m.name}${m.area_m2 ? ` — модульний будинок ${Number(m.area_m2)} м²` : ""}`,
-    description: [m.tagline, from ? `Ціна від ${money(from, m.currency)}.` : null, concept ? "Адаптуємо під вашу ділянку й бюджет." : "Виробництво, доставка й монтаж під ключ."].filter(Boolean).join(" "),
-    alternates: { canonical: `${await getBase()}/modeli/${m.slug}` },
-    openGraph: { images: m.photos?.[0] ? [m.photos[0]] : undefined },
+    title: concept ? tf("{name} — індивідуальний проєкт модульного будинку", { name: m.name })
+      : m.area_m2 ? tf("{name} — модульний будинок {area} м²", { name: m.name, area: Number(m.area_m2) }) : m.name,
+    description: [m.tagline, from ? tf("Ціна від {price}.", { price: money(from, m.currency, lang) }) : null, concept ? t("Адаптуємо під вашу ділянку й бюджет.") : t("Виробництво, доставка й монтаж під ключ.")].filter(Boolean).join(" "),
+    alternates: await getAlternates(`/modeli/${m.slug}`),
+    openGraph: { ...(await getOgBase()), images: m.photos?.[0] ? [m.photos[0]] : undefined },
     robots: await siteRobots(),
   };
 }
 
 export default async function ModelPage({ params }) {
   const { slug } = await params;
-  const [all, settings, base, cases, home] = await Promise.all([getModels(), getSettings(), getBase(), getCases(), getPage("home")]);
+  const [all, settings, base, cases, home, { t, tf, lang }] = await Promise.all([getModels(), getSettings(), getBase(), getCases(), getPage("home"), getT()]);
   const m = all.find((x) => x.slug === slug);
   if (!m) notFound();
   const concept = m.kind === "concept";
-  const ctx = { base, settings, models: all, cases };
+  const ctx = { base, settings, models: all, cases, t, tf, lang };
+  const dict = await getDict(lang);
+  const choice = dict ? translateDeep(CHOICE, dict) : CHOICE;
+  const m2 = t("м²");
   const from = modelPriceFrom(m);
   const photos = m.photos || [];
   const plans = (m.plans?.length ? m.plans : m.plan_image ? [m.plan_image] : []);
   const prices = LEVELS.map(([k, name]) => [k, name, m[`price_${k}`]]).filter(([, , v]) => Number(v) > 0);
   const area = m.area_m2 ? Math.round(Number(m.area_m2)) : null;
-  const sameFormat = area ? cases.filter((c) => new RegExp(`(^|\\D)${area}\\s?м`).test(c.format || "")).slice(0, 3) : [];
+  const sameFormat = area ? cases.filter((c) => new RegExp(`(^|\\D)${area}\\s?м`).test(c.format_src || c.format || "")).slice(0, 3) : [];
   const others = all.filter((x) => x.id !== m.id && (x.kind || "ready") === (m.kind || "ready"))
     .sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0) || Math.abs(a.size_group - m.size_group) - Math.abs(b.size_group - m.size_group)).slice(0, 3);
   const homeBlocks = home?.blocks || [];
@@ -67,18 +72,18 @@ export default async function ModelPage({ params }) {
   const faq = homeBlocks.find((b) => b.type === "faq" && !b.hidden);
   const vid = youtubeId(m.video);
   const facts = [
-    m.area_m2 && ["Площа", `${String(Number(m.area_m2)).replace(".", ",")} м²`],
-    m.modules && ["Модулів", String(m.modules).replace(".", ",")],
-    m.bedrooms != null && ["Спальні", m.bedrooms ? String(m.bedrooms) : "студія"],
-    m.bathrooms != null && m.bathrooms > 0 && ["Санвузли", String(m.bathrooms)],
-    m.dimensions && ["Габарити", m.dimensions],
-    m.height_m && ["Висота", `${String(Number(m.height_m)).replace(".", ",")} м`],
-    ...(Array.isArray(m.terraces) ? m.terraces : []).filter((t) => Number(t.area) > 0).map((t) => [
-      t.name || "Тераса",
-      `${t.w && t.l ? `${String(t.w).replace(".", ",")} × ${String(t.l).replace(".", ",")} м · ` : ""}${String(Number(t.area)).replace(".", ",")} м²${t.included === false ? " · опція" : ""}`,
+    m.area_m2 && [t("Площа"), `${num(Number(m.area_m2), lang)} ${m2}`],
+    m.modules && [t("Модулів"), num(m.modules, lang)],
+    m.bedrooms != null && [t("Спальні"), m.bedrooms ? String(m.bedrooms) : t("студія")],
+    m.bathrooms != null && m.bathrooms > 0 && [t("Санвузли"), String(m.bathrooms)],
+    m.dimensions && [t("Габарити"), m.dimensions],
+    m.height_m && [t("Висота"), `${num(Number(m.height_m), lang)} ${t("м")}`],
+    ...(Array.isArray(m.terraces) ? m.terraces : []).filter((x) => Number(x.area) > 0).map((x) => [
+      x.name || t("Тераса"),
+      `${x.w && x.l ? `${num(x.w, lang)} × ${num(x.l, lang)} ${t("м")} · ` : ""}${num(Number(x.area), lang)} ${m2}${x.included === false ? ` · ${t("опція")}` : ""}`,
     ]),
-    m.object_type && ["Тип", m.object_type],
-    m.build_time && ["Виготовлення", m.build_time],
+    m.object_type && [t("Тип"), m.object_type],
+    m.build_time && [t("Виготовлення"), m.build_time],
   ].filter(Boolean);
   const ld = {
     "@context": "https://schema.org", "@type": "Product", name: m.name, description: m.tagline || m.description,
@@ -92,19 +97,19 @@ export default async function ModelPage({ params }) {
         {photos[0] && <img className="s-hero__bg" alt={m.name} {...imgProps(photos[0])} fetchPriority="high" />}
         <div className="s-hero__veil" />
         <div className="s-wrap">
-          <nav className="s-crumbs"><a href={siteHref(base, "/")}>Головна</a> / <a href={siteHref(base, concept ? "/proekty" : "/modeli")}>{concept ? "Індивідуальні проєкти" : "Моделі"}</a></nav>
+          <nav className="s-crumbs"><a href={siteHref(base, "/")}>{t("Головна")}</a> / <a href={siteHref(base, concept ? "/proekty" : "/modeli")}>{concept ? t("Індивідуальні проєкти") : t("Моделі")}</a></nav>
           <div className="s-eyebrow">
-            {concept ? "Індивідуальний проєкт · розробка Moduler" : `${m.popular ? "★ Популярна модель · " : ""}${SIZE_GROUPS[m.size_group] || ""}`}
+            {concept ? t("Індивідуальний проєкт · розробка Moduler") : `${m.popular ? `${t("★ Популярна модель")} · ` : ""}${t(SIZE_GROUPS[m.size_group] || "")}`}
           </div>
           <h1 className="s-hero__title">{m.name}</h1>
           {m.tagline && <p className="s-hero__sub">{m.tagline}</p>}
           {!!facts.length && (
             <div className="s-facts">{facts.map(([k, v], i) => <div key={`${k}-${i}`}><span>{k}</span><b>{v}</b></div>)}</div>
           )}
-          {from ? <div className="s-price-chip">від {money(from, m.currency)}</div> : !concept && <div className="s-price-chip">Ціну порахуємо під вашу ділянку</div>}
+          {from ? <div className="s-price-chip">{t("від")} {money(from, m.currency, lang)}</div> : !concept && <div className="s-price-chip">{t("Ціну порахуємо під вашу ділянку")}</div>}
           <div className="s-actions">
-            <a className="s-btn s-btn--primary" href="#contact">{concept ? "Хочу подібний будинок" : `Отримати кошторис`}</a>
-            <a className="s-btn s-btn--ghost" href="#gallery">{concept ? "Дивитися візуалізації" : "Дивитися фото"}</a>
+            <a className="s-btn s-btn--primary" href="#contact">{concept ? t("Хочу подібний будинок") : t("Отримати кошторис")}</a>
+            <a className="s-btn s-btn--ghost" href="#gallery">{concept ? t("Дивитися візуалізації") : t("Дивитися фото")}</a>
           </div>
         </div>
       </section>
@@ -113,8 +118,8 @@ export default async function ModelPage({ params }) {
         <section className="s-sec s-sec--cloud s-sec--tight">
           <div className="s-wrap">
             <div className="s-callout">
-              💡 Це розробка нашої команди, а не готова модель з каталогу. Беремо її за основу й адаптуємо під вашу ділянку, родину чи бізнес: площу, планування, фасад, терасу.
-              Строк і ціну рахуємо індивідуально. Якщо важливі швидкість і ціна — <a href={siteHref(base, "/modeli")}>оберіть готову модель</a>.
+              {t("💡 Це розробка нашої команди, а не готова модель з каталогу. Беремо її за основу й адаптуємо під вашу ділянку, родину чи бізнес: площу, планування, фасад, терасу. Строк і ціну рахуємо індивідуально. Якщо важливі швидкість і ціна —")}{" "}
+              <a href={siteHref(base, "/modeli")}>{t("оберіть готову модель")}</a>.
             </div>
           </div>
         </section>
@@ -124,8 +129,8 @@ export default async function ModelPage({ params }) {
         <section className="s-sec s-sec--light">
           <div className="s-wrap">
             <div className="s-head">
-              <div className="s-eyebrow">Про модель</div>
-              <h2 className="s-title">Чому обирають <em>{m.name}</em></h2>
+              <div className="s-eyebrow">{t("Про модель")}</div>
+              <h2 className="s-title">{rich(tf("Чому обирають *{name}*", { name: m.name }))}</h2>
               {paragraphs(m.description).map((p, i) => <p key={i} className="s-lead">{rich(p, { links: true })}</p>)}
             </div>
             {!!m.highlights?.length && (
@@ -145,7 +150,7 @@ export default async function ModelPage({ params }) {
       {photos.length > 1 && (
         <section id="gallery" className="s-sec s-sec--cloud">
           <div className="s-wrap">
-            <div className="s-head"><div className="s-eyebrow">{concept ? "Візуалізації" : "Фото й візуалізації"}</div><h2 className="s-title">Роздивіться <em>ближче</em></h2></div>
+            <div className="s-head"><div className="s-eyebrow">{concept ? t("Візуалізації") : t("Фото й візуалізації")}</div><h2 className="s-title">{rich(t("Роздивіться *ближче*"))}</h2></div>
             <Gallery images={photos} title={m.name} captions={m.photo_captions} />
           </div>
         </section>
@@ -155,11 +160,11 @@ export default async function ModelPage({ params }) {
         <section className="s-sec s-sec--light">
           <div className="s-wrap">
             <div className="s-head">
-              <div className="s-eyebrow">Планування</div>
-              <h2 className="s-title">{plans.length > 1 ? <>Варіанти <em>планування</em></> : <>Як усе <em>влаштовано</em></>}</h2>
-              <p className="s-lead">Планування адаптуємо під вашу родину: кількість спалень, кухня, гардеробна, тераса.</p>
+              <div className="s-eyebrow">{t("Планування")}</div>
+              <h2 className="s-title">{rich(plans.length > 1 ? t("Варіанти *планування*") : t("Як усе *влаштовано*"))}</h2>
+              <p className="s-lead">{t("Планування адаптуємо під вашу родину: кількість спалень, кухня, гардеробна, тераса.")}</p>
             </div>
-            <Gallery images={plans} title={`Планування ${m.name}`} layout="plans" captions={m.photo_captions} />
+            <Gallery images={plans} title={tf("Планування {name}", { name: m.name })} layout="plans" captions={m.photo_captions} />
           </div>
         </section>
       )}
@@ -167,22 +172,22 @@ export default async function ModelPage({ params }) {
       {!concept && (
         <section className="s-sec s-sec--cloud">
           <div className="s-wrap">
-            <div className="s-head"><div className="s-eyebrow">Ціна</div><h2 className="s-title">Скільки коштує <em>{m.name}</em></h2>
-              <p className="s-lead">Ціна залежить від рівня готовності. Фундамент, доставку й монтаж рахуємо окремо під вашу ділянку.</p></div>
+            <div className="s-head"><div className="s-eyebrow">{t("Ціна")}</div><h2 className="s-title">{rich(tf("Скільки коштує *{name}*", { name: m.name }))}</h2>
+              <p className="s-lead">{t("Ціна залежить від рівня готовності. Фундамент, доставку й монтаж рахуємо окремо під вашу ділянку.")}</p></div>
             <div className="s-tiers">
               {LEVELS.map(([k, name], i) => {
                 const v = m[`price_${k}`];
                 return (
                   <div key={k} className={`s-tier${k === "ready" ? " s-tier--hl" : ""}`}>
                     <div className="s-tier__n">{String(i + 1).padStart(2, "0")}</div>
-                    <h3>{name}</h3>
-                    <p>{LEVEL_TEXT[k]}</p>
-                    <div className="s-tier__price">{Number(v) > 0 ? `від ${money(v, m.currency)}` : "за запитом"}</div>
+                    <h3>{t(name)}</h3>
+                    <p>{t(LEVEL_TEXT[k])}</p>
+                    <div className="s-tier__price">{Number(v) > 0 ? `${t("від")} ${money(v, m.currency, lang)}` : t("за запитом")}</div>
                   </div>
                 );
               })}
             </div>
-            {!prices.length && <p className="s-note">Точну вартість на {m.name} надішлемо в месенджер після короткої розмови — залиште контакт нижче.</p>}
+            {!prices.length && <p className="s-note">{tf("Точну вартість на {name} надішлемо в месенджер після короткої розмови — залиште контакт нижче.", { name: m.name })}</p>}
           </div>
         </section>
       )}
@@ -196,7 +201,7 @@ export default async function ModelPage({ params }) {
       {!!sameFormat.length && (
         <section className="s-sec s-sec--light">
           <div className="s-wrap">
-            <div className="s-head"><div className="s-eyebrow">Реалізовані об&apos;єкти</div><h2 className="s-title">Такі будинки <em>вже стоять</em></h2></div>
+            <div className="s-head"><div className="s-eyebrow">{t("Реалізовані об'єкти")}</div><h2 className="s-title">{rich(t("Такі будинки *вже стоять*"))}</h2></div>
             <div className="s-grid s-grid--cases">{sameFormat.map((c) => <CaseCard key={c.id} c={c} base={base} />)}</div>
           </div>
         </section>
@@ -204,16 +209,16 @@ export default async function ModelPage({ params }) {
 
       {!concept && steps && <SiteRenderer blocks={[{ ...steps, id: "model-steps", theme: "cloud" }]} ctx={ctx} />}
 
-      <Choice b={CHOICE} ctx={ctx} />
+      <Choice b={choice} ctx={ctx} />
 
       <section id="contact" className="s-sec s-sec--dark s-formsec">
         <div className="s-wrap">
           <div className="s-head s-head--center">
-            <div className="s-eyebrow">{concept ? "Індивідуальний проєкт" : "Кошторис за одну розмову"}</div>
-            <h2 className="s-title">{concept ? <>Обговоримо ваш будинок на основі <em>{m.name}</em></> : <>Порахуємо <em>{m.name}</em> під вашу ділянку</>}</h2>
-            <p className="s-lead">{concept ? "Розкажіть про задачу — запропонуємо планування, строк і вартість." : "Рівень готовності, фундамент, доставка й монтаж — усе в одному кошторисі."}</p>
+            <div className="s-eyebrow">{concept ? t("Індивідуальний проєкт") : t("Кошторис за одну розмову")}</div>
+            <h2 className="s-title">{rich(concept ? tf("Обговоримо ваш будинок на основі *{name}*", { name: m.name }) : tf("Порахуємо *{name}* під вашу ділянку", { name: m.name }))}</h2>
+            <p className="s-lead">{concept ? t("Розкажіть про задачу — запропонуємо планування, строк і вартість.") : t("Рівень готовності, фундамент, доставка й монтаж — усе в одному кошторисі.")}</p>
           </div>
-          <LeadForm settings={settings} model={m.name} goal={concept ? "Індивідуальний проєкт будинку" : undefined} />
+          <LeadForm settings={settings} model={m.name_src || m.name} goal={concept ? "Індивідуальний проєкт будинку" : undefined} />
         </div>
       </section>
 
@@ -222,7 +227,7 @@ export default async function ModelPage({ params }) {
       {!!others.length && (
         <section className="s-sec s-sec--cloud">
           <div className="s-wrap">
-            <div className="s-head"><h2 className="s-title">{concept ? "Інші розробки" : "Інші моделі"}</h2></div>
+            <div className="s-head"><h2 className="s-title">{concept ? t("Інші розробки") : t("Інші моделі")}</h2></div>
             <div className="s-grid s-grid--models">{others.map((x) => <ModelCard key={x.id} m={x} base={base} />)}</div>
           </div>
         </section>

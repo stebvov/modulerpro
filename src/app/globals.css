@@ -154,6 +154,7 @@ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 .cost-sub { font-size: 12px; color: var(--text-secondary); }
 .cost-missing { font-size: 13px; color: var(--text-muted); }
 .btn { border: 1px solid var(--border-strong); background: var(--card); border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--text); font-family: inherit; }
+a.btn { text-decoration: none; }
 .btn:hover { background: #f1efe8; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }

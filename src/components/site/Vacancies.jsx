@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import HrText from "@/components/hr/HrText";
+import { useT } from "./I18n";
 
 let client;
 const sb = () => (client ||= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } }));
@@ -19,6 +20,7 @@ export default function Vacancies({ initial, emptyText, formTitle, steps }) {
   const [state, setState] = useState("idle"); // idle | sending | done | error
   const [err, setErr] = useState("");
   const formRef = useRef(null);
+  const { t, lang } = useT();
 
   // у живому перегляді конструктора даних із сервера немає — беремо самі
   useEffect(() => {
@@ -38,17 +40,17 @@ export default function Vacancies({ initial, emptyText, formTitle, steps }) {
     e.preventDefault();
     const p = Object.fromEntries(new FormData(e.currentTarget).entries());
     if (!String(p.name || "").trim()) { e.currentTarget.name.focus(); return; }
-    if (String(p.phone || "").replace(/\D/g, "").length < 9) { setErr("Перевірте номер телефону"); e.currentTarget.phone.focus(); return; }
+    if (String(p.phone || "").replace(/\D/g, "").length < 9) { setErr(t("Перевірте номер телефону")); e.currentTarget.phone.focus(); return; }
     setState("sending"); setErr("");
     const { data, error } = await sb().rpc("hr_apply", { p: { ...p, vacancy: pick || "", page: location.pathname, utm: utm() } });
-    if (error || !data?.ok) { setState("error"); setErr(data?.error || "Не вдалося надіслати. Спробуйте ще раз або зателефонуйте нам."); return; }
+    if (error || !data?.ok) { setState("error"); setErr((lang === "uk" && data?.error) || t("Не вдалося надіслати. Спробуйте ще раз або зателефонуйте нам.")); return; }
     setState("done");
   }
 
   const items = list || [];
   return (
     <div className="s-vacs">
-      {list && !items.length && <p className="s-vacs__empty">{emptyText || "Зараз відкритих вакансій немає. Але сильним людям ми раді завжди — залиште контакти, і ми зв'яжемося, щойно з'явиться задача для вас."}</p>}
+      {list && !items.length && <p className="s-vacs__empty">{emptyText || t("Зараз відкритих вакансій немає. Але сильним людям ми раді завжди — залиште контакти, і ми зв'яжемося, щойно з'явиться задача для вас.")}</p>}
       {items.map((v) => (
         <article className="s-vac" key={v.id} id={`v-${v.id}`}>
           <div className="s-vac__head">
@@ -58,19 +60,19 @@ export default function Vacancies({ initial, emptyText, formTitle, steps }) {
               {v.format && <span>🗓 {v.format}</span>}
             </div>
           </div>
-          {v.conditions && <p className="s-vac__cond"><b>Умови:</b> {v.conditions}</p>}
+          {v.conditions && <p className="s-vac__cond"><b>{t("Умови:")}</b> {v.conditions}</p>}
           {v.description && (
             <details className="s-vac__more">
-              <summary>Що робити й кого шукаємо</summary>
+              <summary>{t("Що робити й кого шукаємо")}</summary>
               <HrText text={v.description} />
             </details>
           )}
-          <button type="button" className="s-btn s-btn--primary s-btn--sm" onClick={() => apply(v.id)}>Відгукнутися</button>
+          <button type="button" className="s-btn s-btn--primary s-btn--sm" onClick={() => apply(v.id)}>{t("Відгукнутися")}</button>
         </article>
       ))}
 
       {!!steps?.length && (
-        <ol className="s-vacs__steps" aria-label="Як ми наймаємо">
+        <ol className="s-vacs__steps" aria-label={t("Як ми наймаємо")}>
           {steps.map((x, i) => <li key={i}><b>{x.title}</b>{x.text && <span>{x.text}</span>}</li>)}
         </ol>
       )}
@@ -79,36 +81,36 @@ export default function Vacancies({ initial, emptyText, formTitle, steps }) {
         {state === "done" ? (
           <div className="s-form s-form--done" role="status">
             <div className="s-form__ok">🌿</div>
-            <h3>Дякуємо! Відгук отримали</h3>
-            <p>Ми переглянемо ваш відгук і зв&apos;яжемося з вами. Наступний крок — коротка розмова телефоном.</p>
+            <h3>{t("Дякуємо! Відгук отримали")}</h3>
+            <p>{t("Ми переглянемо ваш відгук і зв'яжемося з вами. Наступний крок — коротка розмова телефоном.")}</p>
           </div>
         ) : (
           <form className="s-form" onSubmit={submit} noValidate>
-            <h3 className="s-vacs__ftitle">{formTitle || "Відгукнутися"}</h3>
+            <h3 className="s-vacs__ftitle">{formTitle || t("Відгукнутися")}</h3>
             <input type="text" name="company" tabIndex={-1} autoComplete="off" className="s-hp" aria-hidden />
             {items.length > 0 && (
-              <label className="s-field"><span>Вакансія</span>
+              <label className="s-field"><span>{t("Вакансія")}</span>
                 <select value={pick} onChange={(e) => setPick(e.target.value)}>
-                  <option value="">Не знайшов своєї — хочу в команду</option>
+                  <option value="">{t("Не знайшов своєї — хочу в команду")}</option>
                   {items.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
                 </select>
               </label>
             )}
             <div className="s-form__row">
-              <label className="s-field"><span>Ім&apos;я та прізвище</span><input name="name" autoComplete="name" required /></label>
-              <label className="s-field"><span>Телефон</span><input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="+380 __ ___ __ __" required /></label>
+              <label className="s-field"><span>{t("Ім'я та прізвище")}</span><input name="name" autoComplete="name" required /></label>
+              <label className="s-field"><span>{t("Телефон")}</span><input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder={t("+380 __ ___ __ __")} required /></label>
             </div>
             <div className="s-form__row">
-              <label className="s-field"><span>Місто</span><input name="city" autoComplete="address-level2" /></label>
-              <label className="s-field"><span>Email (необов&apos;язково)</span><input name="email" type="email" autoComplete="email" /></label>
+              <label className="s-field"><span>{t("Місто")}</span><input name="city" autoComplete="address-level2" /></label>
+              <label className="s-field"><span>{t("Email (необов'язково)")}</span><input name="email" type="email" autoComplete="email" /></label>
             </div>
-            <label className="s-field"><span>Посилання на резюме або профіль</span><input name="cv" inputMode="url" placeholder="work.ua, LinkedIn, Google Drive…" /></label>
-            <label className="s-field"><span>Кілька слів про себе</span>
-              <textarea name="about" rows={4} placeholder="Де працювали, чим пишаєтесь, чому хочете до нас" />
+            <label className="s-field"><span>{t("Посилання на резюме або профіль")}</span><input name="cv" inputMode="url" placeholder="work.ua, LinkedIn, Google Drive…" /></label>
+            <label className="s-field"><span>{t("Кілька слів про себе")}</span>
+              <textarea name="about" rows={4} placeholder={t("Де працювали, чим пишаєтесь, чому хочете до нас")} />
             </label>
             {err && <div className="s-form__err" role="alert">{err}</div>}
-            <button className="s-btn s-btn--primary s-btn--block" disabled={state === "sending"}>{state === "sending" ? "Надсилаємо…" : "Надіслати відгук"}</button>
-            <p className="s-form__note">Натискаючи кнопку, ви погоджуєтесь на обробку ваших контактних даних для розгляду кандидатури.</p>
+            <button className="s-btn s-btn--primary s-btn--block" disabled={state === "sending"}>{state === "sending" ? t("Надсилаємо…") : t("Надіслати відгук")}</button>
+            <p className="s-form__note">{t("Натискаючи кнопку, ви погоджуєтесь на обробку ваших контактних даних для розгляду кандидатури.")}</p>
           </form>
         )}
       </div>

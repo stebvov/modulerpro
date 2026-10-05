@@ -8,6 +8,10 @@ const list = (v, d) => (v || d).split(",").map((s) => s.trim().toLowerCase()).fi
 const INDEX_HOSTS = list(process.env.SITE_INDEX_HOSTS, "moduler.pro,www.moduler.pro");
 const SITE_HOSTS = [...INDEX_HOSTS, ...list(process.env.SITE_TEST_HOSTS, "new.moduler.pro,moduler-new.vercel.app")];
 
+// мовні версії сайту: /en/… на домені сайту, /site/en/… на app.moduler.pro — той самий сайт із перекладом
+const LANG_AT_ROOT = /^\/(en)(?=\/|$)/;
+const LANG_IN_SITE = /^\/site\/(en)(?=\/|$)/;
+
 export default async function proxy(request) {
   const url = request.nextUrl;
   const host = (request.headers.get("host") || "").split(":")[0].toLowerCase();
@@ -29,11 +33,14 @@ export default async function proxy(request) {
       return NextResponse.redirect(to, 301);
     }
     if (path.startsWith("/api/site")) return NextResponse.next();
+    const m = LANG_AT_ROOT.exec(path);
+    const rest = m ? path.slice(m[0].length) || "/" : path;
     const headers = new Headers(request.headers);
-    headers.set("x-site-base", "");
+    headers.set("x-site-base", m ? `/${m[1]}` : "");
+    headers.set("x-site-lang", m ? m[1] : "uk");
     headers.set("x-site-index", INDEX_HOSTS.includes(host) ? "1" : "0");
     const to = url.clone();
-    to.pathname = "/site" + (path === "/" ? "" : path);
+    to.pathname = "/site" + (rest === "/" ? "" : rest);
     return NextResponse.rewrite(to, { request: { headers } });
   }
 
@@ -42,6 +49,15 @@ export default async function proxy(request) {
     const headers = new Headers(request.headers);
     headers.delete("x-site-base");
     headers.delete("x-site-index");
+    headers.delete("x-site-lang");
+    const m = LANG_IN_SITE.exec(path);
+    if (m) {
+      headers.set("x-site-base", `/site/${m[1]}`);
+      headers.set("x-site-lang", m[1]);
+      const to = url.clone();
+      to.pathname = "/site" + path.slice(m[0].length);
+      return NextResponse.rewrite(to, { request: { headers } });
+    }
     return NextResponse.next({ request: { headers } });
   }
 

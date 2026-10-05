@@ -66,11 +66,15 @@ export function imgProps(url, sizes = "100vw") {
 export const imgSmall = (url) => (url ? url.replace(/-1280\.webp$/, "-640.webp") : url);
 
 const SYMBOL = { USD: "$", EUR: "€", UAH: "₴" };
-export function money(n, currency = "USD") {
+// lang — мова сайту: українською «$25 000» і «25 000 ₴», англійською «$25,000» і «₴25,000»
+export function money(n, currency = "USD", lang = "uk") {
   if (n == null || n === "" || isNaN(Number(n))) return "";
+  if (lang !== "uk") return `${SYMBOL[currency] || ""}${Math.round(Number(n)).toLocaleString("en-US")}`;
   const s = Math.round(Number(n)).toLocaleString("uk-UA").replace(/ /g, " ");
   return currency === "UAH" ? `${s} ₴` : `${SYMBOL[currency] || ""}${s}`;
 }
+// дробове число: українською з комою (29,25), англійською з крапкою (29.25)
+export const num = (v, lang = "uk") => (lang === "uk" ? String(v).replace(".", ",") : String(v).replace(",", "."));
 
 export function youtubeId(s) {
   if (!s) return null;

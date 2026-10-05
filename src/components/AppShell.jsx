@@ -49,6 +49,7 @@ import QuizzesScreen from "@/components/screens/QuizzesScreen";
 import SitePagesScreen from "@/components/site-editor/SitePagesScreen";
 import SiteCollectionScreen from "@/components/site-editor/SiteCollectionScreen";
 import SiteSettingsScreen from "@/components/site-editor/SiteSettingsScreen";
+import SiteI18nScreen from "@/components/site-editor/SiteI18nScreen";
 import Ledger from "@/components/finance/Ledger";
 import MaterialCategoriesPanel from "@/components/panels/MaterialCategoriesPanel";
 import UnitsPanel from "@/components/panels/UnitsPanel";
@@ -99,6 +100,7 @@ const SCREENS = {
   "site-models": () => <SiteCollectionScreen kind="models" />,
   "site-cases": () => <SiteCollectionScreen kind="cases" />,
   "site-settings": () => <SiteSettingsScreen />,
+  "site-i18n": () => <SiteI18nScreen />,
   "hr-me": () => <HrMyScreen />,
   "hr-hiring": () => <HrHiringScreen />,
   "hr-learning": () => <HrLearningScreen />,
