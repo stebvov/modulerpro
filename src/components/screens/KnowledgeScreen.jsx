@@ -4,7 +4,7 @@
 // Записи приходять із локального «університету знань» (таблиця kb_items, завантажує функція kb-sync).
 // Кожен запис має статус перевірки: ✅ затверджено · 🟡 з джерел, не перевірено · ❓ потребує уточнення.
 // Засновник бачить усе й ставить статус; у режимі «команда» решта бачать лише затверджені записи «для команди» (RLS).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SearchFilter from "@/components/SearchFilter";
 import SettingsButton from "@/components/SettingsButton";
@@ -108,6 +108,19 @@ export default function KnowledgeScreen() {
   }, [tab, questions, isOwner, supabase]);
 
   const byId = useMemo(() => new Map((rows || []).map((r) => [r.id, r])), [rows]);
+  // пряме посилання на запис (його дає бот бази знань): ?s=kb&kb=<id> — відкриваємо один раз і прибираємо з адреси
+  const linked = useRef(false);
+  useEffect(() => {
+    if (!rows || linked.current) return;
+    linked.current = true;
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get("kb");
+    if (!id) return;
+    url.searchParams.delete("kb");
+    window.history.replaceState(null, "", url.pathname + url.search);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (byId.has(id)) setOpenId(id);
+  }, [rows, byId]);
   const titleOf = useCallback((id) => byId.get(id)?.title || "", [byId]);
 
   const words = useMemo(() => q.trim().toLowerCase().split(/\s+/).filter((w) => w.length > 1), [q]);
