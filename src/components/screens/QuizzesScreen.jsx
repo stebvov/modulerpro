@@ -118,7 +118,7 @@ export default function QuizzesScreen() {
 }
 
 // ───────────────────────── Редактор ─────────────────────────
-const TABS = [["questions", "Питання"], ["start", "Старт"], ["finish", "Контакти і фінал"], ["publish", "Дизайн і публікація"], ["integrations", "Інтеграції"], ["stats", "Статистика"], ["answers", "Заявки"]];
+const TABS = [["questions", "Питання"], ["start", "Старт"], ["finish", "Контакти і фінал"], ["publish", "Дизайн і публікація"], ["integrations", "📈 Пікселі й інтеграції"], ["stats", "Статистика"], ["answers", "Заявки"]];
 const NO_PREVIEW = ["stats", "answers", "integrations"];
 
 // воронки CRM з бази (бачите лише дозволені вашій ролі); якщо жодної — стандартні назви
@@ -226,7 +226,7 @@ function QuizEditor({ initial, onClose, onDeleted }) {
           {tab === "start" && <StartEditor start={q.start || {}} set={setPart("start")} />}
           {tab === "finish" && <FinishEditor q={q} set={set} setPart={setPart} />}
           {tab === "publish" && (
-            <PublishEditor q={q} set={set} setPart={setPart} url={url} onRemove={remove} confirmDel={confirmDel} />
+            <PublishEditor q={q} set={set} setPart={setPart} url={url} onRemove={remove} confirmDel={confirmDel} onPixels={() => setTab("integrations")} />
           )}
           {tab === "integrations" && <IntegrationsEditor q={q} setPart={setPart} />}
           {tab === "stats" && <QuizStats quiz={q} />}
@@ -388,13 +388,16 @@ function FinishEditor({ q, setPart }) {
   );
 }
 
-function PublishEditor({ q, set, setPart, url, onRemove, confirmDel }) {
+function PublishEditor({ q, set, setPart, url, onRemove, confirmDel, onPixels }) {
   const d = q.design || {};
   const pipelines = usePipelines();
   const [copied, setCopied] = useState("");
   const code = embedCode(PUBLIC_ORIGIN, q.slug);
   return (
     <div>
+      <div className="qz-pixel-hint">
+        📈 Facebook Pixel, TikTok, Google Analytics, GTM, вебхуки й Telegram — у вкладці <button type="button" className="btn small" onClick={onPixels}>Пікселі й інтеграції</button>
+      </div>
       <h4 className="qze-h">Куди йдуть заявки</h4>
       <div className="form-row"><label>Воронка CRM</label>
         <select value={q.pipeline} onChange={(e) => set({ pipeline: e.target.value })}>
