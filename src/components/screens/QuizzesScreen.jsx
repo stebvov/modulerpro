@@ -29,6 +29,7 @@ export default function QuizzesScreen() {
   const [days, setDays] = useState(30);
   const [openId, setOpenId] = useState(null);
   const [msg, setMsg] = useState("");
+  const [delId, setDelId] = useState(null); // чернетка, яку питаємо «точно видалити?»
 
   const load = useCallback(async () => {
     const [{ data, error }, { data: st }] = await Promise.all([
@@ -58,6 +59,15 @@ export default function QuizzesScreen() {
     const { data, error } = await supabase.from("quizzes").insert({ ...rest, title: r.title + " (копія)", slug: `${r.slug}-${uid().slice(0, 4)}`.slice(0, 60), published: false }).select().single();
     if (error) { setMsg("Не скопійовано: " + error.message); return; }
     setRows((rs) => [data, ...(rs || [])]);
+  }
+
+  async function removeDraft(r) {
+    if (delId !== r.id) { setDelId(r.id); setTimeout(() => setDelId((x) => (x === r.id ? null : x)), 4000); return; }
+    setDelId(null);
+    const { error } = await supabase.from("quizzes").delete().eq("id", r.id);
+    if (error) { setMsg("Не видалено: " + error.message); return; }
+    setRows((rs) => rs.filter((x) => x.id !== r.id));
+    setMsg(`Чернетку «${r.title}» видалено`);
   }
 
   if (openId) {
@@ -107,6 +117,12 @@ export default function QuizzesScreen() {
                   {r.published && <a className="btn small" href={url} target="_blank" rel="noreferrer">↗ Відкрити</a>}
                   {r.published && <button className="btn small" onClick={() => copy(url, () => setMsg("Посилання скопійовано: " + url))}>🔗 Посилання</button>}
                   <button className="btn small" onClick={() => duplicate(r)}>⧉ Копія</button>
+                  {!r.published && (
+                    <button className="btn small danger" style={{ marginLeft: "auto" }} onClick={() => removeDraft(r)}
+                      title="Видалити чернетку разом зі статистикою й заявками квізу (самі ліди в CRM лишаються)">
+                      {delId === r.id ? "Точно видалити?" : "🗑 Видалити"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
