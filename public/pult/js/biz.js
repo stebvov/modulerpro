@@ -168,7 +168,11 @@ function mountBizTabs(){
   const seg=document.querySelector('.seg[aria-label="Розділ"]');if(!seg||seg.querySelector('[data-tab="my"]'))return;
   seg.insertAdjacentHTML("afterbegin",`<button type="button" data-tab="my" aria-pressed="false">🏠 Мій пульт</button>`);
   seg.querySelector('[data-tab="projects"]').insertAdjacentHTML("afterend",`<button type="button" data-tab="dirs" aria-pressed="false">🧭 Напрями</button>`);
-  if(isOwner())seg.insertAdjacentHTML("beforeend",`<button type="button" data-tab="cap" aria-pressed="false">💎 Капітал</button>`);
+  /* «Капітал» — лише засновник і лише з його профілю: кнопка у вкладках прихована (нею розділ перемикає оболонка) */
+  if(isOwner()){
+    seg.insertAdjacentHTML("beforeend",`<button type="button" data-tab="cap" aria-pressed="false" hidden>💎 Капітал</button>`);
+    $("#meName").closest(".row").insertAdjacentHTML("afterend",`<div class="row full" id="meCap"><button class="btn" type="button" data-tab="cap">💎 Капітал і дохід засновника</button><span class="meta">Ціль, прогноз, активи — бачите лише ви</span></div>`);
+  }
   $("#tabTasks").insertAdjacentHTML("beforebegin",`<div id="tabMy" class="bz" hidden></div><div id="tabDirs" class="bz" hidden></div><div id="tabCap" class="bz" hidden></div>`);
 }
 function showBizTab(k){
@@ -178,6 +182,7 @@ function showBizTab(k){
 document.addEventListener("click",e=>{
   const tab=e.target.closest("[data-tab]");if(!tab)return;
   const k=tab.dataset.tab;showBizTab(["my","dirs","cap"].includes(k)?k:null);postTab(k);
+  if(tab.closest("#meForm"))$("#meForm").hidden=true;
   if(["my","dirs","cap"].includes(k)){document.querySelectorAll(".seg [data-tab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tab===k));window.scrollTo({top:0});["tasks","projects","tg","team"].forEach(x=>{const el=document.getElementById("tab"+x[0].toUpperCase()+x.slice(1));if(el)el.hidden=true})}
 });
 window.addEventListener("hashchange",()=>{if(/^#[tp]\//.test(location.hash)){showBizTab(null);postTab("tasks")}});
@@ -210,7 +215,6 @@ function myHtml(){
   const list=(arr,empty,lim)=>arr.length?arr.slice(0,lim||50).map(taskRow).join("")+(arr.length>(lim||50)?`<span class="bz-empty">…ще ${arr.length-lim} — у вкладці «Задачі»</span>`:""):`<div class="bz-empty">${empty}</div>`;
   return `<div class="bz-hello"><h2>${greet()}, ${esc(me.name.split(" ")[0])}</h2><span class="meta">${esc(me.role||"")}${unit?` · ${esc(unit.name)}`:""}</span></div>
     <div class="bz-nums">${chip(hot.length,"горить","bad")}${chip(next.length,"далі")}${chip(ctl.length,"на контролі")}${chip(myProj.length,"моїх проєктів")}${chip(week,"зроблено за 7 днів")}</div>
-    ${isOwner()?`<button type="button" class="bz-card" data-tab="cap" style="cursor:pointer;text-align:left;font:inherit;color:inherit;flex-direction:row;align-items:center;gap:12px"><span style="font-size:24px">💎</span><span><b>Капітал і дохід засновника</b><br><span class="meta">Ціль, прогноз по проєктах, активи, рішення, що чекають на вас</span></span></button>`:""}
     <div class="bz-grid">
       <section class="bz-card"><h3>🔥 Сьогодні й прострочене</h3>${list(hot,"Нічого не горить 👍")}</section>
       <section class="bz-card"><h3>➡️ Мої наступні задачі</h3>${list(next,"Відкритих задач немає.",12)}</section>

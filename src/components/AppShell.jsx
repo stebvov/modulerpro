@@ -197,11 +197,13 @@ export default function AppShell() {
   // власник юніта без інших прав — чекаємо перевірки його юнітів, щоб не показати «Немає доступу»
   const ready = !loading && (member !== undefined || !user) && (!!profile || !!member || !user || unitOwner !== null);
   const allIds = groups.flatMap((g) => g.tabs.map((t) => t.id));
+  // у меню — без прихованих груп (у них ведуть лише прямі посилання: «Капітал» — із профілю засновника)
+  const menuGroups = groups.filter((g) => !g.hidden);
 
   // стартова вкладка: з адреси (?s=), інакше домашня група з налаштувань меню
   useEffect(() => {
     if (!ready || (activeTab && allIds.includes(activeTab))) return;
-    const home = groups.find((g) => g.key === (menuHomeGroup || DEFAULT_HOME)) || groups[0];
+    const home = menuGroups.find((g) => g.key === (menuHomeGroup || DEFAULT_HOME)) || menuGroups[0] || groups[0];
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (home) setActiveTab(home.tabs[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,7 +261,7 @@ export default function AppShell() {
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-brand">Модулер</div>
-            {groups.map((g) => (
+            {menuGroups.map((g) => (
               <button key={g.key} className={`mobile-drawer-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs[0].id)}>{g.label}</button>
             ))}
           </div>
@@ -274,7 +276,7 @@ export default function AppShell() {
               <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(true)} title="Сховати меню" aria-label="Сховати меню">⟨</button>
             </div>
             <div className="sidebar-groups">
-              {groups.map((g) => (
+              {menuGroups.map((g) => (
                 <button key={g.key} className={`sidebar-link${g === activeGroup ? " active" : ""}`} onClick={() => select(g.tabs.some((t) => t.id === activeTab) ? activeTab : g.tabs[0].id)}>
                   {g.label}
                 </button>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppData } from "@/context/DataContext";
 import { DEFAULT_HOME, MENU } from "@/lib/menu";
 
-const ALL_GROUPS = MENU.map((g) => ({ key: g.key, label: g.label }));
+const ALL_GROUPS = MENU.filter((g) => !g.hidden).map((g) => ({ key: g.key, label: g.label }));
 
 export default function MenuSettingsScreen() {
   const { supabase, menuGroupOrder, menuHomeGroup, reload } = useAppData();

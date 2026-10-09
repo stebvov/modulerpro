@@ -7,11 +7,12 @@
 // kb — база знань: засновник завжди; команда — коли засновник відкрив її (kb_settings.team_mode), і то лише затверджені записи.
 // Вкладки "pult-*" — розділи пульту всередині оболонки. Група без доступних вкладок не показується.
 // settings: true — це налаштування розділу: у рядку вкладок замість підпису стоїть кнопка-шестерня (підпис — у підказці).
+// hidden: true — групи немає в меню: розділ відкривається лише за прямим посиланням («Капітал» — із профілю засновника).
 export const MENU = [
   { key: "home", label: "🏠 Мій пульт", need: "team", tabs: [{ id: "pult-my", label: "Мій пульт" }] },
   { key: "tasks", label: "✅ Задачі", need: "team", tabs: [{ id: "pult-tasks", label: "Задачі" }] },
   { key: "assistant", label: "🤖 Асистент", need: "owner", tabs: [{ id: "assistant", label: "Асистент — операційний ШІ-директор" }] },
-  { key: "capital", label: "💎 Капітал", need: "owner", tabs: [{ id: "pult-cap", label: "Капітал і дохід засновника" }] },
+  { key: "capital", label: "💎 Капітал", need: "owner", hidden: true, tabs: [{ id: "pult-cap", label: "Капітал і дохід засновника" }] },
   { key: "ideas", label: "💡 Ідеї", need: "owner", tabs: [{ id: "ideas", label: "Ідеї та роздуми" }] },
   { key: "kb", label: "📖 База знань", need: "kb", tabs: [{ id: "kb", label: "База знань" }] },
   {
