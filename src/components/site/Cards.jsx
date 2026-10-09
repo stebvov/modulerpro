@@ -2,13 +2,14 @@
 // Картки моделі й кейсу — спільні для каталогу, сторінок сайту й живого перегляду.
 import { CASE_KINDS, SIZE_GROUPS } from "@/lib/site/blocks";
 import { caseKinds, imgProps, modelPriceFrom, money, num, siteHref } from "@/lib/site/format";
+import { pluralForm } from "@/lib/site/i18n";
 import { useT } from "./I18n";
 
 export function ModelCard({ m, base }) {
   const { t, lang } = useT();
   const from = modelPriceFrom(m);
-  // «2 спальні» / «2 bedrooms»: множина залежить від мови
-  const beds = (n) => (lang === "uk" ? `${n} спальн${n === 1 ? "я" : "і"}` : `${n} ${t(n === 1 ? "спальня" : "спальні")}`);
+  // «2 спальні» / «2 bedrooms» / «2 sypialnie» / «5 спален»: форма множини залежить від мови
+  const beds = (n) => `${n} ${t(["спальня", "спальні", "спалень"][pluralForm(lang, n)])}`;
   return (
     <a className="s-card s-model" href={siteHref(base, `/modeli/${m.slug}`)}>
       <div className="s-card__img">
@@ -22,7 +23,7 @@ export function ModelCard({ m, base }) {
         <div className="s-model__meta">
           {m.area_m2 && <span>{num(Number(m.area_m2), lang)} {t("м²")}</span>}
           {m.bedrooms != null && <span>{m.bedrooms ? beds(m.bedrooms) : t("студія")}</span>}
-          {m.modules && <span>{num(m.modules, lang)} {lang === "uk" ? "мод." : t(Number(m.modules) === 1 ? "модуль" : "модулі")}</span>}
+          {m.modules && <span>{num(m.modules, lang)} {lang === "uk" ? "мод." : t(["модуль", "модулі", "модулів"][pluralForm(lang, m.modules)])}</span>}
         </div>
         {m.tagline && <p>{m.tagline}</p>}
         <div className="s-model__price">

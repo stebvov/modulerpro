@@ -1,5 +1,5 @@
-// Автоматичний переклад текстів сайту: кнопка «Перекласти автоматично» в розділі «Сайт → Переклад».
-// Отримує українські тексти, яких ще немає в словнику site_i18n, перекладає їх і записує з позначкою «авто»
+// Автоматичний переклад текстів сайту: кнопка «Перекласти автоматично» в розділі «Сайт → Переклади».
+// Отримує українські тексти, яких ще немає в словнику site_i18n, перекладає їх вибраною мовою й записує з позначкою «авто»
 // (щоб людина могла вичитати). Тексти, вже перекладені людиною, не чіпає.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { createHash } from "node:crypto";
@@ -13,25 +13,55 @@ const CORS = {
 };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const LANG_NAMES: Record<string, string> = { en: "English" };
 const MAX_TEXTS = 50;
 const MAX_LEN = 4000;
 
-const SYSTEM = (lang: string) => `You translate the texts of the Moduler website from Ukrainian into ${lang}. Moduler is a Ukrainian manufacturer of modular homes; it also builds its own small residential communities, offers investment in rental houses and runs a service/management company. The readers are private buyers, investors and business owners in the EU and beyond.
+// Правила для кожної мови: стиль, запис чисел і одиниць, словник термінів, назви. Ті самі, якими зроблено початковий переклад сайту.
+type Lang = { name: string; style: string; numbers: string; glossary: string; names: string };
+const LANGS: Record<string, Lang> = {
+  en: {
+    name: "English",
+    style: `Write natural, clear, warm and professional English for a marketing website: British-leaning international spelling (metre, centre, colour). Keep the register of the source (the site addresses the reader politely as "you").`,
+    numbers: `- Numbers: decimal comma becomes a decimal point (2,5 → 2.5), a space between thousands becomes a comma ($59 900 → $59,900).
+- Units: м² → m², м → m, км → km, хв → min, грн → UAH (written before the number: UAH 750). A "сотка" is 100 m²: express land area in m² (5 соток → 500 m²).
+- Quotation marks: “…”.`,
+    glossary: `модульний будинок → modular home; Конструктив → Shell; Під оздоблення → Ready for finishing; Готове житло → Move-in ready; під ключ → turnkey; готова модель → ready model; індивідуальний проєкт / розробка → custom design; містечко → community; котеджне містечко → cottage community; смарт-квартал → Smart Quarter; ділянка → plot; комунікації → utilities; генплан → site plan; черга (будівництва) → phase; керуюча компанія → management company; кейс → case study; заявка → enquiry; кошторис → quote; база відпочинку → resort; глемпінг → glamping; дохідна нерухомість → income property; подобова оренда → short-term rental; довгострокова оренда → long-term rental; ВПО, переселенці → displaced people; благоустрій → landscaping; оздоблення → finish / finishing; санвузол → bathroom.`,
+    names: `ШАНТІ → SHANTI; Вілла 8 → Villa 8; Простір сенсів → Space of Meaning; «Добрий дім» → “Good Home”; КМ «Балатон» → the Balaton cottage community. House models: Мохо → Moho; Простір 40 → Space 40; Затишок 30 → Cosy 30; Родина 60 → Family 60; Садиба 80 → Homestead 80; Гавань 100+ → Haven 100+. Ukrainian place and personal names are transliterated by the Ukrainian national standard (Київ → Kyiv, Одеса → Odesa, Львівська область → Lviv region).`,
+  },
+  pl: {
+    name: "Polish",
+    style: `Write natural, clear, warm and professional Polish for a marketing website. Address the reader directly in the second person singular with capitalised pronouns (Ty, Twój, Ciebie), as Polish marketing copy does. Write "w Ukrainie".`,
+    numbers: `- Numbers keep the decimal comma and the space between thousands (2,5; 59 900).
+- Currency goes after the number: $59 900 → 59 900 $, 750 грн → 750 UAH.
+- Units: м² → m², м → m, км → km, хв → min. A "сотка" is one ar (100 m²): 5 соток → 5 arów, 2,5 сотки → 2,5 ara.
+- Quotation marks: „…”.`,
+    glossary: `модульний будинок → dom modułowy; Конструктив (the completion level) → Stan surowy, but конструктив as the structure of the house → konstrukcja; Під оздоблення → Stan deweloperski; Готове житло → Gotowy do zamieszkania; під ключ → pod klucz; готова модель → gotowy model; індивідуальний проєкт → projekt indywidualny; розробка (our design) → projekt; містечко → osiedle; котеджне містечко → osiedle domów; смарт-квартал → smart-kwartał; ділянка → działka; комунікації → media; генплан → plan zagospodarowania; черга (будівництва) → etap; керуюча компанія → firma zarządzająca; кейс → realizacja; заявка → zapytanie / zgłoszenie; кошторис → kosztorys; база відпочинку → ośrodek wypoczynkowy; глемпінг → glamping; дохідна нерухомість → nieruchomość dochodowa; подобова оренда → wynajem na doby; довгострокова оренда → wynajem długoterminowy; ВПО, переселенці → osoby przesiedlone; громада → społeczność lokalna; благоустрій → zagospodarowanie terenu; оздоблення → wykończenie; санвузол → łazienka; юніт → domek / dom.`,
+    names: `ШАНТІ → SHANTI; Вілла 8 → Willa 8; Простір сенсів → Przestrzeń Sensów; «Добрий дім» → „Dobry Dom”; КМ «Балатон» → osiedle „Balaton”. House models: Мохо → Moho; Простір 40 → Przestrzeń 40; Затишок 30 → Zacisze 30; Родина 60 → Rodzina 60; Садиба 80 → Dworek 80; Гавань 100+ → Przystań 100+. Ukrainian place names take the established Polish form where one exists (Київ → Kijów, Львів → Lwów, Одеса → Odessa, Київська область → obwód kijowski), otherwise Polish transliteration (Ровжі → Rowży).`,
+  },
+  ru: {
+    name: "Russian",
+    style: `Write natural, clear, warm and professional Russian for a marketing website. Address the reader politely as «вы» (lower case). Write «в Украине», «по Украине». Use the letter ё where it belongs.`,
+    numbers: `- Numbers, currency and units stay as in the source: decimal comma, a space between thousands, $59 900, 750 грн, м², км, сотки.
+- Quotation marks: «…».`,
+    glossary: `модульний будинок → модульный дом; Конструктив → Конструктив; Під оздоблення → Под отделку; Готове житло → Готовое жильё; під ключ → под ключ; готова модель → готовая модель; індивідуальний проєкт → индивидуальный проект; розробка → разработка; містечко → городок; котеджне містечко → коттеджный городок; смарт-квартал → смарт-квартал; ділянка → участок; комунікації → коммуникации; генплан → генплан; черга (будівництва) → очередь; керуюча компанія → управляющая компания; кейс → кейс; заявка → заявка; кошторис → смета; база відпочинку → база отдыха; глемпінг → глэмпинг; дохідна нерухомість → доходная недвижимость; подобова оренда → посуточная аренда; довгострокова оренда → долгосрочная аренда; ВПО, переселенці → переселенцы; громада → община; благоустрій → благоустройство; оздоблення → отделка; санвузол → санузел; юніт → юнит.`,
+    names: `ШАНТІ → ШАНТИ; Вілла 8 → Вилла 8; Простір сенсів → Пространство смыслов; «Добрий дім» → «Добрый дом»; КМ «Балатон» → КГ «Балатон». House models: Мохо → Мохо; Простір 40 → Простор 40; Затишок 30 → Уют 30; Родина 60 → Семья 60; Садиба 80 → Усадьба 80; Гавань 100+ → Гавань 100+. Ukrainian place names take the established Russian form (Київ → Киев, Львів → Львов, Одеса → Одесса, Київська область → Киевская область).`,
+  },
+};
 
-Write natural, clear, warm and professional ${lang} for a marketing website: British-leaning international spelling (metre, centre, colour), no hype the source does not contain, no added facts, nothing left out. Short UI labels stay short. Keep the register of the source (the site addresses the reader politely as "you").
+const SYSTEM = (l: Lang) => `You translate the texts of the Moduler website from Ukrainian into ${l.name}. Moduler is a Ukrainian manufacturer of modular homes; it also builds its own small residential communities, offers investment in rental houses and runs a service/management company. The readers are private buyers, investors and business owners in Ukraine, the EU and beyond.
+
+${l.style} No hype the source does not contain, no added facts, nothing left out. Short UI labels stay short.
 
 Formatting that must survive exactly:
 - *asterisks* mark emphasised words: keep the same number of asterisks, around the corresponding words.
 - "|" separates table cells: keep the same number of cells in the same order.
 - Keep line breaks and paragraph breaks, emoji, URLs, e-mail addresses, placeholders such as {name} or {n}, and symbols such as →, ✓, ·.
-- Numbers: decimal comma becomes a decimal point (2,5 → 2.5), a space between thousands becomes a comma ($59 900 → $59,900).
-- Units: м² → m², м → m, км → km, хв → min, грн → UAH (written before the number: UAH 750). A "сотка" is 100 m²: express land area in m² (5 соток → 500 m²).
+${l.numbers}
 
 Glossary (use consistently):
-модульний будинок → modular home; Конструктив → Shell; Під оздоблення → Ready for finishing; Готове житло → Move-in ready; під ключ → turnkey; готова модель → ready model; індивідуальний проєкт / розробка → custom design; містечко → community; котеджне містечко → cottage community; смарт-квартал → Smart Quarter; ділянка → plot; комунікації → utilities; генплан → site plan; черга (будівництва) → phase; керуюча компанія → management company; кейс → case study; заявка → enquiry; кошторис → quote; база відпочинку → resort; глемпінг → glamping; дохідна нерухомість → income property; подобова оренда → short-term rental; довгострокова оренда → long-term rental; ВПО, переселенці → displaced people; благоустрій → landscaping; оздоблення → finish / finishing; санвузол → bathroom.
+${l.glossary}
 
-Names: Moduler, Avatar Village, EdRockets stay as they are. ШАНТІ → SHANTI; Вілла 8 → Villa 8; Простір сенсів → Space of Meaning; «Добрий дім» → “Good Home”; КМ «Балатон» → the Balaton cottage community. House models: Мохо → Moho; Простір 40 → Space 40; Затишок 30 → Cosy 30; Родина 60 → Family 60; Садиба 80 → Homestead 80; Гавань 100+ → Haven 100+. Ukrainian place and personal names are transliterated by the Ukrainian national standard (Київ → Kyiv, Одеса → Odesa, Львівська область → Lviv region).
+Names: Moduler, Avatar Village, EdRockets stay as they are. ${l.names}
 
 You receive a JSON array of objects {"i": number, "text": string}. Return one item for every input object, with the same "i" and the translation in "text".`;
 
@@ -67,7 +97,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => null);
     const lang = String(body?.lang ?? "");
-    if (!LANG_NAMES[lang]) return json({ error: "Невідома мова" }, 400);
+    const conf = LANGS[lang];
+    if (!conf) return json({ error: "Невідома мова" }, 400);
     const texts: string[] = [...new Set((Array.isArray(body?.texts) ? body.texts : []).filter((t: unknown) => typeof t === "string" && t.trim()).map((t: string) => t.trim()))];
     if (!texts.length) return json({ ok: true, items: {}, skipped: 0 });
     if (texts.length > MAX_TEXTS) return json({ error: `Не більше ${MAX_TEXTS} текстів за раз` }, 400);
@@ -96,7 +127,7 @@ Deno.serve(async (req) => {
         max_tokens: 16000,
         fallbacks: "default",
         output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-        system: SYSTEM(LANG_NAMES[lang]),
+        system: SYSTEM(conf),
         messages: [{ role: "user", content: JSON.stringify(todo.map((text, i) => ({ i, text }))) }],
       }),
     });

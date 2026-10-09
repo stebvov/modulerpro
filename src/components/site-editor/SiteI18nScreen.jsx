@@ -1,5 +1,5 @@
 "use client";
-// 🌐 Сайт → Переклад: англійська версія сайту. Український текст — основний; тут до кожного тексту — переклад.
+// 🌐 Сайт → Переклади: мовні версії сайту (англійська, польська, російська). Український текст — основний; тут до кожного тексту — переклад вибраною мовою.
 // Тексту без перекладу на англійському сайті відповідає український. Нові й змінені тексти зʼявляються
 // у «Без перекладу» самі; кнопка «Перекласти автоматично» перекладає їх (потім варто вичитати).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,7 +13,7 @@ const PAGE = 40;      // рядків на екрані за раз
 const BATCH = 30;     // текстів за один запит автоперекладу
 const OTHER = Object.keys(LANGS).filter(isLang);
 // назва мови в українських фразах екрана: «Англійська версія», «переклад англійською»
-const UK = { en: { adj: "Англійська", how: "англійською" } };
+const UK = { en: { adj: "Англійська", how: "англійською" }, pl: { adj: "Польська", how: "польською" }, ru: { adj: "Російська", how: "російською" } };
 
 // усі рядки таблиці (база віддає по 1000)
 async function fetchAll(supabase, lang) {
@@ -29,7 +29,7 @@ async function fetchAll(supabase, lang) {
 
 export default function SiteI18nScreen() {
   const supabase = useMemo(() => createClient(), []);
-  const [lang] = useState(OTHER[0]);
+  const [lang, setLang] = useState(OTHER[0]);
   const [sources, setSources] = useState(null); // [{ src, where }]
   const [dict, setDict] = useState({});         // src → { text, auto }
   const [filter, setFilter] = useState("missing");
@@ -113,11 +113,26 @@ export default function SiteI18nScreen() {
     if (got) { revalidateSite(); setStatus(`Перекладено автоматично: ${got}`); setFilter("auto"); setLimit(PAGE); }
   }
 
-  if (sources === null) return <div className="empty">Збираю тексти сайту…</div>;
+  // інша мова — свій словник: тексти сайту ті самі, переклади завантажуються заново
+  function pickLang(l) {
+    if (l === lang || auto) return;
+    setSources(null); setDict({}); setFilter("missing"); setQ(""); setLimit(PAGE); setStatus(""); setMsg("");
+    setLang(l);
+  }
+  const langTabs = OTHER.length > 1 && (
+    <div className="se-tabs se-i18n__langs">
+      {OTHER.map((l) => (
+        <button key={l} type="button" className={`subtab${lang === l ? " active" : ""}`} disabled={!!auto && l !== lang} onClick={() => pickLang(l)}>{LANGS[l].name}</button>
+      ))}
+    </div>
+  );
+
+  if (sources === null) return <div className="se-i18n">{langTabs}<div className="empty">Збираю тексти сайту…</div></div>;
   const uk = UK[lang] || { adj: LANGS[lang]?.name || lang, how: LANGS[lang]?.name || lang };
 
   return (
     <div className="se-i18n">
+      {langTabs}
       <p className="se-intro">
         {uk.adj} версія сайту відкривається за адресою з <b>/{lang}</b> (наприклад, moduler.pro/{lang}) — на сайті є перемикач мови.
         Основний текст — український: сторінки, моделі й кейси редагуються, як і раніше. Тут до кожного тексту додається переклад;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
+import { LANG_ALT } from "@/lib/site/i18n";
 
 // Домени публічного сайту — сайт відкривається з кореня. На app.moduler.pro той самий сайт живе під /site.
 // new.moduler.pro і moduler-new.vercel.app — тестові адреси нового сайту (старий moduler.pro поки на старому хостингу).
@@ -8,9 +9,9 @@ const list = (v, d) => (v || d).split(",").map((s) => s.trim().toLowerCase()).fi
 const INDEX_HOSTS = list(process.env.SITE_INDEX_HOSTS, "moduler.pro,www.moduler.pro");
 const SITE_HOSTS = [...INDEX_HOSTS, ...list(process.env.SITE_TEST_HOSTS, "new.moduler.pro,moduler-new.vercel.app")];
 
-// мовні версії сайту: /en/… на домені сайту, /site/en/… на app.moduler.pro — той самий сайт із перекладом
-const LANG_AT_ROOT = /^\/(en)(?=\/|$)/;
-const LANG_IN_SITE = /^\/site\/(en)(?=\/|$)/;
+// мовні версії сайту: /en/…, /pl/…, /ru/… на домені сайту, /site/en/… на app.moduler.pro — той самий сайт із перекладом
+const LANG_AT_ROOT = new RegExp(`^/(${LANG_ALT})(?=/|$)`);
+const LANG_IN_SITE = new RegExp(`^/site/(${LANG_ALT})(?=/|$)`);
 
 export default async function proxy(request) {
   const url = request.nextUrl;

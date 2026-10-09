@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { getAlternates, getBase, getCases, getOgBase, getSettings, getT } from "@/lib/site/data";
 import { CASE_KINDS } from "@/lib/site/blocks";
+import { quotes } from "@/lib/site/i18n";
 import { caseKinds, imgProps, paragraphs, richLinks, siteHref } from "@/lib/site/format";
 import { siteRobots } from "@/components/site/CmsPage";
 import { CaseCard } from "@/components/site/Cards";
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }) {
 export default async function CasePage({ params }) {
   const { slug } = await params;
   const [all, settings, base, { t, lang }] = await Promise.all([getCases(), getSettings(), getBase(), getT()]);
-  const [q1, q2] = lang === "uk" ? ["«", "»"] : ["“", "”"];
+  const [q1, q2] = quotes(lang);
   const c = all.find((x) => x.slug === slug);
   if (!c) notFound();
   const photos = c.photos || [];

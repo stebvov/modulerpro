@@ -35,6 +35,7 @@ export function SiteHeader({ settings, base, navAs }) {
   const [open, setOpen] = useState(false);
   const [drop, setDrop] = useState(-1); // який випадний список відкрито натиском (на компʼютері він ще й відкривається наведенням)
   const [scrolled, setScrolled] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const c = settings.contacts || {};
   const brand = settings.brand || {};
   const nav = settings.nav || [];
@@ -44,9 +45,18 @@ export function SiteHeader({ settings, base, navAs }) {
   const hit = hitter(pathname, navAs);
   // інші мови: та сама сторінка за адресою іншої мовної версії
   const root = isLang(lang) ? base.slice(0, -(lang.length + 1)) : base;
-  const langs = Object.entries(LANGS).filter(([k]) => k !== lang).map(([k, l]) => (
-    <a key={k} className="s-lang" href={langPath(pathname, root, k)} hrefLang={l.html} lang={l.html} title={l.name} aria-label={l.name}>{l.label}</a>
-  ));
+  const langs = (
+    <div className={`s-langs${langOpen ? " open" : ""}`}>
+      <button type="button" className="s-lang" aria-haspopup="true" aria-expanded={langOpen} aria-label={t("Мова сайту")} title={t("Мова сайту")} onClick={() => setLangOpen(!langOpen)}>
+        {LANGS[lang].label}<span className="s-lang__caret" aria-hidden>▾</span>
+      </button>
+      <div className="s-langs__panel">
+        {Object.entries(LANGS).filter(([k]) => k !== lang).map(([k, l]) => (
+          <a key={k} href={langPath(pathname, root, k)} hrefLang={l.html} lang={l.html}><b>{l.label}</b>{l.name}</a>
+        ))}
+      </div>
+    </div>
+  );
   const active = nav.findIndex((l) => hit(l.href) || String(l.also || "").split(",").map((x) => x.trim()).some(hit) || kids(l).some((k) => hit(k.href)));
   const group = active >= 0 ? kids(nav[active]) : [];
 
@@ -60,6 +70,14 @@ export function SiteHeader({ settings, base, navAs }) {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+  // список мов закривається так само: натиском повз нього або клавішею Esc
+  useEffect(() => {
+    if (!langOpen) return;
+    const off = (e) => { if (e.type === "keydown" ? e.key === "Escape" : !e.target.closest?.(".s-langs")) setLangOpen(false); };
+    document.addEventListener("click", off);
+    document.addEventListener("keydown", off);
+    return () => { document.removeEventListener("click", off); document.removeEventListener("keydown", off); };
+  }, [langOpen]);
   // відкритий список закривається натиском повз нього або клавішею Esc
   useEffect(() => {
     if (drop < 0) return;

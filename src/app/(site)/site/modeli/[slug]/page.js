@@ -41,7 +41,7 @@ export async function generateMetadata({ params }) {
   const concept = m.kind === "concept";
   return {
     title: concept ? tf("{name} — індивідуальний проєкт модульного будинку", { name: m.name })
-      : m.area_m2 ? tf("{name} — модульний будинок {area} м²", { name: m.name, area: Number(m.area_m2) }) : m.name,
+      : m.area_m2 ? tf("{name} — модульний будинок {area} м²", { name: m.name, area: num(Number(m.area_m2), lang) }) : m.name,
     description: [m.tagline, from ? tf("Ціна від {price}.", { price: money(from, m.currency, lang) }) : null, concept ? t("Адаптуємо під вашу ділянку й бюджет.") : t("Виробництво, доставка й монтаж під ключ.")].filter(Boolean).join(" "),
     alternates: await getAlternates(`/modeli/${m.slug}`),
     openGraph: { ...(await getOgBase()), images: m.photos?.[0] ? [m.photos[0]] : undefined },

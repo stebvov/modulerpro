@@ -26,7 +26,7 @@ export const MENU = [
       { id: "site-pages", label: "Сторінки (конструктор)" },
       { id: "site-models", label: "Моделі на сайті" },
       { id: "site-cases", label: "Кейси" },
-      { id: "site-i18n", label: "Переклад (EN)" },
+      { id: "site-i18n", label: "Переклади" },
       { id: "site-settings", label: "Налаштування сайту", settings: true },
     ],
   },

@@ -1,5 +1,6 @@
 // Малює сторінку сайту з блоків конструктора. Працює і на сервері (сайт), і в браузері (живий перегляд у конструкторі).
 import { BLOCKS } from "@/lib/site/blocks";
+import { quotes } from "@/lib/site/i18n";
 import { imgProps, isExternal, paragraphs, rich, siteHref, stripHidden, youtubeId } from "@/lib/site/format";
 import YouTube from "./YouTube";
 import Gallery from "./Gallery";
@@ -172,7 +173,7 @@ function Features({ b, ctx }) {
 
 function Reviews({ b, ctx }) {
   const items = (b.items || []).filter((r) => r.text);
-  const [q1, q2] = ctx?.lang && ctx.lang !== "uk" ? ["“", "”"] : ["«", "»"];
+  const [q1, q2] = quotes(ctx?.lang);
   if (!items.length) return null;
   return (
     <Section b={b}>
