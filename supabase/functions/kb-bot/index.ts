@@ -1,6 +1,7 @@
 // kb-bot: окремий Telegram-бот бази знань Модулер.
 // • Питання в особисті → відповідь із записів kb_items. Засновник отримує відповіді з усієї бази (з позначками ✅ 🟡 ❓),
-//   решта команди — лише із затверджених записів «для команди» і лише коли базу відкрито (kb_settings.team_mode).
+//   решта команди — лише із затверджених записів: «для команди» (коли базу відкрито, kb_settings.team_mode)
+//   і тих, якими засновник поділився з людиною особисто чи за посадою (kb_items.share_members / share_roles).
 // • «База: …» або /kb текст — додати знання чи виправлення (kb_inbox); відповідь-реплай на повідомлення бота — уточнення до нього.
 // • Засновнику: «питання» / «далі» — питання, що виникли під час розбору джерел (kb_survey); «стоп» — пауза.
 // Дії з cron_secret: ?action=status | hook (поставити вебхук, команди й опис) | survey (поставити наступне питання засновнику).
@@ -43,6 +44,12 @@ async function teamMode(): Promise<boolean> {
   const { data } = await sb.from("kb_settings").select("team_mode").maybeSingle();
   return Boolean(data?.team_mode);
 }
+// чи є працівникові що читати: базу відкрито команді або з ним поділились хоч одним затвердженим записом
+async function canRead(memberId: string): Promise<boolean> {
+  const { data, error } = await sb.rpc("kb_bot_open", { p_member: memberId });
+  if (error) { console.error("kb-bot open", error); return false; }
+  return data === true;
+}
 async function ownerTg(): Promise<number | null> {
   const { data } = await sb.from("task_members").select("tg_user_id").eq("is_owner", true).eq("active", true).not("tg_user_id", "is", null).limit(1);
   return data?.[0]?.tg_user_id ? Number(data[0].tg_user_id) : null;
@@ -58,9 +65,9 @@ function stems(text: string): string[] {
   return [...out].slice(0, 12);
 }
 type Item = { id: string; kind: string; title: string; body: string; status: string; score: number };
-async function search(terms: string[], all: boolean, limit = 12): Promise<Item[]> {
+async function search(terms: string[], all: boolean, memberId: string, limit = 12): Promise<Item[]> {
   if (!terms.length) return [];
-  const { data, error } = await sb.rpc("kb_bot_search", { p_terms: terms, p_all: all, p_limit: limit });
+  const { data, error } = await sb.rpc("kb_bot_search2", { p_terms: terms, p_all: all, p_limit: limit, p_member: memberId });
   if (error) { console.error("kb-bot search", error); return []; }
   return (data ?? []) as Item[];
 }
@@ -112,7 +119,7 @@ const TOOLS = [{
 }];
 
 type Answer = { text?: string; error?: string; used: string[]; gap: string | null; cost: number };
-async function ask(question: string, all: boolean, name: string): Promise<Answer> {
+async function ask(question: string, all: boolean, name: string, memberId: string): Promise<Answer> {
   const s = await secrets();
   const out: Answer = { used: [], gap: null, cost: 0 };
   if (!s.anthropic_api_key) return { ...out, error: "ШІ не підключено — немає ключа в налаштуваннях системи." };
@@ -120,7 +127,7 @@ async function ask(question: string, all: boolean, name: string): Promise<Answer
   if ((await spentToday()) >= DAILY_USD) return { ...out, error: "На сьогодні ліміт відповідей бота вичерпано — продовжимо завтра. Базу можна читати на порталі." };
 
   const seen = new Map<string, Item>();
-  const first = await search(stems(question), all, 12);
+  const first = await search(stems(question), all, memberId, 12);
   first.forEach((i) => seen.set(i.id, i));
   const model = MODELS[s.kb_bot_model] ? s.kb_bot_model : "claude-opus-5-5";
   const client = new Anthropic({ apiKey: s.anthropic_api_key, timeout: 100_000, maxRetries: 1 });
@@ -151,7 +158,7 @@ async function ask(question: string, all: boolean, name: string): Promise<Answer
       const results = [];
       for (const c of calls) {
         const terms = (Array.isArray(c.input?.terms) ? c.input.terms : []).map((t: unknown) => String(t).toLowerCase().trim()).filter((t: string) => t.length >= 3).slice(0, 8);
-        const found = (await search(terms, all, 10)).filter((i) => !seen.has(i.id));
+        const found = (await search(terms, all, memberId, 10)).filter((i) => !seen.has(i.id));
         found.forEach((i) => seen.set(i.id, i));
         results.push({ type: "tool_result", tool_use_id: c.id, content: found.length ? pack(found, all) : "Нових записів за цими словами немає." });
       }
@@ -261,7 +268,7 @@ async function answerQuestion(chatId: number, msgId: number, me: Member, questio
   const { count } = await sb.from("kb_bot_log").select("id", { count: "exact", head: true }).eq("member_id", me.id).gte("at", kyivDayStart());
   if (!all && (count ?? 0) >= PER_USER_DAY) return send(chatId, "На сьогодні питань досить — продовжимо завтра. Базу можна читати на порталі в розділі «База знань».");
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
-  const a = await ask(question, all, me.name);
+  const a = await ask(question, all, me.name, me.id);
   const { data: log } = await sb.from("kb_bot_log").insert({
     tg_user_id: chatId, member_id: me.id, member_name: me.name, is_owner: all, question: question.slice(0, 2000),
     answer: a.text ?? null, used_ids: a.used, gap: a.gap, cost_usd: a.cost, error: a.error ?? null,
@@ -278,7 +285,7 @@ async function handleMessage(msg: any) {
   const text: string = (msg.text ?? msg.caption ?? "").trim();
   const me = await who(msg.from?.id);
   if (!me) return send(chatId, "Цей бот — для команди Модулер. Спершу підключіть свій Telegram до профілю в системі: напишіть основному боту компанії «Іван» команду /start і пройдіть прив’язку. Потім поверніться сюди.");
-  const open = me.is_owner || (await teamMode());
+  const open = me.is_owner || (await canRead(me.id));
   const cmd = text.match(/^\/(\w+)(?:@\S+)?\s*/);
   if (cmd && (cmd[1] === "start" || cmd[1] === "help")) return send(chatId, HELP(me, open));
   if (!open) return send(chatId, HELP(me, false));

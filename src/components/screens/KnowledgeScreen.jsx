@@ -4,6 +4,7 @@
 // Записи приходять із локального «університету знань» (таблиця kb_items, завантажує функція kb-sync).
 // Кожен запис має статус перевірки: ✅ затверджено · 🟡 з джерел, не перевірено · ❓ потребує уточнення.
 // Засновник бачить усе й ставить статус; у режимі «команда» решта бачать лише затверджені записи «для команди» (RLS).
+// Окремим записом можна поділитися з людьми чи посадами (як файлом на Google Диску) — вони бачать його одразу.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SearchFilter from "@/components/SearchFilter";
@@ -34,7 +35,8 @@ const topicName = (k) => TOPICS.find(([x]) => x === k)?.[1] || k;
 const REL = { supports: "підтверджує", refines: "уточнює", generalizes: "узагальнює", contradicts: "суперечить", evidence: "доказ", mentions: "спирається на" };
 const REL_IN = { supports: "підтверджено записом", refines: "уточнено записом", generalizes: "узагальнено записом", contradicts: "суперечить запис" };
 const SRC_TYPE = { "internal-chat": "робочий чат", "internal-doc": "внутрішній документ", "founder-statement": "слова засновника" };
-const LIST = "id,kind,title,topics,confidence,status,audience,stale,review_note,src_created,synced_at";
+const LIST = "id,kind,title,topics,confidence,status,audience,share_members,share_roles,stale,review_note,src_created,synced_at";
+const shareCount = (r) => (r.share_members?.length || 0) + (r.share_roles?.length || 0);
 const PAGE = 60;
 const day = (d) => (d ? new Date(d).toLocaleDateString("uk-UA") : "");
 const openQ = (r) => r.status === "pending" || r.status === "asked" || /^(відкрите|частково|відкладено|дія)/.test(r.resolution || "");
@@ -58,7 +60,9 @@ export default function KnowledgeScreen() {
   const [detail, setDetail] = useState({});
   const [autoNext, setAutoNext] = useState(true);
   const [questions, setQuestions] = useState(null);
-  const [panel, setPanel] = useState(null);      // "settings" | "add"
+  const [panel, setPanel] = useState(null);      // "settings" | "add" | "share"
+  const [people, setPeople] = useState([]);      // кому можна відкрити запис: люди команди
+  const [roles, setRoles] = useState([]);        // …і посади
   const [msg, setMsg] = useState("");
 
   const load = useCallback(async () => {
@@ -78,6 +82,13 @@ export default function KnowledgeScreen() {
     supabase.rpc("pult_is_owner").then(({ data }) => setIsOwner(data === true));
     supabase.from("kb_settings").select("team_mode").maybeSingle().then(({ data }) => setTeamMode(!!data?.team_mode));
   }, [load, supabase]);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    supabase.from("task_members").select("id,name,role,hr_role,is_owner,is_ai").eq("active", true).order("name")
+      .then(({ data }) => setPeople((data || []).filter((m) => !m.is_owner && !m.is_ai)));
+    supabase.from("hr_roles").select("key,name").eq("active", true).order("sort").then(({ data }) => setRoles(data || []));
+  }, [isOwner, supabase]);
 
   // пошук по тексту записів — на сервері, з паузою; по назві — одразу тут
   useEffect(() => {
@@ -128,7 +139,9 @@ export default function KnowledgeScreen() {
   const pass = useCallback((r, skip) => {
     if (kind && r.kind !== kind) return false;
     if (conf && r.confidence !== conf) return false;
-    if (aud && r.audience !== aud) return false;
+    if (aud === "team" && r.audience !== "team") return false;
+    if (aud === "shared" && !shareCount(r)) return false;
+    if (aud === "owner" && (r.audience === "team" || shareCount(r))) return false;
     if (staleOnly && !r.stale) return false;
     if (skip !== "topic" && topic && !(r.topics || []).includes(topic)) return false;
     if (skip !== "status" && tab && tab !== "questions" && r.status !== tab) return false;
@@ -208,7 +221,7 @@ export default function KnowledgeScreen() {
                 </select>
                 {isOwner && (
                   <select value={aud} onChange={(e) => setAud(e.target.value)} aria-label="Для кого">
-                    <option value="">Для всіх і лише для мене</option><option value="team">Можна показувати команді</option><option value="owner">Лише для мене</option>
+                    <option value="">Будь-який доступ</option><option value="team">Для всієї команди</option><option value="shared">Поділено з людьми чи посадами</option><option value="owner">Лише для мене</option>
                   </select>
                 )}
                 {isOwner && <label className="tag-check"><input type="checkbox" checked={staleOnly} onChange={(e) => setStaleOnly(e.target.checked)} /> текст змінився після затвердження</label>}
@@ -233,7 +246,7 @@ export default function KnowledgeScreen() {
           <div className="kb__list">
             {shown.slice(0, limit).map((r) => (
               <button key={r.id} type="button" className={`kb-row kb-row--${r.kind}`} onClick={() => open(r.id)}>
-                {isOwner && <span className="kb-row__st" title={STATUS[r.status].label}>{STATUS[r.status].icon}</span>}
+                {(isOwner || r.status !== "approved") && <span className="kb-row__st" title={STATUS[r.status].label}>{STATUS[r.status].icon}</span>}
                 <span className="kb-row__main">
                   <span className="kb-row__title">{r.title}</span>
                   <span className="kb-row__meta">
@@ -241,6 +254,7 @@ export default function KnowledgeScreen() {
                     {r.kind === "synthesis" ? (r.src_created && <span>оновлено {day(r.src_created)}</span>) : (r.topics || []).slice(0, 3).map((t) => <span key={t}>{topicName(t)}</span>)}
                     {r.confidence && <span>достовірність {CONF[r.confidence]}</span>}
                     {isOwner && r.audience === "team" && <span title="Після затвердження запис побачить команда">👥 для команди</span>}
+                    {isOwner && shareCount(r) > 0 && <span title="Запис відкрито окремим людям чи посадам — вони бачать його вже зараз">👤 поділено · {shareCount(r)}</span>}
                     {isOwner && r.stale && <span className="kb-warn">текст змінився після затвердження</span>}
                   </span>
                 </span>
@@ -257,7 +271,7 @@ export default function KnowledgeScreen() {
           <div className="modal kb-modal">
             <div className="kb-modal__bar">
               {back.length > 0 && <button type="button" className="btn small" onClick={goBack}>← Назад</button>}
-              {isOwner && <span className={`kb-st kb-st--${opened.status}`}>{STATUS[opened.status].icon} {STATUS[opened.status].label}</span>}
+              {(isOwner || opened.status !== "approved") && <span className={`kb-st kb-st--${opened.status}`}>{STATUS[opened.status].icon} {STATUS[opened.status].label}</span>}
               <span className="note" style={{ margin: 0 }}>{KIND[opened.kind]} · {opened.id.startsWith("c-") ? opened.id : day(opened.src_created)}</span>
               <span className="kb-modal__acts">
                 {!back.length && pos >= 0 && (
@@ -295,7 +309,8 @@ export default function KnowledgeScreen() {
               </>
             )}
 
-            {isOwner && <ReviewBar key={opened.id} r={opened} autoNext={autoNext} setAutoNext={setAutoNext} onReview={review} />}
+            {!isOwner && opened.status !== "approved" && <div className="kb-notebox">Засновник поділився з вами цим записом до перевірки: дані взято з документів і чатів, вони ще не затверджені.</div>}
+            {isOwner && <ReviewBar key={opened.id} r={opened} autoNext={autoNext} setAutoNext={setAutoNext} onReview={review} onShare={() => setPanel("share")} />}
           </div>
         </div>
       )}
@@ -305,12 +320,16 @@ export default function KnowledgeScreen() {
           onClose={() => setPanel(null)} onSaved={setTeamMode} onError={setMsg} />
       )}
       {panel === "add" && <AddPanel supabase={supabase} onClose={() => setPanel(null)} onError={setMsg} />}
+      {panel === "share" && opened && (
+        <SharePanel r={opened} people={people} roles={roles} teamMode={teamMode} onClose={() => setPanel(null)}
+          onSave={(patch) => { review(opened.id, patch); setPanel(null); }} />
+      )}
     </div>
   );
 }
 
 // рішення засновника по запису: статус, кому показувати, коментар («що уточнити» читає Claude під час наступної сесії з базою)
-function ReviewBar({ r, autoNext, setAutoNext, onReview }) {
+function ReviewBar({ r, autoNext, setAutoNext, onReview, onShare }) {
   const [note, setNote] = useState(r.review_note || "");
   const dirty = note.trim() !== (r.review_note || "").trim();
   const withNote = (patch) => (dirty ? { ...patch, review_note: note.trim() || null } : patch);
@@ -324,7 +343,11 @@ function ReviewBar({ r, autoNext, setAutoNext, onReview }) {
         {r.status !== "unverified" && <button type="button" className="btn" onClick={() => onReview(r.id, withNote({ status: "unverified" }))} title="Зняти позначку: запис знову «з джерел, не перевірено»">↺</button>}
       </div>
       <div className="kb-review__row kb-review__opts">
-        <label className="tag-check"><input type="checkbox" checked={r.audience === "team"} onChange={(e) => onReview(r.id, { audience: e.target.checked ? "team" : "owner" })} /> 👥 можна показувати команді</label>
+        <span className="kb-access" role="group" aria-label="Хто бачить запис">
+          <button type="button" className={`btn small${r.audience !== "team" ? " on" : ""}`} onClick={() => r.audience === "team" && onReview(r.id, { audience: "owner" })} title="Запис бачите ви й ті, з ким ви ним поділились">🔒 Лише я</button>
+          <button type="button" className={`btn small${r.audience === "team" ? " on" : ""}`} onClick={() => r.audience !== "team" && onReview(r.id, { audience: "team" })} title="Після затвердження запис побачить уся команда (коли базу відкрито команді)">👥 Уся команда</button>
+        </span>
+        <button type="button" className={`btn small${shareCount(r) ? " kb-access__shared" : ""}`} onClick={onShare} title="Відкрити запис окремим людям або посадам — як файл на Google Диску">👤 Поділитися{shareCount(r) ? ` · ${shareCount(r)}` : "…"}</button>
         <label className="tag-check"><input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} /> після рішення — наступний запис</label>
       </div>
     </div>
@@ -425,8 +448,64 @@ function SettingsPanel({ supabase, teamMode, forTeam, approved, total, lastSync,
           </button>
         </div>
         <p className="note">Затверджено {approved} з {total}. Статуси, коментарі й «для команди» ставите лише ви — у відкритому записі внизу.</p>
+        <p className="note">Окремим записом можна поділитися з конкретними людьми чи посадами — кнопка «👤 Поділитися» у відкритому записі. Вони побачать його одразу, незалежно від цього перемикача.</p>
         <p className="note">Нові знання приходять із ноутбука{lastSync ? ` (останнє оновлення ${day(lastSync)})` : ""}: документи, чати й ваші відповіді розбирає Claude. Ваші рішення тут при оновленні зберігаються.</p>
         <div style={{ display: "flex", justifyContent: "flex-end" }}><button type="button" className="btn" onClick={onClose}>Закрити</button></div>
+      </div>
+    </div>
+  );
+}
+
+// кому відкрито запис, крім засновника: люди й посади (як «Поділитися» на Google Диску)
+function SharePanel({ r, people, roles, teamMode, onClose, onSave }) {
+  const [members, setMembers] = useState(() => new Set(r.share_members || []));
+  const [rk, setRk] = useState(() => new Set(r.share_roles || []));
+  const [q, setQ] = useState("");
+  const toggle = (set, setter, id) => { const next = new Set(set); if (next.has(id)) next.delete(id); else next.add(id); setter(next); };
+  const roleName = (k) => roles.find((x) => x.key === k)?.name || "";
+  const s = q.trim().toLowerCase();
+  const shownPeople = people.filter((m) => !s || `${m.name} ${m.role || ""} ${roleName(m.hr_role)}`.toLowerCase().includes(s));
+  const shownRoles = roles.filter((x) => !s || x.name.toLowerCase().includes(s));
+  // хто побачить через посаду — щоб було видно, кого це зачепить
+  const byRole = (k) => people.filter((m) => m.hr_role === k).map((m) => m.name);
+  return (
+    <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal kb-share">
+        <h2>Поділитися записом</h2>
+        <p className="note" style={{ marginTop: 0 }}>«{r.title}»</p>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук: імʼя або посада" autoFocus />
+        <div className="kb-share__cols">
+          <div>
+            <div className="kb-block__label">Люди · {members.size}</div>
+            <div className="kb-share__list">
+              {shownPeople.map((m) => (
+                <label key={m.id} className="kb-share__row">
+                  <input type="checkbox" checked={members.has(m.id)} onChange={() => toggle(members, setMembers, m.id)} />
+                  <span>{m.name}<small>{roleName(m.hr_role) || m.role || ""}</small></span>
+                </label>
+              ))}
+              {!shownPeople.length && <span className="note">Нікого не знайдено.</span>}
+            </div>
+          </div>
+          <div>
+            <div className="kb-block__label">Посади · {rk.size}</div>
+            <div className="kb-share__list">
+              {shownRoles.map((x) => (
+                <label key={x.key} className="kb-share__row">
+                  <input type="checkbox" checked={rk.has(x.key)} onChange={() => toggle(rk, setRk, x.key)} />
+                  <span>{x.name}<small>{byRole(x.key).join(", ") || "зараз нікого на цій посаді"}</small></span>
+                </label>
+              ))}
+              {!shownRoles.length && <span className="note">Посад не знайдено.</span>}
+            </div>
+          </div>
+        </div>
+        <p className="note">Обрані бачать запис одразу — у розділі «База знань» і за прямим посиланням, навіть якщо він ще не затверджений{teamMode ? "" : " і базу не відкрито всій команді"}. Посада — це всі, хто на ній зараз і хто прийде потім. Бот у Telegram відповідає їм із цього запису лише після затвердження.</p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {(members.size > 0 || rk.size > 0) && <button type="button" className="btn" onClick={() => { setMembers(new Set()); setRk(new Set()); }}>Закрити доступ усім</button>}
+          <button type="button" className="btn" onClick={onClose}>Скасувати</button>
+          <button type="button" className="btn primary" onClick={() => onSave({ share_members: [...members], share_roles: [...rk] })}>Зберегти</button>
+        </div>
       </div>
     </div>
   );

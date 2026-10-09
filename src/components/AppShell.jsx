@@ -143,12 +143,13 @@ export default function AppShell() {
   }, [user, loading, profile, member]);
   const [start] = useState(readUrl);
   const [activeTab, setActiveTab] = useState(start.s || null);
-  // база знань: засновник бачить завжди, команда — коли він її відкрив (тоді працює й пряме посилання ?s=kb)
+  // база знань: засновник бачить завжди, команда — коли він її відкрив або поділився з людиною хоч одним записом
+  // (тоді працює й пряме посилання ?s=kb)
   const [kbTeam, setKbTeam] = useState(false);
   useEffect(() => {
     if (!member || member.is_owner) return;
-    createClient().from("kb_settings").select("team_mode").maybeSingle().then(({ data }) => {
-      if (!data?.team_mode) return;
+    createClient().rpc("kb_visible").then(({ data }) => {
+      if (data !== true) return;
       setKbTeam(true);
       if (start.s === "kb") setActiveTab("kb");
     });

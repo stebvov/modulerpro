@@ -74,6 +74,25 @@
 .kb-review__ask.on { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
 .kb-review__opts .tag-check { border-radius: var(--r-sm); }
 
+/* хто бачить запис: «лише я / уся команда» + поділитися з людьми й посадами */
+.kb-access { display: inline-flex; flex: none; }
+.kb-review__opts > .btn, .kb-access .btn { white-space: nowrap; flex: none; }
+.kb-access .btn { border-radius: 0; margin-left: -1px; }
+.kb-access .btn:first-child { border-radius: var(--r) 0 0 var(--r); margin-left: 0; }
+.kb-access .btn:last-child { border-radius: 0 var(--r) var(--r) 0; }
+.kb-access .btn.on { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; position: relative; z-index: 1; }
+.kb-access__shared { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.kb-share { width: 640px; display: grid; gap: 10px; }
+.kb-share h2 { margin: 0; }
+.kb-share__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.kb-share__list { display: grid; gap: 0; max-height: 44vh; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--r); }
+.kb-share__row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; line-height: 1.3; }
+.kb-share__row:last-child { border-bottom: 0; }
+.kb-share__row:hover { background: #fafaf7; }
+.kb-share__row input { margin-top: 3px; flex: none; }
+.kb-share__row small { display: block; font-size: 12px; color: var(--text-muted); }
+.kb-share__list .note { padding: 8px 10px; margin: 0; }
+
 /* питання до засновника */
 .kb-q { background: var(--card); border: 1px solid var(--border); border-top-width: 0; }
 .kb-q:first-of-type { border-top-width: 1px; border-radius: var(--r) var(--r) 0 0; }
@@ -92,8 +111,10 @@
   .kb-overlay { padding: 0; }
   .kb-modal { border-radius: 0; min-height: 100%; padding: 14px 14px 0; align-content: start; }
   .kb-review { bottom: 0; margin: 4px -14px 0; padding: 8px 14px 10px; border-radius: 0; gap: 6px; }
-  .kb-review__opts { font-size: 11px; flex-wrap: nowrap; overflow-x: auto; }
+  .kb-review__opts { font-size: 11px; gap: 6px; }
   .kb-review__opts .tag-check { white-space: nowrap; }
   .kb-row { padding: 8px 10px; }
   .kb .toolbar-actions { margin-left: 0; }
+  .kb-share__cols { grid-template-columns: 1fr; }
+  .kb-share__list { max-height: 30vh; }
 }
