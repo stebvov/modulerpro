@@ -2,7 +2,7 @@
 // Кроки: start (api_id, api_hash, телефон → Telegram шле код) → code → password (якщо ввімкнено двоетапну перевірку).
 // check — перевірити звʼязок, logout — вийти й стерти ключі. Ключі й сесія лежать в app_secrets і сюди не повертаються.
 import { radarAccess, withLock, getSecrets, setSecrets, setAccount, fail } from "@/lib/tgRadar/server";
-import { openClient, closeClient, saveSession, loginStart, loginCode, loginPassword, accountLabel, logout, tgError, errCode, AUTH_LOST } from "@/lib/tgRadar/telegram";
+import { openClient, closeClient, saveSession, loginStart, loginResend, loginCode, loginPassword, accountLabel, logout, tgError, errCode, AUTH_LOST } from "@/lib/tgRadar/telegram";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -33,13 +33,23 @@ export async function POST(request) {
           if (phone.length < 10) return bad("Вкажіть номер телефону акаунта в міжнародному форматі: +380…");
           client = await openClient({ apiId, apiHash });
           const r = await loginStart(client, { apiId, apiHash, phone });
-          await setSecrets(sb, { tgr_api_id: apiId, tgr_api_hash: apiHash, tgr_phone: phone, tgr_code_hash: r.codeHash, tgr_session: saveSession(client) });
+          console.log("tg-radar account start: код надіслано через", r.via, "· далі", r.next);
+          await setSecrets(sb, { tgr_api_id: apiId, tgr_api_hash: apiHash, tgr_phone: phone, tgr_code_hash: r.done ? null : r.codeHash, tgr_session: saveSession(client) });
+          if (r.done) return done("ok", { acc_label: await accountLabel(client) });
           await done("code_sent", { acc_label: null });
-          return Response.json({ state: "code_sent", via: r.viaApp ? "app" : "sms" });
+          return Response.json({ state: "code_sent", via: r.via, next: r.next });
         }
         if (!sec.tgr_session || !sec.tgr_api_id) return bad("Спершу почніть підключення: api_id, api_hash і номер телефону.");
         client = await openClient({ session: sec.tgr_session, apiId: sec.tgr_api_id, apiHash: sec.tgr_api_hash });
 
+        if (action === "resend") {
+          if (!sec.tgr_code_hash) return bad("Спершу натисніть «Отримати код».");
+          const r = await loginResend(client, { phone: sec.tgr_phone, codeHash: sec.tgr_code_hash });
+          console.log("tg-radar account resend: код надіслано через", r.via, "· далі", r.next);
+          if (r.done) { await setSecrets(sb, { tgr_session: saveSession(client), tgr_code_hash: null }); return done("ok", { acc_label: await accountLabel(client) }); }
+          await setSecrets(sb, { tgr_code_hash: r.codeHash, tgr_session: saveSession(client) });
+          return Response.json({ state: "code_sent", via: r.via, next: r.next });
+        }
         if (action === "code") {
           if (!sec.tgr_code_hash) return bad("Код уже використано або підключення не розпочато — почніть заново.");
           const r = await loginCode(client, { phone: sec.tgr_phone, codeHash: sec.tgr_code_hash, code: body.code });

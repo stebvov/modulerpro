@@ -64,8 +64,16 @@
 .tgr-set__grid--2 { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 0; }
 .tgr-set__on { justify-self: start; }
 .tgr-set .kb-block .btn { margin-top: 6px; }
+.tgr-qr { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: start; margin: 4px 0 10px; }
+.tgr-qr img { grid-row: span 2; background: #fff; border: 1px solid var(--border); border-radius: var(--r); display: block; }
+.tgr-qr ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5; display: grid; gap: 4px; }
+.tgr-qr .note { margin: 0; align-self: end; }
+.tgr-alt { margin-top: 10px; font-size: 13px; }
+.tgr-alt summary { cursor: pointer; color: var(--text-secondary); margin-bottom: 8px; }
+.tgr-via { margin: 0 0 4px; font-size: 14px; line-height: 1.45; }
+@media (max-width: 600px) { .tgr-qr { grid-template-columns: 1fr; } .tgr-qr img { grid-row: auto; } }
 .tgr-probe { display: grid; gap: 4px; margin-top: 8px; font-size: 13px; line-height: 1.45; }
-.tgr-set__foot { position: sticky; bottom: 0; background: var(--card); margin: 0 -22px -22px; padding: 10px 22px 14px; border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; }
+.tgr-set__foot { position: sticky; bottom: -30px; background: var(--card); margin: 0 -22px -22px; padding: 10px 22px 14px; border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; }
 
 @media (max-width: 600px) {
   .tgr__last { flex-basis: 100%; margin: 0; }

@@ -13,6 +13,15 @@ import "./tg-radar.css";
 const STATUS = { new: "Нова", work: "У роботі", replied: "Відповіли", lead: "Лід", skip: "Не наш" };
 const TABS = [["new", "Нові"], ["work", "У роботі"], ["replied", "Відповіли"], ["lead", "Ліди"], ["skip", "Не наші"], ["", "Усі"]];
 const INTENT = { buy: "хоче купити", choose: "вибирає", price: "питає ціну", discuss: "обговорює", offer: "продає сам", other: "згадка" };
+// куди Telegram надіслав код входу — щоб людина шукала його в правильному місці
+const VIA = {
+  app: "Код надіслано в застосунок Telegram цього акаунта: відкрийте чат «Telegram» (службові сповіщення із синьою галочкою, може лежати в архіві) — повідомлення «Login code: 12345». SMS не буде.",
+  sms: "Код надіслано SMS на номер акаунта.",
+  call: "Telegram зателефонує на номер акаунта й продиктує код (або код — останні цифри номера, з якого дзвонять).",
+  email: "Код надіслано на пошту, привʼязану до цього акаунта Telegram.",
+  email_setup: "Telegram вимагає спершу привʼязати до акаунта пошту для входу: у застосунку — Налаштування → Приватність і безпека → Пошта для входу. Або увійдіть за QR-кодом.",
+  fragment: "Код надіслано через Fragment (для анонімних номерів).",
+};
 const ACC = { none: "не підключено", code_sent: "чекає код із Telegram", password: "чекає пароль двоетапної перевірки", ok: "підключено", error: "потрібно підключити заново" };
 const when = (ts) => (ts ? new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const num = (n) => (n == null ? "—" : Number(n).toLocaleString("uk-UA"));
@@ -346,7 +355,38 @@ function Settings({ s, supabase, me, onClose, onError }) {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [probe, setProbe] = useState({ text: "", res: null });
+  const [qr, setQr] = useState(null);
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+
+  // вхід за QR-кодом: сервер шле рядки JSON — картинку коду (оновлюється), потім підсумок
+  async function qrLogin() {
+    setBusy("qr"); setErr(""); setQr(null);
+    try {
+      const r = await fetch("/api/tg-radar/qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_id: form.api_id, api_hash: form.api_hash }) });
+      if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); setErr(j.error || `Помилка сервера (${r.status})`); return; }
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        for (let i = buf.indexOf("\n"); i >= 0; i = buf.indexOf("\n")) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          if (!line) continue;
+          const m = JSON.parse(line);
+          if (m.qr) setQr(m.qr);
+          if (m.error) { setQr(null); setErr(m.error); }
+          if (m.state === "timeout") { setQr(null); setErr("Час вийшов — код ніхто не відсканував. Натисніть «Увійти за QR-кодом» ще раз."); }
+          else if (m.state) { setQr(null); setAcc({ state: m.state, label: m.label ?? null, error: null }); }
+        }
+      }
+    } catch (e) {
+      setErr("Звʼязок із сервером перервався: " + (e?.message || e));
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function save() {
     setBusy("save");
@@ -364,7 +404,7 @@ function Settings({ s, supabase, me, onClose, onError }) {
     const r = await api("account", { action, ...extra });
     setBusy("");
     if (r.error) { setErr(r.error); return; }
-    setAcc({ state: r.state, label: r.label ?? acc.label, error: null });
+    setAcc({ state: r.state, label: r.label ?? acc.label, error: null, via: r.via, next: r.next });
     setForm((x) => ({ ...x, code: "", password: "" }));
   }
   async function runProbe() {
@@ -385,20 +425,38 @@ function Settings({ s, supabase, me, onClose, onError }) {
           {err && <div className="auth-error" onClick={() => setErr("")}>{err}</div>}
           {(acc.state === "none" || acc.state === "error") && (
             <>
-              <p className="note">Потрібен окремий акаунт компанії (не особистий). Зайдіть із його номера на my.telegram.org → API development tools, створіть застосунок і скопіюйте сюди api_id та api_hash. Код входу Telegram надішле в цей акаунт.</p>
+              <p className="note">Потрібен окремий акаунт компанії (не особистий). Зайдіть із його номера на my.telegram.org → API development tools, створіть застосунок і скопіюйте сюди api_id та api_hash.</p>
               <div className="tgr-set__grid">
                 <div className="form-row"><label>api_id</label><input value={form.api_id} onChange={(e) => setForm({ ...form, api_id: e.target.value })} inputMode="numeric" autoComplete="off" /></div>
                 <div className="form-row"><label>api_hash</label><input value={form.api_hash} onChange={(e) => setForm({ ...form, api_hash: e.target.value })} autoComplete="off" /></div>
-                <div className="form-row"><label>Номер телефону акаунта</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+380…" inputMode="tel" autoComplete="off" /></div>
               </div>
-              <button type="button" className="btn primary" disabled={!!busy || !form.api_id || !form.api_hash || !form.phone} onClick={() => account("start", form)}>{busy === "start" ? "Надсилаю код…" : "Отримати код"}</button>
+              {qr && (
+                <div className="tgr-qr">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qr} alt="QR-код для входу в Telegram" width={220} height={220} />
+                  <ol>
+                    <li>Відкрийте Telegram на телефоні й перейдіть в акаунт компанії.</li>
+                    <li>Налаштування → Пристрої → «Підключити пристрій».</li>
+                    <li>Наведіть камеру на цей код і підтвердьте вхід.</li>
+                  </ol>
+                  <span className="note">Код оновлюється сам кожні пів хвилини; чекаю до 1,5 хвилини.</span>
+                </div>
+              )}
+              <button type="button" className="btn primary" disabled={!!busy || !form.api_id || !form.api_hash} onClick={qrLogin}>{busy === "qr" ? "Чекаю, поки відскануєте код…" : "Увійти за QR-кодом"}</button>
+              <details className="tgr-alt">
+                <summary>Інший спосіб: код із повідомлення (Telegram доставляє його не завжди)</summary>
+                <div className="form-row"><label>Номер телефону акаунта</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+380…" inputMode="tel" autoComplete="off" /></div>
+                <button type="button" className="btn" disabled={!!busy || !form.api_id || !form.api_hash || !form.phone} onClick={() => account("start", form)}>{busy === "start" ? "Надсилаю код…" : "Отримати код"}</button>
+              </details>
             </>
           )}
           {acc.state === "code_sent" && (
             <div className="tgr-set__grid">
-              <div className="form-row"><label>Код із Telegram (прийде в цей акаунт повідомленням від «Telegram»)</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} inputMode="numeric" autoComplete="one-time-code" autoFocus /></div>
+              <p className="tgr-via">{VIA[acc.via] || "Telegram надіслав код входу: перевірте чат «Telegram» у застосунку цього акаунта (може бути в архіві) і SMS."}</p>
+              <div className="form-row"><label>Код (5 цифр)</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} inputMode="numeric" autoComplete="one-time-code" autoFocus /></div>
               <div className="tgr-acts">
                 <button type="button" className="btn" disabled={!!busy} onClick={() => account("logout")}>Почати заново</button>
+                <button type="button" className="btn" disabled={!!busy} onClick={() => account("resend")} title="Попросити Telegram надіслати код іншим способом">{busy === "resend" ? "Надсилаю…" : acc.next === "sms" ? "Надіслати SMS" : acc.next === "call" ? "Надіслати дзвінком" : "Надіслати ще раз інакше"}</button>
                 <button type="button" className="btn primary" disabled={!!busy || form.code.trim().length < 4} onClick={() => account("code", { code: form.code })}>{busy === "code" ? "Перевіряю…" : "Підтвердити"}</button>
               </div>
             </div>

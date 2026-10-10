@@ -47,9 +47,51 @@ export const closeClient = async (client) => { try { await client?.destroy(); } 
 export const saveSession = (client) => client.session.save();
 
 /* ---------- вхід в акаунт: три кроки, між ними сесія зберігається в базі ---------- */
+// куди Telegram надіслав код: у застосунок (чат «Telegram»), SMS, дзвінком, на пошту…
+const VIA = {
+  SentCodeTypeApp: "app", SentCodeTypeSms: "sms", SentCodeTypeFirebaseSms: "sms", SentCodeTypeCall: "call", SentCodeTypeFlashCall: "call",
+  SentCodeTypeMissedCall: "call", SentCodeTypeEmailCode: "email", SentCodeTypeSetUpEmailRequired: "email_setup", SentCodeTypeFragmentSms: "fragment",
+  CodeTypeSms: "sms", CodeTypeCall: "call", CodeTypeFlashCall: "call", CodeTypeMissedCall: "call", CodeTypeFragmentSms: "fragment",
+};
+const sent = (r) => ({ codeHash: r.phoneCodeHash, via: VIA[r.type?.className] || r.type?.className || "unknown", next: VIA[r.nextType?.className] || null });
+
 export async function loginStart(client, { apiId, apiHash, phone }) {
-  const r = await client.sendCode({ apiId: Number(apiId), apiHash: String(apiHash) }, phone);
-  return { codeHash: r.phoneCodeHash, viaApp: !!r.isCodeViaApp };
+  const req = () => client.invoke(new Api.auth.SendCode({ phoneNumber: phone, apiId: Number(apiId), apiHash: String(apiHash), settings: new Api.CodeSettings({}) }));
+  let r;
+  try { r = await req(); } catch (e) { if (errCode(e) !== "AUTH_RESTART") throw e; r = await req(); }
+  if (r instanceof Api.auth.SentCodeSuccess) return { done: true };
+  return sent(r);
+}
+// надіслати код ще раз — наступним способом (напр. SMS замість повідомлення в застосунку)
+export async function loginResend(client, { phone, codeHash }) {
+  const r = await client.invoke(new Api.auth.ResendCode({ phoneNumber: phone, phoneCodeHash: codeHash }));
+  if (r instanceof Api.auth.SentCodeSuccess) return { done: true };
+  return sent(r);
+}
+
+// Вхід за QR-кодом: показуємо код, людина сканує його в застосунку (Налаштування → Пристрої → Підключити пристрій).
+// Код живе ~30 с — оновлюємо, поки не відскановано або не вийшов час. → "ok" | "password" | "timeout"
+export async function loginQr(client, { apiId, apiHash }, onQr, deadline, stopped = () => false) {
+  let wake = null;
+  client.addEventHandler((u) => { if (u?.className === "UpdateLoginToken") wake?.(); });
+  try {
+    while (Date.now() < deadline && !stopped()) {
+      let r = await client.invoke(new Api.auth.ExportLoginToken({ apiId: Number(apiId), apiHash: String(apiHash), exceptIds: [] }));
+      if (r instanceof Api.auth.LoginTokenMigrateTo) {   // акаунт живе на іншому сервері Telegram
+        await client._switchDC(r.dcId);
+        r = await client.invoke(new Api.auth.ImportLoginToken({ token: r.token }));
+      }
+      if (r instanceof Api.auth.LoginTokenSuccess) return "ok";
+      await onQr("tg://login?token=" + Buffer.from(r.token).toString("base64url"));
+      const waitMs = Math.max(1000, Math.min(Number(r.expires) * 1000 - Date.now() - 2000, deadline - Date.now(), 25_000));
+      await new Promise((res) => { wake = res; setTimeout(res, waitMs); });
+      wake = null;
+    }
+    return "timeout";
+  } catch (e) {
+    if (errCode(e) === "SESSION_PASSWORD_NEEDED") return "password";
+    throw e;
+  }
 }
 // → "ok" | "password"
 export async function loginCode(client, { phone, codeHash, code }) {
