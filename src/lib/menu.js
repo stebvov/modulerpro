@@ -19,7 +19,7 @@ export const MENU = [
     key: "strategy", label: "🧭 Напрями і проєкти", need: "team",
     tabs: [{ id: "pult-dirs", label: "Напрями" }, { id: "pult-projects", label: "Проєкти та ідеї" }],
   },
-  { key: "marketing", label: "📣 Контент і маркетинг", need: "mp", tabs: [{ id: "marketing", label: "Контент і маркетинг" }, { id: "quizzes", label: "🧩 Квізи" }] },
+  { key: "marketing", label: "📣 Контент і маркетинг", need: "mp", tabs: [{ id: "marketing", label: "Контент і маркетинг" }, { id: "quizzes", label: "🧩 Квізи" }, { id: "tg-radar", label: "📡 Радар Telegram" }] },
   {
     key: "site", label: "🌐 Сайт", need: "any",
     tabs: [

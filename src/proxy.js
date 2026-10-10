@@ -63,7 +63,7 @@ export default async function proxy(request) {
   }
 
   // парсер цін: розклад приходить без сесії — доступ перевіряє сам маршрут
-  if (path.startsWith("/api/price-parser") || path.startsWith("/api/work-rates")) return NextResponse.next();
+  if (path.startsWith("/api/price-parser") || path.startsWith("/api/work-rates") || path.startsWith("/api/tg-radar")) return NextResponse.next();
 
   return updateSession(request);
 }

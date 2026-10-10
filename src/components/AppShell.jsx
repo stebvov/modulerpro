@@ -46,6 +46,7 @@ import IdeasScreen from "@/components/screens/IdeasScreen";
 import AssistantScreen from "@/components/screens/AssistantScreen";
 import KnowledgeScreen from "@/components/screens/KnowledgeScreen";
 import QuizzesScreen from "@/components/screens/QuizzesScreen";
+import TgRadarScreen from "@/components/screens/TgRadarScreen";
 import SitePagesScreen from "@/components/site-editor/SitePagesScreen";
 import SiteCollectionScreen from "@/components/site-editor/SiteCollectionScreen";
 import SiteSettingsScreen from "@/components/site-editor/SiteSettingsScreen";
@@ -84,6 +85,7 @@ const SCREENS = {
   assistant: () => <AssistantScreen />,
   kb: () => <KnowledgeScreen />,
   quizzes: () => <QuizzesScreen />,
+  "tg-radar": () => <TgRadarScreen />,
   "uk-crm": () => <CrmDataProvider><CrmScreen onlySlug="uk-owners" /></CrmDataProvider>,
   "uk-fin": () => <Ledger direction="service" />,
   "uk-mkt": () => <MarketingDataProvider><MarketingScreen direction="service" /></MarketingDataProvider>,

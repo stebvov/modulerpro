@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // бібліотека Telegram (радар) — серверна, зі своїми сокетами: не збираємо її в пакет, а беремо з node_modules
+  serverExternalPackages: ["telegram"],
   // Пульт задач — статичний застосунок у public/pult, живе за адресою /pult
   rewrites() {
     return [{ source: "/pult", destination: "/pult/index.html" }];

@@ -7,7 +7,7 @@ export const ACTIVITY_TYPES = [
   { key: "інше", icon: "•" },
 ];
 export const SERVICE_TYPES = ["монтаж", "доставка", "фундамент", "під_ключ"];
-export const LEAD_SOURCES = ["сайт", "реклама", "рекомендація", "вхідний_дзвінок"];
+export const LEAD_SOURCES = ["сайт", "реклама", "рекомендація", "вхідний_дзвінок", "telegram"];
 export const LEAD_STATUSES = ["новий", "кваліфікований", "відхилений"];
 
 // service_rate_cards has no rows for "під_ключ" and no is_average rows yet,
