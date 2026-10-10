@@ -26,6 +26,7 @@ export async function POST(request) {
         return Response.json({ groups: found.map(({ username, title, kind, members }) => ({ username, title, kind, members, added: added.has(username) })) });
       } catch (e) {
         const msg = tgError(e);
+        console.error("tg-radar groups", errCode(e) || e?.message || e);
         if (AUTH_LOST.has(errCode(e))) await setAccount(sb, { acc_state: "error", acc_error: msg });
         return Response.json({ error: msg }, { status: 400 });
       } finally {

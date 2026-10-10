@@ -91,6 +91,7 @@ export async function runRadar({ sb, trigger, deadline }) {
     }
   } catch (e) {
     fatal = tgError(e);
+    console.error("tg-radar run", errCode(e) || e?.message || e);
     if (AUTH_LOST.has(errCode(e))) await setAccount(sb, { acc_state: "error", acc_error: fatal });
   } finally {
     await closeClient(client);

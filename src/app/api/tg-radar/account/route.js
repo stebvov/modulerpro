@@ -63,6 +63,7 @@ export async function POST(request) {
         return bad("Невідома дія");
       } catch (e) {
         const msg = tgError(e);
+        console.error("tg-radar account", action, errCode(e) || e?.message || e);
         if (AUTH_LOST.has(errCode(e))) await setAccount(sb, { acc_state: "error", acc_error: msg });
         else if (action === "check") await setAccount(sb, { acc_error: msg });
         return bad(msg, errCode(e) ? 400 : 500);

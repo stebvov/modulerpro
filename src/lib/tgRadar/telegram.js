@@ -35,7 +35,9 @@ export function tgError(e) {
 
 export async function openClient({ session = "", apiId, apiHash }) {
   const client = new TelegramClient(new StringSession(session || ""), Number(apiId), String(apiHash), {
-    connectionRetries: 2, requestRetries: 1, floodSleepThreshold: 0, autoReconnect: false, baseLogger: new Logger("none"),
+    // requestRetries лишаємо типовим (5): на перший запит Telegram часто відповідає «номер живе на іншому сервері»,
+    // бібліотека перепідключається туди й повторює запит — з однією спробою вхід падав («Request was unsuccessful 1 time(s)»)
+    connectionRetries: 3, floodSleepThreshold: 0, baseLogger: new Logger("none"),
     deviceModel: "Moduler Radar", systemVersion: "server", appVersion: "1.0", langCode: "uk",
   });
   await client.connect();
