@@ -55,7 +55,7 @@ export const BLOCKS = {
     fields: [eyebrow, title, lead,
       { key: "kind", label: "Що показувати", type: "select", options: [["ready", "Готові моделі"], ["concept", "Індивідуальні проєкти (розробки)"], ["all", "Усе разом"]] },
       { key: "group", label: "Площа", type: "select", options: [["", "Усі"], ["1", "до 30 м²"], ["2", "30–50 м²"], ["3", "50–100 м²"], ["4", "100+ м²"]] },
-      { key: "filters", label: "Показати фільтр за площею", type: "bool" },
+      { key: "filters", label: "Показати фільтри: площа, ширина модуля, кількість модулів (у короткій стрічці — лише площа)", type: "bool" },
       { key: "limit", label: "Скільки показати (0 — усі)", type: "number" },
       cta("cta", "Кнопка під каталогом"),
     ],

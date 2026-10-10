@@ -19,6 +19,7 @@ export const MODEL_FIELDS = [
   { key: "object_type", label: "Тип обʼєкта", type: "text", synced: true },
   { key: "area_m2", label: "Площа, м²", type: "number", synced: true },
   { key: "modules", label: "Модулів", type: "number", synced: true },
+  { key: "module_dims", label: "Розміри модулів: ширина × довжина, м", type: "modsizes", hint: "за шириною й кількістю модулів працює фільтр каталогу на сайті" },
   { key: "bedrooms", label: "Спалень (0 — студія, порожньо — не показувати)", type: "number", synced: true },
   { key: "bathrooms", label: "Санвузлів", type: "number", synced: true },
   { key: "dimensions", label: "Габарити (ширина × довжина)", type: "text", synced: true },

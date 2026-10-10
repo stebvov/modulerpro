@@ -219,6 +219,33 @@ function MultiField({ f, value, onChange }) {
   );
 }
 
+// модулі моделі: ширина × довжина кожного, м. Поля без «контролю», щоб можна було набрати «3,2» (кома не зникає на півслові)
+function ModSizesField({ value, onChange, data }) {
+  const list = Array.isArray(value) ? value : [];
+  const parse = (t) => { const x = Number(String(t).replace(",", ".").replace(/[^\d.]/g, "")); return Number.isFinite(x) && x > 0 ? x : null; };
+  const show = (v) => (v == null ? "" : String(v).replace(".", ","));
+  const upd = (i, patch) => onChange(list.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+  const count = Number(data?.modules) || 0;
+  return (
+    <div className="se-terraces">
+      {list.map((d, i) => (
+        <div key={`${data?.id}-${i}-${list.length}`} className="se-terrace">
+          <span className="note">{i + 1}.</span>
+          <input inputMode="decimal" defaultValue={show(d.w)} placeholder="ширина" aria-label={`Модуль ${i + 1}: ширина, м`} onChange={(e) => upd(i, { w: parse(e.target.value) })} />
+          <span>×</span>
+          <input inputMode="decimal" defaultValue={show(d.l)} placeholder="довжина" aria-label={`Модуль ${i + 1}: довжина, м`} onChange={(e) => upd(i, { l: parse(e.target.value) })} />
+          <span>м</span>
+          <button type="button" className="btn small" title="Прибрати модуль" onClick={() => onChange(list.filter((_, j) => j !== i))}>✕</button>
+        </div>
+      ))}
+      <div className="se-terrace">
+        <button type="button" className="btn small" onClick={() => onChange([...list, list.length ? { ...list[list.length - 1] } : { w: 3, l: 6.5 }])}>+ Модуль</button>
+        {!!list.length && !!count && count !== list.length && <span className="note">У полі «Модулів» — {count}, а розмірів вказано {list.length}.</span>}
+      </div>
+    </div>
+  );
+}
+
 // тераси: назва, ширина × довжина (площа рахується), включена чи опція
 function TerracesField({ value, onChange }) {
   const list = Array.isArray(value) ? value : [];
@@ -301,6 +328,7 @@ function FieldInput({ f, value, onChange, data, onPatch }) {
     case "strings": return <StringsField f={f} value={value} onChange={onChange} />;
     case "template": return <TemplateField value={value} onChange={onChange} />;
     case "terraces": return <TerracesField value={value} onChange={onChange} />;
+    case "modsizes": return <ModSizesField value={value} onChange={onChange} data={data} />;
     case "group": {
       const v = value || {};
       return <div className="se-group">{f.fields.map((s) => <Field key={s.key} f={s} value={v[s.key]} onChange={(x) => onChange({ ...v, [s.key]: x })} />)}</div>;
