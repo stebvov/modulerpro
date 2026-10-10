@@ -8,7 +8,7 @@ import { imgProps, money, modelPriceFrom, num, paragraphs, rich, siteHref, youtu
 import { translateDeep } from "@/lib/site/i18n";
 import { siteRobots } from "@/components/site/CmsPage";
 import { CaseCard, ModelCard } from "@/components/site/Cards";
-import { moduleDimsText } from "@/lib/site/modules";
+import { moduleDims, moduleDimsText } from "@/lib/site/modules";
 import SiteRenderer, { Choice } from "@/components/site/SiteRenderer";
 import Gallery from "@/components/site/Gallery";
 import LeadForm from "@/components/site/LeadForm";
@@ -72,10 +72,14 @@ export default async function ModelPage({ params }) {
   const steps = homeBlocks.find((b) => b.type === "steps" && !b.hidden);
   const faq = homeBlocks.find((b) => b.type === "faq" && !b.hidden);
   const vid = youtubeId(m.video);
+  // дім із одного модуля: розмір модуля збігається з габаритами — двічі не показуємо
+  const dimNums = (String(m.dimensions || "").match(/\d+(?:[.,]\d+)?/g) || []).map((x) => Number(x.replace(",", "."))).sort((a, b) => a - b);
+  const mods = moduleDims(m);
+  const oneModuleHouse = mods.length === 1 && dimNums.length === 2 && dimNums[0] === Math.min(mods[0].w, mods[0].l || 0) && dimNums[1] === Math.max(mods[0].w, mods[0].l || 0);
   const facts = [
     m.area_m2 && [t("Площа"), `${num(Number(m.area_m2), lang)} ${m2}`],
     m.modules && [t("Модулів"), num(m.modules, lang)],
-    moduleDimsText(m) && [t("Розмір модуля"), moduleDimsText(m, (v) => num(v, lang), t("м"))],
+    moduleDimsText(m) && !oneModuleHouse && [t("Розмір модуля"), moduleDimsText(m, (v) => num(v, lang), t("м"))],
     m.bedrooms != null && [t("Спальні"), m.bedrooms ? String(m.bedrooms) : t("студія")],
     m.bathrooms != null && m.bathrooms > 0 && [t("Санвузли"), String(m.bathrooms)],
     m.dimensions && [t("Габарити"), m.dimensions],
